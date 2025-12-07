@@ -1,6 +1,6 @@
 # ===== Development Stage =====
 # Local development with hot reload and bind mounts
-FROM node:24-alpine AS development
+FROM node:24-alpine@sha256:682368d8253e0c3364b803956085c456a612d738bd635926d73fa24db3ce53d7 AS development
 
 WORKDIR /usr/src/app
 COPY backend/package*.json ./
@@ -15,7 +15,7 @@ CMD ["npm", "run", "start:dev"]
 
 # ===== Frontend Builder Stage =====
 # Build the Angular frontend
-FROM node:24-alpine AS frontend-builder
+FROM node:24-alpine@sha256:682368d8253e0c3364b803956085c456a612d738bd635926d73fa24db3ce53d7 AS frontend-builder
 
 WORKDIR /usr/src/frontend
 
@@ -27,7 +27,7 @@ RUN npm run build
 
 # ===== Backend Builder Stage =====
 # Install dependencies, build NestJS, and keep only prod deps
-FROM node:24-alpine AS backend-builder
+FROM node:24-alpine@sha256:682368d8253e0c3364b803956085c456a612d738bd635926d73fa24db3ce53d7 AS backend-builder
 
 WORKDIR /usr/src/app
 
