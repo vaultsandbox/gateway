@@ -41,7 +41,7 @@ RUN npm run build && npm prune --omit=dev && npm cache clean --force
 # Minimal runtime image with non-root user
 # Note: Pin to specific SHA in production for immutability
 # Get SHA with: docker pull node:24-alpine && docker inspect node:24-alpine | grep Id
-FROM node:24-alpine AS production
+FROM node:24-alpine@sha256:682368d8253e0c3364b803956085c456a612d738bd635926d73fa24db3ce53d7 AS production
 
 # OCI metadata labels
 LABEL org.opencontainers.image.title="VaultSandbox Gateway" \

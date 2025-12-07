@@ -88,6 +88,7 @@
     "typescript-eslint": "8.46.3"
   },
   "overrides": {
-    "rollup": "npm:@rollup/wasm-node"
+    "rollup": "npm:@rollup/wasm-node",
+    "tar": "7.5.2"
   }
 }

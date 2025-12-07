@@ -1,12 +1,12 @@
 #!/usr/bin/env node
 const fs = require('fs');
 const path = require('path');
-const { execSync } = require('child_process');
+const libCoverage = require('istanbul-lib-coverage');
+const libReport = require('istanbul-lib-report');
+const reports = require('istanbul-reports');
 
 const projectRoot = path.resolve(__dirname, '..');
-const nycTempDir = path.join(projectRoot, '.nyc_output_merge');
 const outputDir = path.join(projectRoot, 'coverage-merged');
-const mergedFile = path.join(nycTempDir, 'merged-coverage.json');
 
 const coverageSources = [
   {
@@ -24,15 +24,11 @@ function ensureDir(dirPath) {
   fs.mkdirSync(dirPath, { recursive: true });
 }
 
-function runCommand(command) {
-  execSync(command, {
-    cwd: projectRoot,
-    stdio: 'inherit',
-    env: process.env
-  });
-}
+function main() {
+  ensureDir(outputDir);
 
-function copyCoverageFiles() {
+  const coverageMap = libCoverage.createCoverageMap({});
+
   const available = coverageSources.filter(source => fs.existsSync(source.path));
 
   if (available.length === 0) {
@@ -43,33 +39,21 @@ function copyCoverageFiles() {
   }
 
   available.forEach(source => {
-    const destination = path.join(nycTempDir, `from-${source.name}.json`);
-    fs.copyFileSync(source.path, destination);
-    console.log(`• Copied ${source.name} coverage -> ${destination}`);
+    const coverage = JSON.parse(fs.readFileSync(source.path, 'utf8'));
+    coverageMap.merge(coverage);
+    console.log(`• Merged ${source.name} coverage from ${source.path}`);
   });
-}
 
-function main() {
-  ensureDir(nycTempDir);
-  ensureDir(outputDir);
+  const context = libReport.createContext({
+    dir: outputDir,
+    coverageMap
+  });
 
-  copyCoverageFiles();
+  console.log('\nGenerating reports...');
 
-  console.log('\nMerging coverage JSON...');
-  runCommand(`npx nyc merge "${nycTempDir}" "${mergedFile}"`);
-
-  console.log('Generating reports...');
-  runCommand(
-    [
-      'npx nyc report',
-      `--temp-dir="${nycTempDir}"`,
-      `--report-dir="${outputDir}"`,
-      '--reporter=html',
-      '--reporter=text-summary',
-      '--reporter=lcov',
-      '--reporter=json-summary'
-    ].join(' ')
-  );
+  ['html', 'text-summary', 'lcov', 'json-summary'].forEach(reporter => {
+    reports.create(reporter).execute(context);
+  });
 
   console.log(`\n✓ Combined coverage report available at ${path.join(outputDir, 'index.html')}`);
 }
