@@ -1,0 +1,192 @@
+name: Build and Publish Docker Image
+
+# =============================================================================
+# TEST MODE CONFIGURATION
+# =============================================================================
+# Set TEST_MODE to 'false' when ready to push to Docker Hub
+# When TEST_MODE is 'true':
+#   - Docker images will be built but NOT pushed to Docker Hub
+#   - Workflow will run to validate builds work correctly
+#   - No credentials needed yet
+#
+# To enable Docker Hub publishing:
+#   1. Set TEST_MODE to 'false' below
+#   2. Add GitHub Secrets (Settings → Secrets → Actions):
+#      - DOCKERHUB_USERNAME: your Docker Hub username
+#      - DOCKERHUB_TOKEN: Docker Hub access token (with Read & Write permissions)
+#   3. Push changes and create a version tag (e.g., v1.0.0)
+# =============================================================================
+
+env:
+  TEST_MODE: 'false'  # Change to 'false' to enable Docker Hub publishing
+  REGISTRY_IMAGE: vaultsandbox/gateway
+
+on:
+  push:
+    tags:
+      - 'v*.*.*'  # Triggers on version tags like v1.0.0, v1.2.3, etc.
+
+  # Allow manual workflow runs for testing
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write  # Needed for GHCR cache
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up QEMU
+        uses: docker/setup-qemu-action@v3
+        with:
+          platforms: linux/amd64,linux/arm64
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      # Login to Docker Hub (only if not in test mode and secrets are available)
+      - name: Log in to Docker Hub
+        if: env.TEST_MODE == 'false' && github.event_name == 'push' && startsWith(github.ref, 'refs/tags/')
+        uses: docker/login-action@v3
+        with:
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
+
+      # Login to GitHub Container Registry (for build cache)
+      - name: Log in to GitHub Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      # Extract metadata (tags, labels) for Docker
+      - name: Extract Docker metadata
+        id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: |
+            ${{ env.REGISTRY_IMAGE }}
+            ghcr.io/${{ github.repository }}
+          tags: |
+            # For version tags (v1.2.3), create:
+            # - 1.2.3 (full version)
+            # - 1.2 (minor version)
+            # - 1 (major version)
+            # - latest (always points to newest)
+            type=semver,pattern={{version}}
+            type=semver,pattern={{major}}.{{minor}}
+            type=semver,pattern={{major}}
+            type=semver,pattern=latest
+            # For branch pushes, create:
+            # - main (or branch name)
+            # - sha-<git-sha> (for traceability)
+            type=ref,event=branch
+            type=sha,event=branch,prefix=sha-
+          labels: |
+            org.opencontainers.image.title=VaultSandbox Gateway
+            org.opencontainers.image.description=Secure receive-only SMTP server with automatic TLS certificate management
+            org.opencontainers.image.vendor=VaultSandbox
+            org.opencontainers.image.licenses=AGPL-3.0-or-later
+
+      # Determine if we should push to registry
+      - name: Determine push behavior
+        id: push-check
+        run: |
+          if [[ "${{ env.TEST_MODE }}" == "true" ]]; then
+            echo "should_push=false" >> $GITHUB_OUTPUT
+            echo "::notice::TEST_MODE is enabled - builds will NOT be pushed to Docker Hub"
+          elif [[ "${{ github.event_name }}" == "push" ]] && [[ "${{ github.ref }}" == refs/tags/v* ]]; then
+            echo "should_push=true" >> $GITHUB_OUTPUT
+            echo "::notice::Version tag detected - will push to Docker Hub"
+          else
+            echo "should_push=false" >> $GITHUB_OUTPUT
+            echo "::notice::Building for validation only (not a version tag)"
+          fi
+
+      # Build and optionally push Docker image
+      - name: Build and push Docker image
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          platforms: linux/amd64,linux/arm64
+          target: production
+          push: ${{ steps.push-check.outputs.should_push }}
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          cache-from: type=registry,ref=ghcr.io/${{ github.repository }}:buildcache
+          cache-to: type=registry,ref=ghcr.io/${{ github.repository }}:buildcache,mode=max
+          build-args: |
+            BUILD_DATE=${{ github.event.head_commit.timestamp }}
+            VCS_REF=${{ github.sha }}
+            VERSION=${{ github.ref_name }}
+
+      # Summary output
+      - name: Build summary
+        run: |
+          echo "## Build Summary" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "- **Test Mode**: ${{ env.TEST_MODE }}" >> $GITHUB_STEP_SUMMARY
+          echo "- **Event**: ${{ github.event_name }}" >> $GITHUB_STEP_SUMMARY
+          echo "- **Ref**: ${{ github.ref }}" >> $GITHUB_STEP_SUMMARY
+          echo "- **Pushed to Registry**: ${{ steps.push-check.outputs.should_push }}" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          if [[ "${{ env.TEST_MODE }}" == "true" ]]; then
+            echo "### ⚠️ Test Mode Active" >> $GITHUB_STEP_SUMMARY
+            echo "Images were built but NOT pushed to Docker Hub." >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "To enable Docker Hub publishing:" >> $GITHUB_STEP_SUMMARY
+            echo "1. Set \`TEST_MODE: 'false'\` in the workflow file" >> $GITHUB_STEP_SUMMARY
+            echo "2. Add DOCKERHUB_USERNAME and DOCKERHUB_TOKEN secrets" >> $GITHUB_STEP_SUMMARY
+            echo "3. Create and push a version tag (e.g., v1.0.0)" >> $GITHUB_STEP_SUMMARY
+          fi
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "### Tags Generated" >> $GITHUB_STEP_SUMMARY
+          echo '```' >> $GITHUB_STEP_SUMMARY
+          echo "${{ steps.meta.outputs.tags }}" >> $GITHUB_STEP_SUMMARY
+          echo '```' >> $GITHUB_STEP_SUMMARY
+
+      # Optional: Run container tests
+      - name: Test Docker image
+        if: steps.push-check.outputs.should_push == 'false'
+        run: |
+          echo "Running basic container tests..."
+          # Build a local test image
+          docker build --target production -t test-image .
+
+          # Test that the image starts and health check passes with minimal config
+          docker run -d --name test-container -p 8080:80 \
+            -e VSB_GATEWAY_MODE=local \
+            -e VSB_LOCAL_API_KEY=vsb-ci-test-key-12345678901234567890 \
+            -e VSB_SMTP_ALLOWED_RECIPIENT_DOMAINS=test.example.com \
+            -e VSB_SMTP_SECURE=false \
+            -e VSB_CERT_ENABLED=false \
+            -e VSB_ORCHESTRATION_ENABLED=false \
+            test-image
+          sleep 15
+
+          # Check if container is still running
+          if docker ps | grep test-container; then
+            echo "✅ Container started successfully"
+          else
+            echo "❌ Container failed to start"
+            docker logs test-container
+            exit 1
+          fi
+
+          # Check health endpoint
+          if curl -f http://localhost:8080/health; then
+            echo "✅ Health check passed"
+          else
+            echo "❌ Health check failed"
+            docker logs test-container
+            exit 1
+          fi
+
+          # Cleanup
+          docker stop test-container
+          docker rm test-container

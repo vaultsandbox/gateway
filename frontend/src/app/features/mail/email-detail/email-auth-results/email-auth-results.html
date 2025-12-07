@@ -1,0 +1,134 @@
+<div class="p-4 space-y-4">
+  @if (!authResults) {
+    <div class="text-center py-8 text-surface-400">
+      <i class="pi pi-info-circle text-3xl mb-3 block"></i>
+      <p>Authentication results not available for this email</p>
+    </div>
+  } @else {
+    @if (authResults.spf) {
+      <p-card>
+        <ng-template pTemplate="header">
+          <div class="px-4 pt-4 pb-2 flex items-center justify-between">
+            <div class="flex items-center gap-2">
+              <i class="pi pi-shield text-lg"></i>
+              <span class="font-semibold">SPF (Sender Policy Framework)</span>
+            </div>
+            <span class="px-3 py-1 rounded text-sm font-semibold" [ngClass]="getResultClass(authResults.spf.result)">
+              {{ authResults.spf.result.toUpperCase() }}
+            </span>
+          </div>
+        </ng-template>
+        <div class="space-y-2 text-sm">
+          <div class="flex gap-2">
+            <span class="text-surface-500 dark:text-surface-400 font-semibold min-w-[80px]">Domain:</span>
+            <span class="text-surface-900 dark:text-surface-100 font-mono">{{ authResults.spf.domain }}</span>
+          </div>
+          @if (authResults.spf.details) {
+            <div class="flex gap-2">
+              <span class="text-surface-500 dark:text-surface-400 font-semibold min-w-[80px]">Details:</span>
+              <span class="text-surface-700 dark:text-surface-300">{{ authResults.spf.details }}</span>
+            </div>
+          }
+        </div>
+      </p-card>
+    }
+
+    @if (authResults.dkim && authResults.dkim.length > 0) {
+      <p-card>
+        <ng-template pTemplate="header">
+          <div class="px-4 pt-4 pb-2 flex items-center gap-2">
+            <i class="pi pi-key text-lg"></i>
+            <span class="font-semibold">DKIM (DomainKeys Identified Mail)</span>
+          </div>
+        </ng-template>
+        <div class="space-y-3">
+          @for (dkim of authResults.dkim; track $index) {
+            <div class="border border-surface-200 dark:border-surface-700 rounded p-3 space-y-2">
+              <div class="flex items-center justify-between">
+                <span class="font-semibold text-surface-900 dark:text-surface-100"> Signature {{ $index + 1 }} </span>
+                <span class="px-3 py-1 rounded text-sm font-semibold" [ngClass]="getResultClass(dkim.result)">
+                  {{ dkim.result.toUpperCase() }}
+                </span>
+              </div>
+              <div class="text-sm space-y-1">
+                <div class="flex gap-2">
+                  <span class="text-surface-500 dark:text-surface-400 font-semibold min-w-[80px]">Domain:</span>
+                  <span class="text-surface-900 dark:text-surface-100 font-mono">{{ dkim.domain }}</span>
+                </div>
+                <div class="flex gap-2">
+                  <span class="text-surface-500 dark:text-surface-400 font-semibold min-w-[80px]">Selector:</span>
+                  <span class="text-surface-700 dark:text-surface-300 font-mono">{{ dkim.selector }}</span>
+                </div>
+              </div>
+            </div>
+          }
+        </div>
+      </p-card>
+    }
+
+    @if (authResults.dmarc) {
+      <p-card>
+        <ng-template pTemplate="header">
+          <div class="px-4 pt-4 pb-2 flex items-center justify-between">
+            <div class="flex items-center gap-2">
+              <i class="pi pi-check-circle text-lg"></i>
+              <span class="font-semibold">DMARC (Domain-based Message Authentication)</span>
+            </div>
+            <span class="px-3 py-1 rounded text-sm font-semibold" [ngClass]="getResultClass(authResults.dmarc.result)">
+              {{ authResults.dmarc.result.toUpperCase() }}
+            </span>
+          </div>
+        </ng-template>
+        <div class="space-y-2 text-sm">
+          <div class="flex gap-2">
+            <span class="text-surface-500 dark:text-surface-400 font-semibold min-w-[80px]">Domain:</span>
+            <span class="text-surface-900 dark:text-surface-100 font-mono">{{ authResults.dmarc.domain }}</span>
+          </div>
+          <div class="flex gap-2">
+            <span class="text-surface-500 dark:text-surface-400 font-semibold min-w-[80px]">Policy:</span>
+            <span class="text-surface-700 dark:text-surface-300">{{ authResults.dmarc.policy }}</span>
+          </div>
+          <div class="flex gap-2">
+            <span class="text-surface-500 dark:text-surface-400 font-semibold min-w-[80px]">Aligned:</span>
+            <span [ngClass]="authResults.dmarc.aligned ? 'text-green-600' : 'text-red-600'">
+              {{ authResults.dmarc.aligned ? 'Yes' : 'No' }}
+            </span>
+          </div>
+        </div>
+      </p-card>
+    }
+
+    @if (authResults.reverseDns) {
+      <p-card>
+        <ng-template pTemplate="header">
+          <div class="px-4 pt-4 pb-2 flex items-center justify-between">
+            <div class="flex items-center gap-2">
+              <i class="pi pi-sitemap text-lg"></i>
+              <span class="font-semibold">Reverse DNS (PTR Record)</span>
+            </div>
+            <span
+              class="px-3 py-1 rounded text-sm font-semibold"
+              [ngClass]="
+                authResults.reverseDns.verified
+                  ? 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200'
+                  : 'bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200'
+              "
+            >
+              {{ authResults.reverseDns.verified ? 'VERIFIED' : 'FAILED' }}
+            </span>
+          </div>
+        </ng-template>
+        <div class="space-y-2 text-sm">
+          <div class="flex gap-2">
+            <span class="text-surface-500 dark:text-surface-400 font-semibold min-w-[80px]">IP Address:</span>
+            <span class="text-surface-900 dark:text-surface-100 font-mono">{{ authResults.reverseDns.ip }}</span>
+          </div>
+          <div class="flex gap-2">
+            <span class="text-surface-500 dark:text-surface-400 font-semibold min-w-[80px]">Hostname:</span>
+            <span class="text-surface-700 dark:text-surface-300 font-mono">{{ authResults.reverseDns.hostname }}</span>
+          </div>
+        </div>
+      </p-card>
+    }
+  }
+</div>

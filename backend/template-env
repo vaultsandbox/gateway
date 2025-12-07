@@ -1,0 +1,74 @@
+# ============================================================================
+# MINIMAL REQUIRED CONFIGURATION
+# ============================================================================
+# These are the only variables you MUST set to get started
+
+# SMTP: Domains to accept emails for (comma-separated, no spaces around commas)
+# Example: domain1.com,domain2.com,domain3.com
+VSB_SMTP_ALLOWED_RECIPIENT_DOMAINS=qa.mydomain.com
+
+# TLS: Enable automatic Let's Encrypt certificates
+VSB_CERT_ENABLED=true
+VSB_CERT_EMAIL=hello@mydomain.com
+
+# ============================================================================
+# GATEWAY MODE CONFIGURATION
+# ============================================================================
+# Gateway operational mode:
+# - "local": Store emails in-memory with TTL (default, suitable for QA/testing)
+# - "backend": Encrypt and forward to backend service for compliance/retention
+# VSB_GATEWAY_MODE=local
+
+# Local Mode Settings (only used when VSB_GATEWAY_MODE=local)
+# API key is auto-generated on first run and persisted to ${VSB_DATA_PATH}/.api-key
+# For security, the key is NOT logged - retrieve it with: cat ${VSB_DATA_PATH}/.api-key
+# Set VSB_LOCAL_API_KEY explicitly for production or CI/CD environments
+# VSB_LOCAL_API_KEY=
+# VSB_LOCAL_API_KEY_STRICT=false  # Require explicit API key, disable auto-generation
+# VSB_LOCAL_INBOX_DEFAULT_TTL=3600  # Default inbox TTL in seconds (default: 1 hour)
+# VSB_LOCAL_INBOX_MAX_TTL=604800    # Maximum inbox TTL in seconds (default: 7 days)
+# VSB_LOCAL_CLEANUP_INTERVAL=300    # Cleanup job interval in seconds (default: 5 minutes)
+# VSB_INBOX_ALIAS_RANDOM_BYTES=4    # Bytes of randomness for generated inbox aliases (min: 4, max: 32)
+
+# ============================================================================
+# SMTP SERVER CONFIGURATION
+# ============================================================================
+# VSB_SMTP_HOST=0.0.0.0              # Bind address (default: 0.0.0.0)
+# VSB_SMTP_PORT=25                   # SMTP port (default: 25)
+# VSB_SMTP_MAX_MESSAGE_SIZE=10485760 # Max message size in bytes (default: 10MB)
+# VSB_SMTP_MAX_HEADER_SIZE=65536     # Max header block size in bytes (default: 64KB)
+# VSB_SMTP_SESSION_TIMEOUT=300000    # Session timeout in ms (default: 5 minutes)
+
+# ============================================================================
+# TLS CERTIFICATE CONFIGURATION
+# ============================================================================
+# OPTION 1 (RECOMMENDED): Automatic Certificate Management
+# - Certificates obtained automatically from Let's Encrypt
+# - Auto-renewal 30 days before expiry
+# - Hot reload without downtime
+#
+# VSB_CERT_ENABLED=true  # Already set in MINIMAL CONFIGURATION above
+# VSB_CERT_EMAIL=...     # Already set in MINIMAL CONFIGURATION above
+# VSB_CERT_DOMAIN=qa.mydomain.com  # Optional: defaults to first domain in VSB_SMTP_ALLOWED_RECIPIENT_DOMAINS
+# VSB_CERT_STAGING=false  # Set to true for testing with Let's Encrypt staging
+
+# OPTION 2: Manual Certificate Management
+# Uncomment these lines and set VSB_CERT_ENABLED=false to use manual certificates:
+# VSB_CERT_ENABLED=false
+# VSB_SMTP_TLS_CERT_PATH=/path/to/fullchain.pem
+# VSB_SMTP_TLS_KEY_PATH=/path/to/key.pem
+
+# ============================================================================
+# HTTP/HTTPS SERVER CONFIGURATION
+# ============================================================================
+# VSB_SERVER_PORT=80                 # HTTP port (default: 80, required for ACME validation)
+# VSB_SERVER_HTTPS_ENABLED=true      # Enable HTTPS server (default: true)
+# VSB_SERVER_HTTPS_PORT=443          # HTTPS port (default: 443)
+# VSB_SERVER_ORIGIN=*                # CORS origin (default: *, allows all for testing)
+
+# ============================================================================
+# ADVANCED CONFIGURATION
+# ============================================================================
+# NODE_ENV=production                # Environment (default: production)
+# VSB_DATA_PATH=/app/data            # Data directory (default: /app/data for Docker)
+#                                    # Only set if running outside Docker

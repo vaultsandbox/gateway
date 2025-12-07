@@ -1,0 +1,7 @@
+.inbox-ripple {
+  --p-ripple-background: var(--p-primary-color);
+}
+
+:host ::ng-deep .danger-icon {
+  color: var(--p-red-500);
+}

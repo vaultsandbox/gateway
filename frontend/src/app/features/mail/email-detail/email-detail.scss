@@ -1,0 +1,42 @@
+.email-detail-container {
+  .email-tabs {
+    min-width: 0;
+    width: 100%;
+    max-width: 100%;
+  }
+
+  @media (max-width: 639px) {
+    .email-tabs {
+      max-width: calc(100vw - 2rem); // match px-4 horizontal padding on the parent
+    }
+  }
+
+  .email-html-frame {
+    color-scheme: light; // keep rendered email in light mode regardless of app theme
+    overflow: hidden;
+
+    .email-html-content {
+      color: inherit;
+    }
+  }
+
+  .email-body {
+    word-wrap: break-word;
+    overflow-wrap: break-word;
+
+    // Style email content
+    p {
+      margin-bottom: 1rem;
+    }
+
+    a {
+      color: var(--primary-color);
+      text-decoration: underline;
+    }
+
+    img {
+      max-width: 100%;
+      height: auto;
+    }
+  }
+}

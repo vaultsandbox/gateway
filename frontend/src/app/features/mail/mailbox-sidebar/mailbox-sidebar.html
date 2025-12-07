@@ -1,0 +1,71 @@
+<div class="flex flex-col h-full">
+  <p-contextMenu #cm [model]="menuItems"></p-contextMenu>
+
+  <div class="ml-4.5 mt-2.5 mb-4 flex items-center gap-4">
+    <div style="max-width: 240px">
+      <app-vs-logo [orientation]="'horizontal'"></app-vs-logo>
+    </div>
+  </div>
+  <div class="overflow-y-auto flex-1 p-2 flex flex-col gap-4">
+    <ul class="list-none m-0 overflow-hidden flex flex-col gap-1">
+      @for (inbox of mailManager.inboxes; track inbox.inboxHash) {
+        <li>
+          <button
+            type="button"
+            (click)="onInboxClick(inbox.inboxHash)"
+            (contextmenu)="onInboxRightClick($event, inbox)"
+            [class]="
+              mailManager.selectedInbox()?.inboxHash === inbox.inboxHash
+                ? 'flex w-full items-center cursor-pointer inbox-ripple p-3 gap-2 rounded-lg bg-primary-50 dark:bg-primary-900/20 text-primary-700 dark:text-primary-300 transition-colors duration-150'
+                : 'flex w-full items-center cursor-pointer inbox-ripple p-3 gap-2 rounded-lg text-surface-700 dark:text-surface-200 hover:bg-surface-50 dark:hover:bg-surface-800 transition-colors duration-150 hover:text-surface-900 dark:hover:text-surface-50'
+            "
+            pRipple
+          >
+            <i
+              [class]="
+                mailManager.selectedInbox()?.inboxHash === inbox.inboxHash
+                  ? 'pi pi-inbox text-base! leading-none! text-primary-600 dark:text-primary-400'
+                  : 'pi pi-inbox text-base! leading-none! text-surface-500 dark:text-surface-400'
+              "
+            ></i>
+            <span
+              class="font-medium text-base text-left leading-tight flex-1 truncate min-w-0"
+              [title]="inbox.emailAddress"
+              >{{ inbox.emailAddress }}</span
+            >
+            @if (getUnreadCount(inbox.inboxHash) > 0) {
+              <p-badge [value]="getUnreadCount(inbox.inboxHash).toString()" severity="info"></p-badge>
+            }
+          </button>
+        </li>
+      }
+    </ul>
+  </div>
+
+  <div class="p-2 mt-auto border-surface-200 dark:border-surface-800 border-t flex gap-2">
+    <button
+      pButton
+      class="flex-1 w-full"
+      severity="primary"
+      (click)="createMailbox()"
+      [loading]="creatingMailbox()"
+      [disabled]="creatingMailbox()"
+    >
+      <span pButtonLabel>Create Inbox</span>
+    </button>
+    <button
+      pButton
+      type="button"
+      icon="pi pi-cog"
+      (click)="showCustomInboxDialog.set(true)"
+      [disabled]="creatingMailbox()"
+      severity="secondary"
+      [text]="true"
+    >
+      <span class="sr-only">Open custom inbox settings</span>
+    </button>
+  </div>
+
+  <!-- Custom Inbox Dialog -->
+  <app-custom-inbox-dialog [(visible)]="showCustomInboxDialog"></app-custom-inbox-dialog>
+</div>

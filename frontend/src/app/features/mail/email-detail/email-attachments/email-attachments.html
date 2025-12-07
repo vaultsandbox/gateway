@@ -1,0 +1,46 @@
+<div class="p-4">
+  <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+    @for (attachment of attachments; track attachment.filename) {
+      <p-card styleClass="h-full">
+        <div class="flex flex-col h-full">
+          <div class="flex items-start gap-3 mb-3">
+            <i [class]="'text-3xl ' + getFileIcon(attachment.contentType)"></i>
+            <div class="flex-1 min-w-0">
+              <p class="font-semibold text-surface-900 dark:text-surface-100 break-all text-sm">
+                {{ attachment.filename }}
+              </p>
+              <p class="text-xs text-surface-500 dark:text-surface-400 mt-1">
+                {{ formatFileSize(attachment.size) }}
+              </p>
+            </div>
+          </div>
+
+          <div class="mb-3 space-y-1 text-xs flex-1">
+            <div class="flex gap-2">
+              <span class="text-surface-500 dark:text-surface-400">Type:</span>
+              <span class="text-surface-700 dark:text-surface-300 font-mono">{{ attachment.contentType }}</span>
+            </div>
+            @if (attachment.contentId) {
+              <div class="flex gap-2 items-center">
+                <span class="text-surface-500 dark:text-surface-400">Status:</span>
+                <span class="px-2 py-0.5 bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200 rounded text-xs">
+                  Inline
+                </span>
+              </div>
+            }
+          </div>
+
+          <p-button
+            icon="pi pi-download"
+            label="Download"
+            severity="secondary"
+            [outlined]="true"
+            size="small"
+            styleClass="w-full"
+            (onClick)="downloadAttachment(attachment)"
+          />
+        </div>
+      </p-card>
+    }
+  </div>
+</div>

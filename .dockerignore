@@ -1,0 +1,50 @@
+# Git
+.git
+.gitignore
+
+# IDE
+.idea
+.vscode
+
+# Node
+**/node_modules
+npm-debug.log
+
+# Build artifacts (will be built in Docker)
+backend/dist
+frontend/dist
+frontend/.angular
+
+# Test files (not needed in production image)
+**/coverage
+**/*.spec.ts
+**/*.test.ts
+
+# Environment files (secrets - never include in image)
+**/.env
+**/.env.*
+**/.env.local
+**/.env.production
+**/data
+**/.api-key
+
+# Documentation (reduces image size)
+**/README.md
+**/CLAUDE.md
+**/docs
+**/LICENSE
+
+# CI/CD configurations
+.github
+.gitlab-ci.yml
+.circleci
+
+# Docker files (not needed inside image)
+Dockerfile*
+docker-compose*.yml
+.dockerignore
+
+# Logs and temporary files
+**/*.log
+**/tmp
+**/.cache

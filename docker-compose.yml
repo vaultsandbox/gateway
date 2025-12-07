@@ -1,0 +1,26 @@
+services:
+  gateway:
+    image: vaultsandbox/gateway:0.5.0
+    container_name: vaultsandbox-gateway
+    restart: unless-stopped
+
+    ports:
+      - "25:25"     # SMTP
+      - "80:80"     # HTTP (ACME challenges)
+      - "443:443"   # HTTPS (Web UI + API)
+
+    environment:
+      VSB_SMTP_ALLOWED_RECIPIENT_DOMAINS: "qa.mydomain.com"
+      VSB_CERT_ENABLED: "true"
+      VSB_CERT_EMAIL: "qa@mydomain.com"
+    volumes:
+      - gateway-data:/app/data  # Persist certificates and API key
+      
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+volumes:
+  gateway-data:

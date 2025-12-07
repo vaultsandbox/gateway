@@ -1,0 +1,90 @@
+<div class="email-list-container h-full flex flex-col">
+  @if (emails.length === 0) {
+    <!-- Empty state -->
+    <div class="flex flex-col items-center justify-center h-full text-surface-400 gap-4">
+      <i class="pi pi-inbox text-6xl"></i>
+      <div class="text-center">
+        <p class="text-xl font-semibold mb-2">No emails yet</p>
+        <p class="text-sm">Send an email to this inbox to get started</p>
+      </div>
+    </div>
+  } @else {
+    <!-- Email list -->
+    <div class="flex-1 overflow-auto">
+      <div>
+        @for (email of emails; track email.id) {
+          <article
+            [class]="
+              'email-item p-4 pl-3 cursor-pointer hover:bg-surface-50 dark:hover:bg-surface-800 transition-colors border-l-4 border-b ' +
+              (email.isRead ? 'email-item--read' : 'email-item--unread bg-primary-50/30 dark:bg-primary-900/10')
+            "
+            (click)="onEmailClick(email.id)"
+            (keydown.enter)="onEmailClick(email.id)"
+            (keydown.space)="onEmailClick(email.id)"
+            role="button"
+            tabindex="0"
+          >
+            <div class="flex items-start gap-3">
+              <!-- Email icon -->
+              <div class="flex-shrink-0 mt-1">
+                <i
+                  [class]="
+                    email.isRead
+                      ? 'pi pi-envelope text-surface-400 text-xl'
+                      : 'pi pi-envelope text-primary-500 text-xl font-bold'
+                  "
+                ></i>
+              </div>
+
+              <!-- Email content -->
+              <div class="flex-1 min-w-0">
+                <!-- From and date row -->
+                <div class="flex items-center justify-between gap-2 mb-1">
+                  <span
+                    [class]="
+                      email.isRead
+                        ? 'font-semibold text-surface-900 dark:text-surface-100 truncate'
+                        : 'font-bold text-surface-900 dark:text-surface-100 truncate'
+                    "
+                  >
+                    {{ email.decryptedMetadata?.from || 'Unknown Sender' }}
+                  </span>
+                  <div class="flex items-center gap-3 flex-shrink-0">
+                    <span class="text-sm text-surface-500 dark:text-surface-400">
+                      {{ dateFormatter.format(email.decryptedMetadata?.receivedAt || '', 'friendly') }}
+                    </span>
+                    <button
+                      pButton
+                      type="button"
+                      icon="pi pi-trash"
+                      class="p-button-text p-button-rounded p-button-sm text-surface-500 hover:text-red-500"
+                      aria-label="Delete email"
+                      (click)="onDeleteClick($event, email)"
+                    ></button>
+                    <i class="pi pi-chevron-right text-surface-400"></i>
+                  </div>
+                </div>
+
+                <!-- Subject -->
+                <div
+                  [class]="
+                    email.isRead
+                      ? 'text-surface-900 dark:text-surface-100 font-medium mb-1 truncate'
+                      : 'text-surface-900 dark:text-surface-100 font-bold mb-1 truncate'
+                  "
+                >
+                  {{ email.decryptedMetadata?.subject || '(no subject)' }}
+                </div>
+
+                <!-- To address (smaller) -->
+                <div class="text-sm text-surface-500 dark:text-surface-400 truncate">
+                  To: {{ email.decryptedMetadata?.to || '' }}
+                </div>
+              </div>
+            </div>
+          </article>
+        }
+      </div>
+    </div>
+  }
+</div>

@@ -1,0 +1,15 @@
+{
+    "cSpell.words": [
+        "dmarc",
+        "Mailauth",
+        "mailparser",
+        "NXDOMAIN",
+        "permerror",
+        "softfail",
+        "temperror",
+        "vaultsandbox",
+        "VaultSandbox",
+        "VAULTSANDBOX"
+    ],
+    "git.openRepositoryInParentFolders": "always"
+}

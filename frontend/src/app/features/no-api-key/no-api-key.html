@@ -1,0 +1,36 @@
+<div class="bg-surface-50 dark:bg-surface-950 px-6 py-20 md:px-20 lg:px-80 min-h-screen flex items-center">
+  <div
+    class="bg-surface-0 dark:bg-surface-900 p-8 md:p-12 shadow-sm rounded-2xl w-full max-w-md mx-auto flex flex-col gap-8"
+  >
+    <div class="flex flex-col items-center gap-4">
+      <div class="flex items-center gap-4">
+        <app-vs-logo></app-vs-logo>
+      </div>
+    </div>
+    <div class="flex flex-col gap-6 w-full">
+      <div class="flex flex-col gap-2 w-full">
+        <input
+          pInputText
+          id="apiKey"
+          type="password"
+          [placeholder]="MESSAGES.PLACEHOLDER"
+          [ngModel]="apiKeyInput()"
+          (ngModelChange)="apiKeyInput.set($event)"
+          (keyup.enter)="saveApiKey()"
+          class="w-full px-3 py-2 shadow-sm rounded-lg"
+        />
+      </div>
+    </div>
+    <button
+      pButton
+      [label]="MESSAGES.BUTTON_LABEL"
+      [loading]="loading()"
+      [disabled]="!apiKeyInput().trim()"
+      (click)="saveApiKey()"
+      class="w-full py-2 rounded-lg flex justify-center items-center gap-2"
+    >
+      <i pButtonIcon class="pi pi-check text-base! leading-normal!"></i>
+      <span pButtonLabel>{{ MESSAGES.BUTTON_LABEL }}</span>
+    </button>
+  </div>
+</div>

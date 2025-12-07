@@ -1,0 +1,30 @@
+.email-list-container {
+  .email-item {
+    border-bottom: 1px solid var(--p-surface-200, #e5e7eb);
+    border-left: 4px solid transparent;
+
+    &--unread {
+      border-left-color: var(--p-primary-500, #3b82f6);
+    }
+
+    &--read {
+      border-left-color: transparent;
+    }
+
+    &:last-child {
+      border-bottom: 1px solid var(--p-surface-200, #e5e7eb);
+    }
+
+    :host-context(.vs-app-dark) & {
+      border-bottom-color: var(--p-surface-800, #1f2937);
+
+      &--unread {
+        border-left-color: var(--p-primary-400, #60a5fa);
+      }
+    }
+
+    &:active {
+      transform: scale(0.995);
+    }
+  }
+}

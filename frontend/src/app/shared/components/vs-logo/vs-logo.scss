@@ -1,0 +1,13 @@
+.vs-svg-logo-container {
+  min-width: 100%;
+
+  --logo-text-color: #1a1a1a; // light theme default
+
+  :host-context(.vs-app-dark) & {
+    --logo-text-color: #eefcff; // dark theme
+  }
+
+  .st1 {
+    fill: var(--logo-text-color);
+  }
+}

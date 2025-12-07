@@ -1,0 +1,89 @@
+<p-dialog
+  header="Settings"
+  [visible]="dialogVisible"
+  (visibleChange)="onVisibleChange($event)"
+  [modal]="true"
+  [closable]="true"
+  [draggable]="false"
+  [resizable]="false"
+  [style]="{ width: '500px' }"
+>
+  @if (settingsLoaded) {
+    <div class="py-2 space-y-6">
+      <div>
+        <label
+          class="block text-sm font-semibold mb-2 text-surface-900 dark:text-surface-0"
+          for="sanitization-level-select"
+        >
+          HTML Sanitization Level
+        </label>
+        <p-select
+          inputId="sanitization-level-select"
+          [(ngModel)]="sanitizationLevel"
+          [options]="sanitizationOptions"
+          optionLabel="label"
+          optionValue="value"
+          class="w-full"
+          [appendTo]="'body'"
+        />
+        <p class="text-xs text-surface-500 mt-1">
+          <strong>No Sanitization:</strong> Fastest but exposes you to XSS attacks. Only use for trusted sources.<br />
+          <strong>DOMPurify:</strong> Secure HTML sanitization with minimal performance cost.
+        </p>
+      </div>
+
+      <div class="border-t border-surface-200 dark:border-surface-700 pt-4">
+        <div class="flex items-start gap-3">
+          <p-toggleSwitch [(ngModel)]="displayInlineImages" inputId="inline-images-toggle" />
+          <div class="flex-1">
+            <label for="inline-images-toggle" class="block text-sm font-semibold cursor-pointer">
+              Display inline images in HTML emails
+            </label>
+            <p class="text-xs text-surface-500 mt-1">
+              Enable rendering of embedded images (cid references). Disable for additional security and privacy.
+            </p>
+          </div>
+        </div>
+      </div>
+
+      <div class="border-t border-surface-200 dark:border-surface-700 pt-4">
+        <label class="block text-sm font-semibold mb-2 text-surface-900 dark:text-surface-0" for="time-format-select">
+          Time Format
+        </label>
+        <p-select
+          inputId="time-format-select"
+          [(ngModel)]="timeFormat"
+          [options]="timeFormatOptions"
+          optionLabel="label"
+          optionValue="value"
+          class="w-full"
+          [appendTo]="'body'"
+        />
+        <p class="text-xs text-surface-500 mt-1">Choose between 24-hour and 12-hour time display format</p>
+      </div>
+
+      <div class="border-t border-red-200 dark:border-red-900 pt-4 mt-4">
+        <h3 class="text-sm font-semibold mb-2 text-red-700 dark:text-red-400">Danger Zone</h3>
+        <p class="text-xs text-surface-600 dark:text-surface-400 mb-3">
+          Permanently delete all inboxes and emails from the server. This action cannot be undone.
+        </p>
+        <p-button
+          label="Delete All Inboxes"
+          severity="danger"
+          icon="pi pi-trash"
+          (onClick)="onDeleteAllInboxes()"
+          [disabled]="!settingsLoaded"
+        />
+      </div>
+    </div>
+  } @else {
+    <div class="py-8 flex items-center justify-center text-surface-500 dark:text-surface-300">Loading settings...</div>
+  }
+
+  <ng-template pTemplate="footer">
+    <div class="flex justify-end gap-2">
+      <p-button label="Cancel" severity="secondary" [text]="true" (onClick)="onCancel()" />
+      <p-button label="Save" (onClick)="onSave()" [disabled]="!settingsLoaded" />
+    </div>
+  </ng-template>
+</p-dialog>

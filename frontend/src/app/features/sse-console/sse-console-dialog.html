@@ -1,0 +1,45 @@
+<p-dialog
+  header="SSE Console"
+  [(visible)]="dialogVisible"
+  (visibleChange)="onVisibleChange($event)"
+  [modal]="true"
+  [closable]="true"
+  [draggable]="false"
+  [resizable]="true"
+  [style]="{ width: '1000px', maxWidth: '95vw', height: '600px' }"
+>
+  <div class="console-container">
+    <!-- Console Header with Connection Status -->
+    <div class="console-header">
+      <div class="connection-status" [class.connected]="connected()" [class.disconnected]="!connected()">
+        <span class="status-indicator">●</span>
+        <span class="status-text">{{ connected() ? 'Connected' : 'Disconnected' }}</span>
+      </div>
+      <div class="message-count">{{ messages().length }} messages</div>
+    </div>
+
+    <!-- Console Messages Container -->
+    <div class="console-messages" (scroll)="onScroll($event)">
+      @if (messages().length === 0) {
+        <div class="no-messages">
+          <i class="pi pi-inbox text-4xl text-surface-400"></i>
+          <p class="text-surface-500 mt-2">Waiting for events...</p>
+        </div>
+      }
+
+      @for (message of messages(); track $index) {
+        <div class="message" [ngClass]="getMessageClass(message.type)">
+          <span class="timestamp">{{ formatTimestamp(message.timestamp) }}</span>
+          <span class="content">{{ message.text }}</span>
+        </div>
+      }
+    </div>
+  </div>
+
+  <ng-template pTemplate="footer">
+    <div class="flex justify-between items-center w-full">
+      <p-button label="Clear" icon="pi pi-trash" [text]="true" (onClick)="clearConsole()" />
+      <p-button label="Close" (onClick)="onClose()" />
+    </div>
+  </ng-template>
+</p-dialog>

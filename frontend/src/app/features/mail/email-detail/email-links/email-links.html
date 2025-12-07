@@ -1,0 +1,100 @@
+<div class="p-4">
+  @if (linkStatuses.length === 0) {
+    <div class="text-center py-12 text-surface-400">
+      <i class="pi pi-link text-4xl mb-3 block"></i>
+      <p>No links found in this email</p>
+    </div>
+  } @else {
+    <div class="mb-4 flex justify-between items-center">
+      <p class="text-sm text-surface-600 dark:text-surface-400">
+        Found {{ linkStatuses.length }} link{{ linkStatuses.length !== 1 ? 's' : '' }}
+      </p>
+      <p-button
+        icon="pi pi-check-circle"
+        label="Validate All Links"
+        severity="secondary"
+        [outlined]="true"
+        size="small"
+        (onClick)="validateAllLinks()"
+        [disabled]="isValidatingAll"
+        [loading]="isValidatingAll"
+      />
+    </div>
+
+    <div class="space-y-3">
+      @for (linkStatus of linkStatuses; track linkStatus.url) {
+        <p-card styleClass="hover:shadow-md transition-shadow">
+          <div class="flex items-start gap-3">
+            <i [class]="'text-2xl ' + helpers.getLinkIcon(linkStatus.url)"></i>
+            <div class="flex-1 min-w-0">
+              <div class="flex items-start gap-2 mb-2">
+                <a
+                  [href]="linkStatus.url"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  class="text-sm text-blue-600 dark:text-blue-400 hover:underline break-all flex-1"
+                  [pTooltip]="linkStatus.url"
+                  tooltipPosition="top"
+                >
+                  {{ helpers.truncateUrl(linkStatus.url, 80) }}
+                </a>
+                @if (linkStatus.status !== 'unchecked') {
+                  <span
+                    [class]="helpers.getStatusBadgeClass(linkStatus.status)"
+                    [pTooltip]="helpers.getStatusTooltip(linkStatus)"
+                    tooltipPosition="top"
+                  >
+                    <i [class]="helpers.getStatusIcon(linkStatus.status)"></i>
+                    {{ helpers.getStatusLabel(linkStatus.status) }}
+                  </span>
+                }
+              </div>
+
+              <div class="flex items-center gap-2">
+                <span class="text-xs text-surface-500 dark:text-surface-400">
+                  {{ helpers.getLinkType(linkStatus.url) }}
+                </span>
+                @if (linkStatus.statusCode) {
+                  <span class="text-xs text-surface-500 dark:text-surface-400">
+                    • HTTP {{ linkStatus.statusCode }}
+                  </span>
+                }
+              </div>
+
+              @if (linkStatus.error) {
+                <p class="text-xs text-red-600 dark:text-red-400 mt-2">
+                  {{ linkStatus.error }}
+                </p>
+              }
+            </div>
+
+            <div class="flex gap-2">
+              <p-button
+                icon="pi pi-check"
+                severity="secondary"
+                [text]="true"
+                [rounded]="true"
+                size="small"
+                (onClick)="validateLink(linkStatus)"
+                [disabled]="linkStatus.status === 'checking'"
+                [loading]="linkStatus.status === 'checking'"
+                pTooltip="Validate link"
+                tooltipPosition="left"
+              />
+              <p-button
+                icon="pi pi-copy"
+                severity="secondary"
+                [text]="true"
+                [rounded]="true"
+                size="small"
+                (onClick)="copyToClipboard(linkStatus.url)"
+                pTooltip="Copy to clipboard"
+                tooltipPosition="left"
+              />
+            </div>
+          </div>
+        </p-card>
+      }
+    </div>
+  }
+</div>

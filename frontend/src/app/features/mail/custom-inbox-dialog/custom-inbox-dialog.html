@@ -1,0 +1,108 @@
+<p-dialog
+  [(visible)]="visible"
+  [modal]="true"
+  [closable]="true"
+  [dismissableMask]="true"
+  [draggable]="false"
+  [resizable]="false"
+  styleClass="w-full max-w-[500px]"
+  header="Create Custom Inbox"
+  (onHide)="onCancel()"
+>
+  <div class="flex flex-col gap-4">
+    <!-- Alias + Domain Row -->
+    <div class="flex flex-col gap-2">
+      <label for="alias" class="font-medium text-sm">Email Address</label>
+      <div class="flex flex-col gap-2 sm:flex-row sm:items-center">
+        <input
+          pInputText
+          id="alias"
+          [(ngModel)]="alias"
+          placeholder="alias"
+          class="w-full sm:flex-1"
+          [disabled]="creating()"
+          (keydown.enter)="handleCreate()"
+        />
+        <span class="text-surface-500">&#64;</span>
+        <p-select
+          [(ngModel)]="selectedDomain"
+          [options]="domainOptions()"
+          placeholder="Select domain"
+          [disabled]="creating() || domainOptions().length === 0"
+          class="w-full sm:w-[200px]"
+          [appendTo]="'body'"
+        ></p-select>
+      </div>
+      <small class="text-surface-500"> Leave alias empty for a random email address </small>
+    </div>
+
+    <!-- TTL Input -->
+    <div class="flex flex-col gap-2">
+      <label for="ttl" class="font-medium text-sm">TTL (Time to Live)</label>
+      <div class="flex items-center gap-2">
+        <input
+          pInputText
+          id="ttl"
+          type="number"
+          [(ngModel)]="ttlValue"
+          placeholder="1"
+          [disabled]="creating()"
+          min="0"
+          class="flex-1"
+        />
+        <p-select
+          [(ngModel)]="ttlUnit"
+          [options]="ttlUnitOptions"
+          [disabled]="creating()"
+          class="w-[120px]"
+          [appendTo]="'body'"
+        ></p-select>
+      </div>
+      @if (ttlExceedsMax()) {
+        <small class="text-red-600 dark:text-red-400">
+          TTL exceeds maximum of {{ maxTtlHours() }}h.
+          <a
+            href="javascript:void(0)"
+            class="text-red-600 dark:text-red-400 font-semibold cursor-pointer hover:underline"
+            (click)="setToMaxTtl()"
+          >
+            Click to set to maximum.
+          </a>
+        </small>
+      } @else {
+        <small class="text-surface-500">
+          This value will be remembered as your default.
+          <a
+            href="javascript:void(0)"
+            class="text-primary cursor-pointer hover:underline"
+            (click)="resetToServerDefault()"
+          >
+            Reset to server default ({{ defaultTtlHours() }}h)
+          </a>
+        </small>
+      }
+    </div>
+
+    <!-- Validation Error -->
+    @if (validationError()) {
+      <p-message severity="error" [text]="validationError()!"></p-message>
+    }
+  </div>
+
+  <ng-template pTemplate="footer">
+    <div class="flex justify-end gap-2">
+      <button pButton type="button" severity="secondary" [text]="true" (click)="onCancel()" [disabled]="creating()">
+        Cancel
+      </button>
+      <button
+        pButton
+        type="button"
+        (click)="handleCreate()"
+        [loading]="creating()"
+        [disabled]="creating() || !isValid()"
+      >
+        Create Inbox
+      </button>
+    </div>
+  </ng-template>
+</p-dialog>

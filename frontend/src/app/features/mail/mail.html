@@ -1,0 +1,114 @@
+<div class="resize-container-8 h-screen flex relative lg:static bg-surface-50 dark:bg-surface-950">
+  <div
+    id="app-vs-sidebar"
+    class="bg-surface-0 dark:bg-surface-900 h-screen hidden lg:block shrink-0 absolute lg:static left-0 top-0 z-10 border-r border-surface-200 dark:border-surface-700 select-none w-[340px]"
+  >
+    <app-mailbox-sidebar></app-mailbox-sidebar>
+  </div>
+  <div class="flex flex-col relative flex-auto min-h-0">
+    <div
+      class="flex justify-between items-center py-4 px-4 sm:px-8 bg-surface-0 dark:bg-surface-900 border-b border-surface-200 dark:border-surface-700 relative lg:static shrink-0"
+    >
+      <div class="flex items-center gap-4 min-w-0 flex-1 overflow-hidden">
+        <a
+          pStyleClass="#app-vs-sidebar"
+          enterFromClass="hidden"
+          enterActiveClass="animate-fadeinleft"
+          leaveToClass="hidden"
+          leaveActiveClass="animate-fadeoutleft"
+          [hideOnOutsideClick]="true"
+          [hideOnResize]="true"
+          resizeSelector=".resize-container-8"
+          class="cursor-pointer flex items-center justify-center lg:hidden text-surface-700 dark:text-surface-100"
+        >
+          <i class="pi pi-bars text-xl!"></i>
+        </a>
+        @if (selectedInbox()) {
+          <div class="flex items-center gap-2 min-w-0">
+            <div class="flex flex-col min-w-0">
+              <span class="truncate max-w-[200px] sm:max-w-[260px] md:max-w-none">{{
+                selectedInbox()!.emailAddress
+              }}</span>
+              <span
+                class="text-xs text-surface-500 dark:text-surface-400 truncate max-w-[200px] sm:max-w-[260px] md:max-w-none"
+              >
+                Expires: {{ selectedInbox()!.expiresAt | date: dateFormat() }}
+              </span>
+            </div>
+            <button
+              pButton
+              [text]="true"
+              [rounded]="true"
+              severity="secondary"
+              size="small"
+              (click)="copyToClipboard(selectedInbox()!.emailAddress)"
+              pRipple
+              pTooltip="Copy email address"
+              tooltipPosition="bottom"
+              class="copy-ripple"
+            >
+              <i pButtonIcon class="pi pi-copy"></i>
+            </button>
+            <button
+              pButton
+              [text]="true"
+              [rounded]="true"
+              severity="secondary"
+              size="small"
+              (click)="handleRefresh()"
+              pRipple
+              pTooltip="Refresh emails"
+              tooltipPosition="bottom"
+              class="refresh-ripple"
+            >
+              <i pButtonIcon class="pi pi-refresh"></i>
+            </button>
+          </div>
+        } @else {
+          <div class="text-surface-400">No inbox selected</div>
+        }
+      </div>
+      <div class="flex items-center gap-8">
+        <div>
+          <button pButton [text]="true" [rounded]="true" severity="secondary" (click)="menu.toggle($event)">
+            <i pButtonIcon class="pi pi-ellipsis-v"></i>
+          </button>
+          <p-menu #menu [popup]="true" [model]="topLeftMenuitems()" appendTo="body"></p-menu>
+        </div>
+      </div>
+    </div>
+    <div class="px-4 sm:px-8 py-8 flex flex-col flex-auto overflow-y-auto min-h-0">
+      @if (selectedInbox()) {
+        @if (viewMode() === 'list') {
+          <app-email-list
+            [emails]="selectedInbox()!.emails"
+            [inboxHash]="selectedInbox()!.inboxHash"
+            [emailAddress]="selectedInbox()!.emailAddress"
+            (emailSelected)="handleEmailSelected($event)"
+          ></app-email-list>
+        } @else {
+          <app-email-detail [email]="selectedEmail()" (backToList)="handleBackToList()"></app-email-detail>
+        }
+      } @else {
+        <div class="flex items-center justify-center h-full text-surface-400">
+          No inbox selected. Create or select an inbox to view emails.
+        </div>
+      }
+    </div>
+  </div>
+
+  <!-- Settings Dialog -->
+  @if (showSettingsDialog()) {
+    <app-settings-dialog (closed)="showSettingsDialog.set(false)"></app-settings-dialog>
+  }
+
+  <!-- Metrics Dialog -->
+  @if (showMetricsDialog()) {
+    <app-metrics-dialog (closed)="showMetricsDialog.set(false)"></app-metrics-dialog>
+  }
+
+  <!-- Console Dialogs -->
+  @for (consoleId of openConsoleDialogs(); track consoleId) {
+    <app-sse-console-dialog (closed)="closeConsoleDialog(consoleId)"></app-sse-console-dialog>
+  }
+</div>

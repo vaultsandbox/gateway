@@ -1,0 +1,8 @@
+/* Tune ripple color so clicks feel acknowledged without a toast */
+.copy-ripple {
+  --p-ripple-background: var(--p-primary-color);
+}
+
+.refresh-ripple {
+  --p-ripple-background: var(--p-primary-color);
+}

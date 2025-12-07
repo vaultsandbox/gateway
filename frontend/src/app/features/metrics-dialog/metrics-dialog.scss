@@ -1,0 +1,35 @@
+// Custom progress bar colors for authentication metrics
+:host ::ng-deep {
+  .auth-progress-success .p-progressbar-value {
+    background: var(--green-500);
+  }
+
+  .auth-progress-warning .p-progressbar-value {
+    background: var(--yellow-500);
+  }
+
+  .auth-progress-danger .p-progressbar-value {
+    background: var(--red-500);
+  }
+
+  // Ensure progress bars have proper styling
+  .p-progressbar {
+    background: var(--surface-200);
+
+    .p-progressbar-value {
+      transition: width 0.3s ease;
+    }
+  }
+
+  // Dark mode progress bar background
+  .dark .p-progressbar {
+    background: var(--surface-700);
+  }
+}
+
+// Grid responsive utilities
+@media (max-width: 768px) {
+  .grid {
+    grid-template-columns: 1fr;
+  }
+}
