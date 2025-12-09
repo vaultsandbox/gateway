@@ -567,9 +567,10 @@ COPY --from=frontend-builder /frontend/dist/frontend/browser /app/frontend
 
 ## Support & Contributing
 
-- **Documentation**: [vaultsandbox.dev](https://vaultsandbox.dev)
+- **Documentation**: [vaultsandbox.dev/gateway](https://vaultsandbox.dev/gateway/)
 - **Issues**: [github.com/vaultsandbox/gateway/issues](https://github.com/vaultsandbox/gateway/issues)
 - **Discussions**: [github.com/vaultsandbox/gateway/discussions](https://github.com/vaultsandbox/gateway/discussions)
+- **Website**: [vaultsandbox.com](https://www.vaultsandbox.com)
 
 ## License
 
