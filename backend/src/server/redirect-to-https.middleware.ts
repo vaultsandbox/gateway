@@ -8,6 +8,7 @@ import { Request, Response, NextFunction } from 'express';
  * This middleware ensures secure access to public endpoints while allowing
  * specific paths to remain accessible via HTTP:
  * - ACME HTTP-01 challenges (required by Let's Encrypt on port 80)
+ * - VaultSandbox verification endpoint (service verification on port 80)
  * - Internal cluster P2P endpoints (already HMAC-authenticated)
  * - Health checks (for load balancers)
  *
@@ -34,6 +35,11 @@ export class RedirectToHttpsMiddleware implements NestMiddleware {
     // console.log(`[RedirectMiddleware] Checking path: ${req.path}, url: ${req.url}, originalUrl: ${req.originalUrl}`);
     if (req.originalUrl.startsWith('/.well-known/acme-challenge/')) {
       // console.log(`[RedirectMiddleware] ACME challenge detected - allowing through`);
+      return next();
+    }
+
+    // Allow VaultSandbox verification endpoint (service verification on port 80)
+    if (req.originalUrl === '/.well-known/vaultsandbox') {
       return next();
     }
 

@@ -56,6 +56,15 @@ export class CertificateController {
   }
 
   /**
+   * VaultSandbox verification endpoint.
+   * Returns HTTP 200 for service verification
+   */
+  @Get('.well-known/vaultsandbox')
+  getVaultSandboxVerification(): string {
+    return 'ok';
+  }
+
+  /**
    * Endpoint for a leader node to push a new certificate to a follower node.
    * Protected by the PeerAuthGuard.
    * @param syncRequest - The certificate data to be synced.
