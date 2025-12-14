@@ -369,8 +369,10 @@ function buildCertificateConfig() {
 
   // Fail fast: if certificate management is enabled, require critical fields
   if (enabled) {
+    // Email is optional - Let's Encrypt allows registration without email
+    // If not provided, user won't receive certificate expiry notifications
     if (!email || !email.trim()) {
-      throw new Error('VSB_CERT_EMAIL is required when VSB_CERT_ENABLED=true');
+      logger.log('VSB_CERT_EMAIL not set - certificate expiry notifications will not be sent');
     }
     if (!domain || !domain.trim()) {
       throw new Error(

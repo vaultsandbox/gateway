@@ -67,6 +67,22 @@ VSB_CERT_EMAIL=hello@mydomain.com
 # VSB_SERVER_ORIGIN=*                # CORS origin (default: *, allows all for testing)
 
 # ============================================================================
+# VSX DNS - AUTOMATIC DOMAIN DISCOVERY (ALTERNATIVE TO MANUAL CONFIG)
+# ============================================================================
+# Enable automatic domain discovery via vsx.email DNS service.
+# When enabled, the gateway will:
+# - Automatically discover its public IP address
+# - Receive an assigned domain (e.g., 1mzhr2y.vsx.email)
+# - Configure SMTP and certificates using that domain
+#
+# This eliminates the need for:
+# - VSB_SMTP_ALLOWED_RECIPIENT_DOMAINS (auto-discovered)
+# - VSB_CERT_DOMAIN (auto-discovered)
+# - VSB_CERT_EMAIL (not required - Let's Encrypt allows no-email registration)
+#
+# VSB_VSX_DNS_ENABLED=true           # Enable automatic domain discovery
+
+# ============================================================================
 # ADVANCED CONFIGURATION
 # ============================================================================
 # NODE_ENV=production                # Environment (default: production)

@@ -1,6 +1,6 @@
 {
   "name": "vaultsandbox-gateway-frontend",
-  "version": "0.5.0",
+  "version": "0.5.1",
   "description": "Web interface for VaultSandbox Gateway with inbox management, HTML email preview, and real-time delivery via SSE",
   "author": "Antero",
   "private": false,

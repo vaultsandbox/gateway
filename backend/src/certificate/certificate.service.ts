@@ -148,6 +148,21 @@ export class CertificateService implements OnModuleInit, OnModuleDestroy {
         return;
       }
 
+      // Check if certificate domains match current configuration
+      const configuredDomains = [this.config.domain, ...(this.config.additionalDomains || [])].sort();
+      const certDomains = [...currentCert.domains].sort();
+      const domainsMatch =
+        configuredDomains.length === certDomains.length && configuredDomains.every((d, i) => d === certDomains[i]);
+
+      if (!domainsMatch) {
+        this.logger.warn('Certificate domain mismatch detected; requesting new certificate', {
+          configured: configuredDomains,
+          current: certDomains,
+        });
+        await this.renewCertificate();
+        return;
+      }
+
       const daysUntilExpiry = this.getDaysUntilExpiry(currentCert);
 
       if (daysUntilExpiry <= this.config.renewDaysBeforeExpiry) {

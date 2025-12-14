@@ -8,6 +8,7 @@ import { SwaggerModule, DocumentBuilder } from '@nestjs/swagger';
 import { logConfigurationSummary } from './config/config.utils';
 import type { VsbConfiguration } from './config/config.types';
 import type { Request, Response, NextFunction } from 'express';
+import { vsxDnsPreBoot } from './vsx-dns-preboot';
 
 /**
  * BootStrap
@@ -16,9 +17,13 @@ async function bootstrap() {
   const logger = new Logger('bootstrap');
 
   try {
+    // VSX DNS pre-boot: check-in and populate env vars before NestJS loads config
+    await vsxDnsPreBoot();
+
     // Create NestJS app but don't call listen() - we'll manage servers manually
+    const isDevelopment = process.env.NODE_ENV === 'development';
     const app = await NestFactory.create<NestExpressApplication>(AppModule, {
-      logger: ['log', 'error', 'warn', 'debug', 'verbose'],
+      logger: isDevelopment ? ['log', 'error', 'warn', 'debug', 'verbose'] : ['log', 'error', 'warn'],
     });
 
     // Honor X-Forwarded-* headers from the first upstream proxy (nginx/ALB/CloudFront)

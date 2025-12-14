@@ -5,6 +5,26 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.5.1] - 2025-12-14
+
+### Added
+
+- **VSX DNS Auto-Discovery**: Automatic domain discovery via vsx.email DNS service eliminates manual domain configuration
+- **Certificate Domain Mismatch Detection**: Automatic certificate renewal when configured domains differ from current certificate
+
+### Changed
+
+- **Optional Certificate Email**: VSB_CERT_EMAIL is now optional; Let's Encrypt allows registration without email (users won't receive expiry notifications)
+- **Production Logging**: Reduced log verbosity in production mode (debug/verbose logs disabled)
+- **Default Inline Images**: Email viewer now displays inline images by default
+- **Docker Compose**: Simplified default configuration to use VSX DNS auto-discovery
+
+### Fixed
+
+- Certificate service now detects and handles domain configuration changes
+
+[0.5.1]: https://github.com/vaultsandbox/gateway/releases/tag/v0.5.1
+
 ## [0.5.0] - 2025-12-07
 
 ### Added

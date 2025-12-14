@@ -1,21 +1,27 @@
+# =============================================================================
+# VSX DNS Configuration (minimal - auto-discovers domain)
+# =============================================================================
+# This is the simplest setup with automatic:
+# - Domain assignment (e.g., 1mzhr2y.vsx.email)
+# - DNS configuration
+# - Certificate management
 services:
   gateway:
-    image: vaultsandbox/gateway:0.5.0
+    image: vaultsandbox/gateway:0.5.1
     container_name: vaultsandbox-gateway
     restart: unless-stopped
 
     ports:
       - "25:25"     # SMTP
-      - "80:80"     # HTTP (ACME challenges)
+      - "80:80"     # HTTP (required for ACME and VSX DNS verification)
       - "443:443"   # HTTPS (Web UI + API)
 
     environment:
-      VSB_SMTP_ALLOWED_RECIPIENT_DOMAINS: "qa.mydomain.com"
-      VSB_CERT_ENABLED: "true"
-      VSB_CERT_EMAIL: "qa@mydomain.com"
+      VSB_VSX_DNS_ENABLED: "true"
+
     volumes:
-      - gateway-data:/app/data  # Persist certificates and API key
-      
+      - gateway-data:/app/data
+
     logging:
       driver: "json-file"
       options:
@@ -24,3 +30,36 @@ services:
 
 volumes:
   gateway-data:
+
+# =============================================================================
+# Custom Domain Configuration (alternative)
+# =============================================================================
+# Uncomment the section below and comment out the section above to use
+# your own domain instead of auto-discovery.
+#
+# services:
+#   gateway:
+#     image: vaultsandbox/gateway:0.5.1
+#     container_name: vaultsandbox-gateway
+#     restart: unless-stopped
+#
+#     ports:
+#       - "25:25"     # SMTP
+#       - "80:80"     # HTTP (ACME challenges)
+#       - "443:443"   # HTTPS (Web UI + API)
+#
+#     environment:
+#       VSB_SMTP_ALLOWED_RECIPIENT_DOMAINS: "qa.mydomain.com"
+#       VSB_CERT_ENABLED: "true"
+#
+#     volumes:
+#       - gateway-data:/app/data
+#
+#     logging:
+#       driver: "json-file"
+#       options:
+#         max-size: "10m"
+#         max-file: "3"
+#
+# volumes:
+#   gateway-data:

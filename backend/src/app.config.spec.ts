@@ -745,13 +745,6 @@ describe('app.config', () => {
       expect(config.certificate.additionalDomains).toEqual(['mail.example.com', 'email.example.com']);
     });
 
-    it('should throw when enabled without email', () => {
-      setMinimalEnv();
-      process.env.VSB_CERT_ENABLED = 'true';
-      process.env.VSB_CERT_DOMAIN = 'smtp.example.com';
-      expect(() => require('./app.config').default()).toThrow('VSB_CERT_EMAIL is required when VSB_CERT_ENABLED=true');
-    });
-
     it('should throw when additional domains are invalid', () => {
       setMinimalEnv();
       process.env.VSB_CERT_ENABLED = 'true';

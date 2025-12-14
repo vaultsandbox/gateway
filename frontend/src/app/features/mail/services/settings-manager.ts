@@ -34,7 +34,7 @@ export class SettingsManager {
       ttlSeconds: 0,
       ttlUnit: 'hours',
       lastUsedDomain: '',
-      displayInlineImages: false,
+      displayInlineImages: true,
       sanitizationLevel: SanitizationLevel.DomPurify,
       timeFormat: '24h',
     };
