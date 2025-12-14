@@ -10,7 +10,7 @@ A secure, receive-only SMTP server built with NestJS for QA/testing environments
 
 ## 🚀 What You Get
 
-Set **just 3 environment variables** and get:
+Set **just 1 environment variable** (VSX DNS) or **2 variables** (custom domain) and get:
 
 - ✅ Production-ready SMTP server on port 25
 - ✅ Automatic Let's Encrypt TLS certificates
@@ -19,11 +19,11 @@ Set **just 3 environment variables** and get:
 - ✅ Configurable email retention (defaults to 7 days, easily adjusted)
 - ✅ Full email authentication (SPF, DKIM, DMARC)
 
-**Total setup time: ~5 minutes** ⚡
+**Total setup time: ~5 minutes**
 
 ## Features
 
-- **Zero-Config Setup**: Just 3 environment variables to get started
+- **Zero-Config Setup**: 1 env var (VSX DNS) or 2 env vars (custom domain)
 - **Secure SMTP Server**: Receive-only email server with automatic TLS
 - **Email Authentication**: SPF, DKIM, DMARC, and reverse DNS validation
 - **Automatic TLS Certificates**: Let's Encrypt integration with ACME HTTP-01 challenge
@@ -64,16 +64,18 @@ npm install
 
 ### Configuration
 
-Create a `.env` file with the minimal required configuration:
+Create a `.env` file with minimal configuration:
 
 ```bash
 # Copy template and customize
 cp template-env .env
 
-# Edit these 3 variables:
-VSB_SMTP_ALLOWED_RECIPIENT_DOMAINS=qa.example.com
-VSB_CERT_ENABLED=true
-VSB_CERT_EMAIL=admin@example.com
+# Option 1: VSX DNS (simplest - just 1 variable)
+VSB_VSX_DNS_ENABLED=true
+
+# Option 2: Custom domain (2 variables)
+# VSB_SMTP_ALLOWED_RECIPIENT_DOMAINS=qa.example.com
+# VSB_CERT_ENABLED=true
 ```
 
 ### Development
@@ -148,20 +150,43 @@ npm run start:prod
 
 The gateway is configured via environment variables with sensible defaults for testing environments.
 
-### Minimal Required Configuration
+### Option 1: VSX DNS (Recommended)
 
-Just **3 environment variables** to get started:
+**Zero-config setup with automatic DNS.** No domain registration, no DNS configuration, no waiting for propagation. Your public IP is encoded into a subdomain (e.g., `1mzhr2y.vsx.email`) that automatically resolves with proper MX records.
+
+Just **1 environment variable**:
 
 ```bash
-# SMTP: Domains to accept emails for (comma-separated)
-VSB_SMTP_ALLOWED_RECIPIENT_DOMAINS=qa.example.com,test.example.com
-
-# TLS: Automatic Let's Encrypt certificates
-VSB_CERT_ENABLED=true
-VSB_CERT_EMAIL=admin@example.com
+VSB_VSX_DNS_ENABLED=true
 ```
 
-That's it! Everything else has smart defaults:
+Find your assigned domain by entering your IP at [vsx.email](https://vsx.email) or:
+
+```bash
+cat /app/data/certificates/metadata.json
+```
+
+### Option 2: Custom Domain
+
+**Use your own domain** for branding, compliance, or existing infrastructure.
+
+Just **2 environment variables**:
+
+```bash
+# Domains to accept emails for (comma-separated)
+VSB_SMTP_ALLOWED_RECIPIENT_DOMAINS=qa.example.com,test.example.com
+
+# Enable automatic Let's Encrypt certificates
+VSB_CERT_ENABLED=true
+```
+
+**DNS Requirements:** Configure these records before starting:
+- **A record:** `qa.example.com` → your server IP
+- **MX record:** `qa.example.com` → `qa.example.com` (priority 10)
+
+### Smart Defaults
+
+Everything else has sensible defaults:
 - ✅ Auto-generated API key (persisted to disk)
 - ✅ Certificate domain auto-derived from first SMTP domain
 - ✅ Email retention: 7 days (configurable via `VSB_LOCAL_INBOX_MAX_TTL`)
@@ -240,44 +265,78 @@ docker run -p 80:80 -p 443:443 -p 25:25 --env-file .env vaultsandbox-gateway:dev
 
 ## Docker Deployment
 
-### Using Docker Compose (Recommended)
+### Option 1: VSX DNS (Recommended)
 
-Create a `docker-compose.yml` file:
+**Zero-config setup with automatic DNS.** Your public IP is encoded into a subdomain (e.g., `1mzhr2y.vsx.email`) with proper MX records.
 
 ```yaml
+# docker-compose.yml
 services:
   gateway:
     image: vaultsandbox/gateway:latest
     container_name: vaultsandbox-gateway
     restart: unless-stopped
-
     ports:
       - "25:25"     # SMTP
-      - "80:80"     # HTTP (ACME challenges)
+      - "80:80"     # HTTP (ACME + VSX verification)
       - "443:443"   # HTTPS (Web UI + API)
-
     environment:
-      VSB_SMTP_ALLOWED_RECIPIENT_DOMAINS: "qa.mydomain.com"
-      VSB_CERT_ENABLED: "true"
-      VSB_CERT_EMAIL: "qa@mydomain.com"
+      VSB_VSX_DNS_ENABLED: "true"
     volumes:
-      - gateway-data:/app/data  # Persist certificates and API key
+      - gateway-data:/app/data
 
 volumes:
   gateway-data:
 ```
 
-Then run:
+```bash
+# Start the gateway
+docker compose up -d
+
+# Find your assigned domain
+docker compose exec gateway cat /app/data/certificates/metadata.json; echo
+
+# Retrieve API key
+docker compose exec gateway cat /app/data/.api-key; echo
+```
+
+You can also find your domain by entering your IP at [vsx.email](https://vsx.email).
+
+### Option 2: Custom Domain
+
+**Use your own domain** for branding or compliance. Requires DNS configuration.
+
+**DNS Requirements:** Configure these records before starting:
+- **A record:** `qa.mydomain.com` → your server IP
+- **MX record:** `qa.mydomain.com` → `qa.mydomain.com` (priority 10)
+
+```yaml
+# docker-compose.yml
+services:
+  gateway:
+    image: vaultsandbox/gateway:latest
+    container_name: vaultsandbox-gateway
+    restart: unless-stopped
+    ports:
+      - "25:25"     # SMTP
+      - "80:80"     # HTTP (ACME challenges)
+      - "443:443"   # HTTPS (Web UI + API)
+    environment:
+      VSB_SMTP_ALLOWED_RECIPIENT_DOMAINS: "qa.mydomain.com"
+      VSB_CERT_ENABLED: "true"
+    volumes:
+      - gateway-data:/app/data
+
+volumes:
+  gateway-data:
+```
 
 ```bash
 # Start the gateway
-docker-compose up -d
+docker compose up -d
 
-# View logs
-docker-compose logs -f
-
-# Stop the gateway
-docker-compose down
+# Retrieve API key
+docker compose exec gateway cat /app/data/.api-key; echo
 ```
 
 ### Using Docker CLI
@@ -289,16 +348,24 @@ docker pull vaultsandbox/gateway:latest
 # Create a volume for persistence
 docker volume create gateway-data
 
-# Run with minimal configuration
+# VSX DNS mode (recommended)
 docker run -d \
   --name vaultsandbox-gateway \
   -p 25:25 -p 80:80 -p 443:443 \
-  -e VSB_SMTP_ALLOWED_RECIPIENT_DOMAINS="qa.example.com" \
-  -e VSB_CERT_ENABLED="true" \
-  -e VSB_CERT_EMAIL="admin@example.com" \
+  -e VSB_VSX_DNS_ENABLED="true" \
   -v gateway-data:/app/data \
   --restart unless-stopped \
   vaultsandbox/gateway:latest
+
+# Or custom domain mode
+# docker run -d \
+#   --name vaultsandbox-gateway \
+#   -p 25:25 -p 80:80 -p 443:443 \
+#   -e VSB_SMTP_ALLOWED_RECIPIENT_DOMAINS="qa.example.com" \
+#   -e VSB_CERT_ENABLED="true" \
+#   -v gateway-data:/app/data \
+#   --restart unless-stopped \
+#   vaultsandbox/gateway:latest
 
 # View logs
 docker logs -f vaultsandbox-gateway

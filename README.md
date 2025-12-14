@@ -14,7 +14,7 @@ VaultSandbox Gateway is a **secure, receive-only SMTP server** designed for QA/t
 
 ### 🎯 Key Features
 
-- **Zero-Config Setup**: Just 3 environment variables to get started
+- **Zero-Config Setup**: 1 env var (VSX DNS) or 2 env vars (custom domain)
 - **Production-Ready SMTP**: Receive-only server on port 25 with automatic TLS
 - **Email Authentication**: Full SPF, DKIM, DMARC, and reverse DNS validation
 - **Automatic Certificates**: Let's Encrypt integration with hot-reload
@@ -48,41 +48,79 @@ This repository is a monorepo containing two main components:
 
 ## Quick Start
 
-### Using Docker (Recommended)
+### Option 1: VSX DNS (Recommended)
 
-The fastest way to get started is using the included `docker-compose.yml` or the Docker CLI with a named volume.
+**Zero-config setup with automatic DNS.** No domain registration, no DNS configuration, no waiting for propagation. Your public IP is encoded into a subdomain (e.g., `1mzhr2y.vsx.email`) that automatically resolves with proper MX records.
 
-**Option 1: Docker Compose (Preferred)**
+**Requirement:** Ports 25, 80, and 443 must be publicly reachable.
+
+```yaml
+# docker-compose.yml
+services:
+  gateway:
+    image: vaultsandbox/gateway:latest
+    ports:
+      - "25:25"   # SMTP
+      - "80:80"   # HTTP (ACME + VSX verification)
+      - "443:443" # HTTPS
+    environment:
+      - VSB_VSX_DNS_ENABLED=true
+    volumes:
+      - gateway-data:/app/data
+
+volumes:
+  gateway-data:
+```
+
+```bash
+# Start the gateway
+docker compose up -d
+
+# Find your assigned domain
+docker compose exec gateway cat /app/data/certificates/metadata.json; echo
+
+# Retrieve auto-generated API key
+docker compose exec gateway cat /app/data/.api-key; echo
+```
+
+You can also find your domain by entering your IP at [vsx.email](https://vsx.email).
+
+### Option 2: Custom Domain
+
+**Use your own domain** for branding, compliance, or existing infrastructure. Requires DNS configuration pointing to your server.
+
+**DNS Requirements:** Before starting, configure these records:
+- **A record:** `qa.example.com` → your server IP
+- **MX record:** `qa.example.com` → `qa.example.com` (priority 10)
+
+```yaml
+# docker-compose.yml
+services:
+  gateway:
+    image: vaultsandbox/gateway:latest
+    ports:
+      - "25:25"   # SMTP
+      - "80:80"   # HTTP (ACME challenge)
+      - "443:443" # HTTPS
+    environment:
+      - VSB_SMTP_ALLOWED_RECIPIENT_DOMAINS=qa.example.com
+      - VSB_CERT_ENABLED=true
+    volumes:
+      - gateway-data:/app/data
+
+volumes:
+  gateway-data:
+```
 
 ```bash
 # Start the gateway
 docker compose up -d
 
 # Retrieve auto-generated API key
-docker compose exec gateway cat /app/data/.api-key
+docker compose exec gateway cat /app/data/.api-key; echo
 ```
 
-**Option 2: Docker CLI**
-
-```bash
-# Create a volume for data persistence
-docker volume create gateway-data
-
-# Run the container
-docker run -d \
-  --name vaultsandbox-gateway \
-  -p 25:25 -p 80:80 -p 443:443 \
-  -e VSB_SMTP_ALLOWED_RECIPIENT_DOMAINS="qa.example.com" \
-  -e VSB_CERT_ENABLED="true" \
-  -e VSB_CERT_EMAIL="admin@example.com" \
-  -v gateway-data:/app/data \
-  vaultsandbox/gateway:latest
-
-# Access the web interface
-# https://qa.example.com/app
-```
-
-**Total setup time: ~5 minutes** ⚡
+**Total setup time: ~5 minutes**
 
 ### Local Development
 
@@ -107,12 +145,12 @@ npm start  # Runs on http://localhost:4200
 
 After starting the gateway, you have:
 
-✅ SMTP server accepting emails at `qa.example.com:25`
+✅ SMTP server accepting emails on port 25
 ✅ Automatic TLS certificates from Let's Encrypt
-✅ Web UI at `https://qa.example.com/app`
+✅ Web UI at `https://your-domain/app`
 ✅ REST API with auto-generated API key
 ✅ 7-day email retention (configurable)
-✅ Full email authentication validation
+✅ Full email authentication validation (SPF, DKIM, DMARC)
 
 ## Architecture
 
