@@ -146,11 +146,12 @@ function stripTrailingPunctuation(url: string): string {
   // Strip unmatched closing parentheses
   // Count opening and closing parentheses
   const openParens = (cleaned.match(/\(/g) || []).length;
-  const closeParens = (cleaned.match(/\)/g) || []).length;
+  let closeParens = (cleaned.match(/\)/g) || []).length;
 
   // Remove trailing closing parens if there are more closing than opening
   while (/\)$/.test(cleaned) && closeParens > openParens) {
     cleaned = cleaned.slice(0, -1);
+    closeParens--;
   }
 
   return cleaned;

@@ -38,7 +38,7 @@ export class SecurityHeadersMiddleware implements NestMiddleware {
       "default-src 'self'",
       // Allow inline styles for Angular (required for component styles)
       "style-src 'self' 'unsafe-inline'",
-      // Allow inline scripts for Angular runtime
+      // Scripts from same origin + inline (required for Angular/PrimeNG dynamic code)
       "script-src 'self' 'unsafe-inline'",
       // Allow images from any HTTPS source (required for displaying email content)
       "img-src 'self' data: https:",

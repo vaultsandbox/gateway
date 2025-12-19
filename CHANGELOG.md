@@ -5,6 +5,27 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.5.2] - 2025-12-19
+
+### Added
+
+- **Docker Hardened Images**: Support for hardened container environments with restricted permissions
+
+### Changed
+
+- **VSX DNS HTTPS**: VSX DNS service now uses HTTPS endpoint for improved security
+
+### Fixed
+
+- Permission denied error in hardened Docker image environments
+- URL extraction parenthesis over-stripping issue
+
+### Security
+
+- Removed unconditional trust proxy setting to prevent IP spoofing
+
+[0.5.2]: https://github.com/vaultsandbox/gateway/releases/tag/v0.5.2
+
 ## [0.5.1] - 2025-12-14
 
 ### Added

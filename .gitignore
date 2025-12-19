@@ -13,6 +13,9 @@ lerna-debug.log*
 .env.production.local
 .env.local
 
+# AI
+.claude
+
 # IDEs and editors
 .idea/
 .project

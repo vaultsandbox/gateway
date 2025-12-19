@@ -10,7 +10,7 @@
 
 import * as http from 'http';
 
-const VSX_DNS_API_URL = 'http://api.vsx.email:8080';
+const VSX_DNS_API_URL = 'https://api.vsx.email';
 
 interface CheckInResponse {
   status: 'ready' | 'error';

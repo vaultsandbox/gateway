@@ -26,9 +26,6 @@ async function bootstrap() {
       logger: isDevelopment ? ['log', 'error', 'warn', 'debug', 'verbose'] : ['log', 'error', 'warn'],
     });
 
-    // Honor X-Forwarded-* headers from the first upstream proxy (nginx/ALB/CloudFront)
-    app.set('trust proxy', 1);
-
     // Enable global validation pipe for DTO validation
     app.useGlobalPipes(
       new ValidationPipe({
