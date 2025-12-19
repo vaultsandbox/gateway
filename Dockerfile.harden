@@ -1,0 +1,88 @@
+# ===== Hardened Docker Build =====
+# Uses Docker Hub hardened images (dhi.io) for all stages
+# Key differences from regular Dockerfile:
+# - No shell in production image
+# - Minimal attack surface
+# - Already runs as non-root user
+# - Health check uses Node.js instead of wget
+
+# ===== Frontend Builder Stage =====
+# Build the Angular frontend (uses -dev variant with build tools)
+FROM dhi.io/node:24-dev@sha256:0a90afadabdddcdd7e9eecef7048e5a0f1f45e6f165c2a035be091f1efd2255e AS frontend-builder
+
+WORKDIR /usr/src/frontend
+
+COPY frontend/package*.json ./
+RUN npm ci
+
+COPY frontend/ ./
+RUN npm run build
+
+# ===== Backend Builder Stage =====
+# Install dependencies, build NestJS, and keep only prod deps
+FROM dhi.io/node:24-dev@sha256:0a90afadabdddcdd7e9eecef7048e5a0f1f45e6f165c2a035be091f1efd2255e AS backend-builder
+
+WORKDIR /usr/src/app
+
+COPY backend/package*.json ./
+RUN npm ci
+
+COPY backend/ ./
+RUN npm run build && npm prune --omit=dev && npm cache clean --force
+
+# Create the health check script (no curl/wget; honors VSB_SERVER_PORT)
+# Also create /app/data directory for the production stage (owned by UID 1001 - same as regular Dockerfile)
+RUN mkdir -p /tmp/app-data && chown 1001:1001 /tmp/app-data
+
+RUN cat <<'EOF' > /tmp/healthcheck.js
+const http = require('http');
+const port = parseInt(process.env.VSB_SERVER_PORT || '80', 10);
+const req = http.get({ host: 'localhost', port, path: '/health', timeout: 3000 }, (res) => {
+  process.exit(res.statusCode === 200 ? 0 : 1);
+});
+req.on('error', () => process.exit(1));
+req.setTimeout(3000, () => {
+  req.destroy();
+  process.exit(1);
+});
+EOF
+
+# ===== Production Stage (Hardened) =====
+# DHI hardened Node.js image - minimal attack surface, no shell
+# Note: This image has no shell, wget, curl, or other utilities
+FROM dhi.io/node:24@sha256:e805d972f53c2db92cab8c56242ba8609736e461ef16d4073d52d5404263bbc9 AS production
+
+# OCI metadata labels
+LABEL org.opencontainers.image.title="VaultSandbox Gateway (Hardened)" \
+      org.opencontainers.image.description="Secure receive-only SMTP server with automatic TLS certificate management - Hardened build" \
+      org.opencontainers.image.version="0.5.2" \
+      org.opencontainers.image.authors="Antero" \
+      org.opencontainers.image.licenses="AGPL-3.0-or-later" \
+      org.opencontainers.image.source="https://github.com/vaultsandbox/gateway"
+
+ENV NODE_ENV=production \
+    VSB_SERVER_PORT=80
+
+WORKDIR /usr/src/app
+
+COPY --chown=1001:1001 --from=backend-builder /usr/src/app/dist ./dist
+COPY --chown=1001:1001 --from=backend-builder /usr/src/app/node_modules ./node_modules
+COPY --chown=1001:1001 --from=backend-builder /tmp/healthcheck.js ./healthcheck.js
+COPY --chown=1001:1001 backend/package*.json ./
+
+# Backend expects the compiled frontend in ../frontend/dist
+COPY --chown=1001:1001 --from=frontend-builder /usr/src/frontend/dist ../frontend/dist
+
+# Copy the pre-created data directory with correct ownership
+COPY --chown=1001:1001 --from=backend-builder /tmp/app-data /app/data
+
+# Use same UID/GID as regular Dockerfile for volume compatibility
+USER 1001:1001
+
+EXPOSE 25 80 443
+
+# Health check using Node.js (no wget/curl available in hardened image)
+HEALTHCHECK --interval=30s --timeout=3s --start-period=10s --retries=3 \
+  CMD ["node", "healthcheck.js"]
+
+CMD ["node", "dist/main"]

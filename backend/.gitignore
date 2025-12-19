@@ -5,6 +5,9 @@
 /data 
 /emails
 
+# AI
+.claude
+
 # Logs
 logs
 *.log

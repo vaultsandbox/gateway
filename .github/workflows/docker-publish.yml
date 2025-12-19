@@ -36,6 +36,19 @@ jobs:
       contents: read
       packages: write  # Needed for GHCR cache
 
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - variant: standard
+            dockerfile: Dockerfile
+            suffix: ''
+          - variant: harden
+            dockerfile: Dockerfile.harden
+            suffix: '-harden'
+
+    name: Build (${{ matrix.variant }})
+
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
@@ -53,6 +66,15 @@ jobs:
         if: env.TEST_MODE == 'false' && github.event_name == 'push' && startsWith(github.ref, 'refs/tags/')
         uses: docker/login-action@v3
         with:
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
+
+      # Login to DHI registry (Docker Hardened Images) for hardened builds
+      - name: Log in to DHI Registry
+        if: matrix.variant == 'harden'
+        uses: docker/login-action@v3
+        with:
+          registry: dhi.io
           username: ${{ secrets.DOCKERHUB_USERNAME }}
           password: ${{ secrets.DOCKERHUB_TOKEN }}
 
@@ -74,21 +96,21 @@ jobs:
             ghcr.io/${{ github.repository }}
           tags: |
             # For version tags (v1.2.3), create:
-            # - 1.2.3 (full version)
-            # - 1.2 (minor version)
-            # - 1 (major version)
-            # - latest (always points to newest)
-            type=semver,pattern={{version}}
-            type=semver,pattern={{major}}.{{minor}}
-            type=semver,pattern={{major}}
-            type=semver,pattern=latest
+            # - 1.2.3 or 1.2.3-harden (full version)
+            # - 1.2 or 1.2-harden (minor version)
+            # - 1 or 1-harden (major version)
+            # - latest or latest-harden
+            type=semver,pattern={{version}}${{ matrix.suffix }}
+            type=semver,pattern={{major}}.{{minor}}${{ matrix.suffix }}
+            type=semver,pattern={{major}}${{ matrix.suffix }}
+            type=raw,value=latest${{ matrix.suffix }}
             # For branch pushes, create:
-            # - main (or branch name)
-            # - sha-<git-sha> (for traceability)
-            type=ref,event=branch
-            type=sha,event=branch,prefix=sha-
+            # - main or main-harden (branch name)
+            # - sha-<git-sha> or sha-<git-sha>-harden (for traceability)
+            type=ref,event=branch,suffix=${{ matrix.suffix }}
+            type=sha,event=branch,prefix=sha-,suffix=${{ matrix.suffix }}
           labels: |
-            org.opencontainers.image.title=VaultSandbox Gateway
+            org.opencontainers.image.title=VaultSandbox Gateway${{ matrix.suffix == '-harden' && ' (Hardened)' || '' }}
             org.opencontainers.image.description=Secure receive-only SMTP server with automatic TLS certificate management
             org.opencontainers.image.vendor=VaultSandbox
             org.opencontainers.image.licenses=AGPL-3.0-or-later
@@ -113,13 +135,14 @@ jobs:
         uses: docker/build-push-action@v6
         with:
           context: .
+          file: ${{ matrix.dockerfile }}
           platforms: linux/amd64,linux/arm64
           target: production
           push: ${{ steps.push-check.outputs.should_push }}
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
-          cache-from: type=registry,ref=ghcr.io/${{ github.repository }}:buildcache
-          cache-to: type=registry,ref=ghcr.io/${{ github.repository }}:buildcache,mode=max
+          cache-from: type=registry,ref=ghcr.io/${{ github.repository }}:buildcache-${{ matrix.variant }}
+          cache-to: type=registry,ref=ghcr.io/${{ github.repository }}:buildcache-${{ matrix.variant }},mode=max
           build-args: |
             BUILD_DATE=${{ github.event.head_commit.timestamp }}
             VCS_REF=${{ github.sha }}
@@ -128,8 +151,10 @@ jobs:
       # Summary output
       - name: Build summary
         run: |
-          echo "## Build Summary" >> $GITHUB_STEP_SUMMARY
+          echo "## Build Summary (${{ matrix.variant }})" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
+          echo "- **Variant**: ${{ matrix.variant }}" >> $GITHUB_STEP_SUMMARY
+          echo "- **Dockerfile**: ${{ matrix.dockerfile }}" >> $GITHUB_STEP_SUMMARY
           echo "- **Test Mode**: ${{ env.TEST_MODE }}" >> $GITHUB_STEP_SUMMARY
           echo "- **Event**: ${{ github.event_name }}" >> $GITHUB_STEP_SUMMARY
           echo "- **Ref**: ${{ github.ref }}" >> $GITHUB_STEP_SUMMARY
@@ -150,13 +175,13 @@ jobs:
           echo "${{ steps.meta.outputs.tags }}" >> $GITHUB_STEP_SUMMARY
           echo '```' >> $GITHUB_STEP_SUMMARY
 
-      # Optional: Run container tests
+      # Optional: Run container tests (only for standard variant)
       - name: Test Docker image
-        if: steps.push-check.outputs.should_push == 'false'
+        if: steps.push-check.outputs.should_push == 'false' && matrix.variant == 'standard'
         run: |
           echo "Running basic container tests..."
           # Build a local test image
-          docker build --target production -t test-image .
+          docker build --target production -t test-image -f ${{ matrix.dockerfile }} .
 
           # Test that the image starts and health check passes with minimal config
           docker run -d --name test-container -p 8080:80 \
