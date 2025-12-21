@@ -69,6 +69,7 @@ COPY --chown=1001:1001 --from=backend-builder /usr/src/app/dist ./dist
 COPY --chown=1001:1001 --from=backend-builder /usr/src/app/node_modules ./node_modules
 COPY --chown=1001:1001 --from=backend-builder /tmp/healthcheck.js ./healthcheck.js
 COPY --chown=1001:1001 backend/package*.json ./
+COPY --chown=1001:1001 backend/assets ./assets
 
 # Backend expects the compiled frontend in ../frontend/dist
 COPY --chown=1001:1001 --from=frontend-builder /usr/src/frontend/dist ../frontend/dist

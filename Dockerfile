@@ -59,6 +59,7 @@ WORKDIR /usr/src/app
 COPY --from=backend-builder /usr/src/app/dist ./dist
 COPY --from=backend-builder /usr/src/app/node_modules ./node_modules
 COPY backend/package*.json ./
+COPY backend/assets ./assets
 
 # Backend expects the compiled frontend in ../frontend/dist
 COPY --from=frontend-builder /usr/src/frontend/dist ../frontend/dist
