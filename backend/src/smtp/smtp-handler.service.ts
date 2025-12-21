@@ -410,7 +410,14 @@ export class SmtpHandlerService {
 
     const recipientContexts = this.resolveRecipientInboxes(to, inboxService);
     const validationResults = await this.performEmailValidation(rawData, session, parsedHeaders);
-    const parsedPayload = this.buildParsedPayload(parsedMail, displayFrom, envelopeFrom, to, validationResults, session);
+    const parsedPayload = this.buildParsedPayload(
+      parsedMail,
+      displayFrom,
+      envelopeFrom,
+      to,
+      validationResults,
+      session,
+    );
     const rawPayload = rawData.toString('base64');
 
     for (const recipientContext of recipientContexts) {

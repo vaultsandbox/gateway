@@ -153,14 +153,8 @@ export async function vsxDnsPreBoot(): Promise<void> {
     }
   } catch (error) {
     const isTimeout = error instanceof Error && error.name === 'AbortError';
-    const message = isTimeout
-      ? 'Request timed out'
-      : error instanceof Error
-        ? error.message
-        : String(error);
-    const action = isTimeout
-      ? 'Check network connectivity to api.vsx.email'
-      : 'Ensure api.vsx.email is reachable';
+    const message = isTimeout ? 'Request timed out' : error instanceof Error ? error.message : String(error);
+    const action = isTimeout ? 'Check network connectivity to api.vsx.email' : 'Ensure api.vsx.email is reachable';
     const truncatedMsg = message.substring(0, 49).padEnd(49);
     const truncatedAction = action.substring(0, 48).padEnd(48);
     errorBanner = `
