@@ -276,7 +276,7 @@ export class EmailValidationService {
 
       const policy = this.normalizeDmarcPolicy(evaluation.policy || evaluation.p);
       const aligned = Boolean(
-        evaluation.alignment?.spf?.result === 'pass' || evaluation.alignment?.dkim?.result === 'pass',
+        evaluation.alignment?.spf?.result || evaluation.alignment?.dkim?.result,
       );
       const info = evaluation.info || statusObj?.comment || undefined;
       const domain = evaluation.domain?.toLowerCase();
