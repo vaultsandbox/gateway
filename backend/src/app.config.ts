@@ -527,8 +527,10 @@ function buildMainConfig() {
 
   let origin: string;
 
-  // Auto-derive CORS origin from SMTP allowed domains only if not explicitly set
-  // If explicitly set to "*", respect it for wildcard CORS
+  // Auto-derive CORS origin from SMTP allowed domains only if not explicitly set.
+  // Intentionally uses only the first domain - the API and web UI are served from
+  // a single origin, while SMTP may accept emails for multiple recipient domains.
+  // Set VSB_SERVER_ORIGIN explicitly to override, or use "*" for wildcard CORS.
   if (!process.env.VSB_SERVER_ORIGIN) {
     const allowedDomains = parseAllowedDomains();
     const protocol = httpsEnabled ? 'https' : 'http';

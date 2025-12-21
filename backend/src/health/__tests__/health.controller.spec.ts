@@ -80,7 +80,7 @@ describe('HealthController', () => {
       };
 
       configService.get.mockImplementation((key: string, defaultValue?: unknown) => {
-        if (key === 'vsb.main.backend') return 'http://localhost:3000';
+        if (key === 'vsb.main.backend.url') return 'http://localhost:3000';
         if (key === 'vsb.main.gatewayMode') return 'remote';
         return defaultValue;
       });
@@ -142,7 +142,7 @@ describe('HealthController', () => {
     describe('backend health check', () => {
       it('should return local mode status when gatewayMode is local', async () => {
         configService.get.mockImplementation((key: string, defaultValue?: unknown) => {
-          if (key === 'vsb.main.backend') return 'http://localhost:3000';
+          if (key === 'vsb.main.backend.url') return 'http://localhost:3000';
           if (key === 'vsb.main.gatewayMode') return 'local';
           return defaultValue;
         });
@@ -165,7 +165,7 @@ describe('HealthController', () => {
 
       it('should return unconfigured status when gatewayMode is not local and backendUrl is not set', async () => {
         configService.get.mockImplementation((key: string, defaultValue?: unknown) => {
-          if (key === 'vsb.main.backend') return undefined;
+          if (key === 'vsb.main.backend.url') return undefined;
           if (key === 'vsb.main.gatewayMode') return 'remote';
           return defaultValue;
         });
@@ -189,7 +189,7 @@ describe('HealthController', () => {
       it('should ping backend when gatewayMode is not local and backendUrl is configured', async () => {
         const backendUrl = 'http://backend.example.com';
         configService.get.mockImplementation((key: string, defaultValue?: unknown) => {
-          if (key === 'vsb.main.backend') return backendUrl;
+          if (key === 'vsb.main.backend.url') return backendUrl;
           if (key === 'vsb.main.gatewayMode') return 'remote';
           return defaultValue;
         });
@@ -213,7 +213,7 @@ describe('HealthController', () => {
 
       it('should use default gatewayMode of local when not configured', async () => {
         configService.get.mockImplementation((key: string, defaultValue?: unknown) => {
-          if (key === 'vsb.main.backend') return 'http://localhost:3000';
+          if (key === 'vsb.main.backend.url') return 'http://localhost:3000';
           if (key === 'vsb.main.gatewayMode') return defaultValue;
           return defaultValue;
         });
