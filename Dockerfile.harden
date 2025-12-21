@@ -55,7 +55,7 @@ FROM dhi.io/node:24@sha256:e805d972f53c2db92cab8c56242ba8609736e461ef16d4073d52d
 # OCI metadata labels
 LABEL org.opencontainers.image.title="VaultSandbox Gateway (Hardened)" \
       org.opencontainers.image.description="Secure receive-only SMTP server with automatic TLS certificate management - Hardened build" \
-      org.opencontainers.image.version="0.5.2" \
+      org.opencontainers.image.version="0.5.3" \
       org.opencontainers.image.authors="Antero" \
       org.opencontainers.image.licenses="AGPL-3.0-or-later" \
       org.opencontainers.image.source="https://github.com/vaultsandbox/gateway"
@@ -69,6 +69,7 @@ COPY --chown=1001:1001 --from=backend-builder /usr/src/app/dist ./dist
 COPY --chown=1001:1001 --from=backend-builder /usr/src/app/node_modules ./node_modules
 COPY --chown=1001:1001 --from=backend-builder /tmp/healthcheck.js ./healthcheck.js
 COPY --chown=1001:1001 backend/package*.json ./
+COPY --chown=1001:1001 backend/assets ./assets
 
 # Backend expects the compiled frontend in ../frontend/dist
 COPY --chown=1001:1001 --from=frontend-builder /usr/src/frontend/dist ../frontend/dist

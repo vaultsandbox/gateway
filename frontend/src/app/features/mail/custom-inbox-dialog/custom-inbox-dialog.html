@@ -61,24 +61,24 @@
       @if (ttlExceedsMax()) {
         <small class="text-red-600 dark:text-red-400">
           TTL exceeds maximum of {{ maxTtlHours() }}h.
-          <a
-            href="javascript:void(0)"
-            class="text-red-600 dark:text-red-400 font-semibold cursor-pointer hover:underline"
+          <button
+            type="button"
+            class="text-red-600 dark:text-red-400 font-semibold cursor-pointer hover:underline bg-transparent border-none p-0"
             (click)="setToMaxTtl()"
           >
             Click to set to maximum.
-          </a>
+          </button>
         </small>
       } @else {
         <small class="text-surface-500">
           This value will be remembered as your default.
-          <a
-            href="javascript:void(0)"
-            class="text-primary cursor-pointer hover:underline"
+          <button
+            type="button"
+            class="text-primary cursor-pointer hover:underline bg-transparent border-none p-0"
             (click)="resetToServerDefault()"
           >
             Reset to server default ({{ defaultTtlHours() }}h)
-          </a>
+          </button>
         </small>
       }
     </div>

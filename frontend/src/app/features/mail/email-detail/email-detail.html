@@ -64,7 +64,7 @@
     </div>
 
     <div class="flex-1 overflow-hidden min-w-0">
-      @if (email.isLoadingBody || isRenderingContent) {
+      @if (email.isLoadingBody !== false || isRenderingContent) {
         <div class="flex flex-col items-center justify-center h-full gap-4">
           <p-progressSpinner class="w-12 h-12" strokeWidth="4" />
           <p class="text-surface-500 dark:text-surface-400">Loading email content...</p>

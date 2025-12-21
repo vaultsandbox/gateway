@@ -11,6 +11,7 @@
 import * as http from 'http';
 
 const VSX_DNS_API_URL = 'https://api.vsx.email';
+const VSX_DNS_TIMEOUT_MS = 15000; // 15 second timeout for check-in
 
 interface CheckInResponse {
   status: 'ready' | 'error';
@@ -108,8 +109,13 @@ export async function vsxDnsPreBoot(): Promise<void> {
   let checkInFailed = false;
   let errorBanner = '';
 
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), VSX_DNS_TIMEOUT_MS);
+
   try {
-    const response = await fetch(`${VSX_DNS_API_URL}/check-in`);
+    const response = await fetch(`${VSX_DNS_API_URL}/check-in`, {
+      signal: controller.signal,
+    });
     const data = (await response.json()) as CheckInResponse;
 
     if (data.status !== 'ready' || !data.domain) {
@@ -146,18 +152,22 @@ export async function vsxDnsPreBoot(): Promise<void> {
       console.log(`[VsxDnsPreBoot] Domain: ${data.domain}, IP: ${data.ip}`);
     }
   } catch (error) {
-    const message = error instanceof Error ? error.message : String(error);
+    const isTimeout = error instanceof Error && error.name === 'AbortError';
+    const message = isTimeout ? 'Request timed out' : error instanceof Error ? error.message : String(error);
+    const action = isTimeout ? 'Check network connectivity to api.vsx.email' : 'Ensure api.vsx.email is reachable';
     const truncatedMsg = message.substring(0, 49).padEnd(49);
+    const truncatedAction = action.substring(0, 48).padEnd(48);
     errorBanner = `
 ╔══════════════════════════════════════════════════════════════
-║  VSX DNS Check-In Failed!                                    
+║  VSX DNS Check-In Failed!
 ╠══════════════════════════════════════════════════════════════
 ║  Error: ${truncatedMsg}
-║  Action: Ensure api.vsx.email is reachable                   
+║  Action: ${truncatedAction}║
 ╚══════════════════════════════════════════════════════════════
 `;
     checkInFailed = true;
   } finally {
+    clearTimeout(timeout);
     // Always stop the probe server before continuing or exiting
     if (probeServer) {
       await stopProbeServer(probeServer);

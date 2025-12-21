@@ -59,7 +59,6 @@ export class MetricsController {
     type: StorageMetricsResponseDto,
   })
   @ApiResponse({ status: 401, description: 'Unauthorized, API key is missing or invalid.' })
-  @ApiResponse({ status: 503, description: 'Email storage service not available.' })
   getStorageMetrics() {
     const storageService = this.resolveEmailStorageService();
 

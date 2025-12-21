@@ -348,6 +348,12 @@ export class SmtpHandlerService {
 
     const rawData = await this.collectStream(stream);
 
+    // Post-collection size check: catches clients that don't use SIZE extension or lie about size
+    if (stream.sizeExceeded) {
+      this.metricsService.increment(METRIC_PATHS.REJECTIONS_DATA_SIZE);
+      throw new Error('Message rejected – size limit exceeded.');
+    }
+
     // Branch based on gateway mode
     let result: ReceivedEmail;
     if (this.gatewayMode === 'local') {
@@ -393,7 +399,10 @@ export class SmtpHandlerService {
     const parsedHeaders = this.parseHeaders(rawData.toString('utf8'));
     const parsedMail = await this.emailProcessingService.parseEmail(rawData, session.id);
     const messageId = this.extractMessageId(parsedHeaders);
-    const from = this.extractSmtpAddress(session.envelope.mailFrom);
+    const envelopeFrom = this.extractSmtpAddress(session.envelope.mailFrom);
+    // Use the From header for display (e.g., "contact@example.com")
+    // Fall back to envelope sender if header is missing
+    const displayFrom = parsedMail?.from?.text || envelopeFrom;
     const to = session.envelope.rcptTo
       .map((recipient) => this.extractSmtpAddress(recipient))
       .filter((address): address is string => Boolean(address));
@@ -401,14 +410,21 @@ export class SmtpHandlerService {
 
     const recipientContexts = this.resolveRecipientInboxes(to, inboxService);
     const validationResults = await this.performEmailValidation(rawData, session, parsedHeaders);
-    const parsedPayload = this.buildParsedPayload(parsedMail, from, to, validationResults, session);
+    const parsedPayload = this.buildParsedPayload(
+      parsedMail,
+      displayFrom,
+      envelopeFrom,
+      to,
+      validationResults,
+      session,
+    );
     const rawPayload = rawData.toString('base64');
 
     for (const recipientContext of recipientContexts) {
       const emailId = randomUUID();
       const metadataPayload = this.buildMetadataPayload(
         emailId,
-        from,
+        displayFrom,
         recipientContext.recipientAddress,
         parsedMail?.subject,
         receivedAt,
@@ -429,7 +445,7 @@ export class SmtpHandlerService {
           ? ` (alias of ${recipientContext.baseEmail})`
           : '';
       this.logger.log(
-        `Email ${emailId} encrypted and stored for ${recipientContext.recipientAddress}${aliasInfo} (session=${session.id}) from '${from ?? 'unknown'}' (${stream.byteLength} bytes)`,
+        `Email ${emailId} encrypted and stored for ${recipientContext.recipientAddress}${aliasInfo} (session=${session.id}) from '${displayFrom ?? 'unknown'}' (${stream.byteLength} bytes)`,
       );
 
       this.notifyClient(recipientContext.inbox, emailId, encryptedPayloads.encryptedMetadata);
@@ -437,7 +453,7 @@ export class SmtpHandlerService {
 
     const { spfResult, dkimResults, dmarcResult, reverseDnsResult } = validationResults;
     return {
-      from,
+      from: displayFrom,
       to,
       messageId,
       rawData,
@@ -547,10 +563,13 @@ export class SmtpHandlerService {
 
   /**
    * Builds the parsed email payload that will be encrypted for the client.
+   * @param displayFrom - The From header value for display purposes
+   * @param envelopeFrom - The SMTP envelope sender (MAIL FROM) for SPF domain fallback
    */
   private buildParsedPayload(
     parsedMail: LocalParsedMail | undefined,
-    from: string | undefined,
+    displayFrom: string | undefined,
+    envelopeFrom: string | undefined,
     to: string[],
     validationResults: EmailValidationResults,
     session: SMTPServerSession,
@@ -568,7 +587,7 @@ export class SmtpHandlerService {
       subject: parsedMail?.subject || '(no subject)',
       messageId: parsedMail?.messageId,
       date: parsedMail?.date?.toISOString(),
-      from: from || 'unknown',
+      from: displayFrom || 'unknown',
       to: to.join(', '),
       cc: parsedMail?.cc?.text,
       bcc: parsedMail?.bcc?.text,
@@ -581,7 +600,8 @@ export class SmtpHandlerService {
         spf: spfResult
           ? {
               result: spfResult.status,
-              domain: spfResult.domain || extractDomain(from || '') || 'unknown',
+              // Use envelope sender for SPF domain (SPF validates MAIL FROM, not header From)
+              domain: spfResult.domain || extractDomain(envelopeFrom || '') || 'unknown',
               details: spfResult.info || '',
             }
           : undefined,

@@ -92,17 +92,19 @@ export interface MailauthDkimResult {
  * DMARC alignment information
  *
  * DMARC checks whether SPF and DKIM results align with the From header domain.
+ * Note: The `result` fields contain the aligned domain name (e.g., 'example.com'),
+ * NOT a status string. A truthy value indicates alignment passed.
  */
 export interface MailauthDmarcAlignment {
   /**
-   * SPF alignment result
+   * SPF alignment result - contains the aligned domain if alignment passed, undefined otherwise
    */
-  spf?: { result?: string };
+  spf?: { result?: string; strict?: boolean };
 
   /**
-   * DKIM alignment result
+   * DKIM alignment result - contains the aligned domain if alignment passed, undefined otherwise
    */
-  dkim?: { result?: string };
+  dkim?: { result?: string; strict?: boolean; underSized?: boolean };
 }
 
 /**

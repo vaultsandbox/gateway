@@ -46,7 +46,7 @@ FROM node:24-alpine@sha256:682368d8253e0c3364b803956085c456a612d738bd635926d73fa
 # OCI metadata labels
 LABEL org.opencontainers.image.title="VaultSandbox Gateway" \
       org.opencontainers.image.description="Secure receive-only SMTP server with automatic TLS certificate management" \
-      org.opencontainers.image.version="0.5.2" \
+      org.opencontainers.image.version="0.5.3" \
       org.opencontainers.image.authors="Antero" \
       org.opencontainers.image.licenses="AGPL-3.0-or-later" \
       org.opencontainers.image.source="https://github.com/vaultsandbox/gateway"
@@ -59,6 +59,7 @@ WORKDIR /usr/src/app
 COPY --from=backend-builder /usr/src/app/dist ./dist
 COPY --from=backend-builder /usr/src/app/node_modules ./node_modules
 COPY backend/package*.json ./
+COPY backend/assets ./assets
 
 # Backend expects the compiled frontend in ../frontend/dist
 COPY --from=frontend-builder /usr/src/frontend/dist ../frontend/dist

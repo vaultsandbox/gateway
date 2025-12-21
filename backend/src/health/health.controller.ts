@@ -51,7 +51,7 @@ export class HealthController {
     type: HealthResponseDto,
   })
   check() {
-    const backendUrl = this.configService.get<string>('vsb.main.backend');
+    const backendUrl = this.configService.get<string>('vsb.main.backend.url');
     const gatewayMode = this.configService.get<string>('vsb.main.gatewayMode', 'local');
 
     return this.health.check([
