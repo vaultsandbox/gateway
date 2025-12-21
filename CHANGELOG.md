@@ -5,6 +5,26 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.5.3] - 2025-12-21
+
+### Security
+
+- Hardened CSP by removing unsafe-inline from script-src
+- Added post-collection size check for SMTP DATA to catch SIZE extension bypass
+
+### Changed
+
+- Added 15s timeout to VSX DNS check-in
+- Renamed `vsb.main.backend` to `vsb.main.backend.url`
+- Email viewer shows loading spinner during initial email load
+
+### Fixed
+
+- DMARC alignment check now uses truthy domain value
+- Email display now uses From header instead of envelope sender
+
+[0.5.3]: https://github.com/vaultsandbox/gateway/releases/tag/v0.5.3
+
 ## [0.5.2] - 2025-12-19
 
 ### Added
