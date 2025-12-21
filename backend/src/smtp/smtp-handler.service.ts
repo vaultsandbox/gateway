@@ -348,6 +348,12 @@ export class SmtpHandlerService {
 
     const rawData = await this.collectStream(stream);
 
+    // Post-collection size check: catches clients that don't use SIZE extension or lie about size
+    if (stream.sizeExceeded) {
+      this.metricsService.increment(METRIC_PATHS.REJECTIONS_DATA_SIZE);
+      throw new Error('Message rejected – size limit exceeded.');
+    }
+
     // Branch based on gateway mode
     let result: ReceivedEmail;
     if (this.gatewayMode === 'local') {
