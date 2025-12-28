@@ -1,5 +1,6 @@
 import { Injectable, Logger, OnModuleDestroy, OnModuleInit, Optional } from '@nestjs/common';
-import type { AddressInfo } from 'net';
+import type { AddressInfo, Socket } from 'net';
+import type { TLSSocket } from 'tls';
 import { ConfigService } from '@nestjs/config';
 import { OnEvent } from '@nestjs/event-emitter';
 import { SMTPServer, SMTPServerOptions } from 'smtp-server';
@@ -281,6 +282,27 @@ export class SmtpService implements OnModuleInit, OnModuleDestroy {
         warn: (msg: string) => this.logger.warn(msg),
         trace: () => {}, // Suppress trace logs
         fatal: (msg: string) => this.logger.error(msg),
+      },
+
+      // Capture TLS connection details when TLS is established
+      onSecure: (socket: Socket | TLSSocket, session, callback) => {
+        // Extract TLS info from the socket if it's a TLS connection
+        if ('getCipher' in socket && 'getProtocol' in socket) {
+          const tlsSocket = socket;
+          const cipher = tlsSocket.getCipher();
+          const protocol = tlsSocket.getProtocol();
+
+          if (cipher && protocol) {
+            // Note: 'bits' is available at runtime but not in TypeScript types
+            const cipherWithBits = cipher as typeof cipher & { bits?: number };
+            this.handler.setTlsInfo(session.id, {
+              version: protocol,
+              cipher: cipher.name,
+              bits: cipherWithBits.bits,
+            });
+          }
+        }
+        callback();
       },
 
       // Early Talker Detection via onConnect

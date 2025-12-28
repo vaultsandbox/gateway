@@ -28,6 +28,7 @@
 
 import { Buffer } from 'node:buffer';
 import { randomUUID } from 'node:crypto';
+import { hostname } from 'node:os';
 import { SMTPServerAddress, SMTPServerDataStream, SMTPServerSession } from 'smtp-server';
 import { Injectable, Logger, Optional } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
@@ -95,12 +96,19 @@ interface TimestampedCacheEntry<T> {
   timestamp: number;
 }
 
+export interface TlsInfo {
+  version: string; // e.g., 'TLSv1.3'
+  cipher: string; // e.g., 'TLS_AES_256_GCM_SHA384'
+  bits?: number; // e.g., 256
+}
+
 @Injectable()
 export class SmtpHandlerService {
   private readonly logger = new Logger(SmtpHandlerService.name);
   private readonly config: SmtpConfig;
   private readonly spfResultCache = new Map<string, TimestampedCacheEntry<SpfResult>>();
   private readonly reverseDnsResultCache = new Map<string, TimestampedCacheEntry<ReverseDnsResult>>();
+  private readonly tlsInfoCache = new Map<string, TimestampedCacheEntry<TlsInfo>>();
   private readonly gatewayMode: 'local' | 'backend';
   private readonly sessionCacheMaxAge = 5 * 60 * 1000; // 5 minutes
 
@@ -222,10 +230,27 @@ export class SmtpHandlerService {
   cleanupSession(sessionId: string): void {
     const hadSpf = this.spfResultCache.delete(sessionId);
     const hadReverseDns = this.reverseDnsResultCache.delete(sessionId);
+    const hadTls = this.tlsInfoCache.delete(sessionId);
 
-    if (hadSpf || hadReverseDns) {
-      this.logger.debug(`Cleaned up session cache for ${sessionId} (SPF: ${hadSpf}, ReverseDNS: ${hadReverseDns})`);
+    if (hadSpf || hadReverseDns || hadTls) {
+      this.logger.debug(
+        `Cleaned up session cache for ${sessionId} (SPF: ${hadSpf}, ReverseDNS: ${hadReverseDns}, TLS: ${hadTls})`,
+      );
     }
+  }
+
+  /**
+   * Stores TLS connection information for a session.
+   *
+   * Called by the SMTP service's onSecure handler when TLS is established.
+   * The TLS info is later used to build the Received header with cipher details.
+   *
+   * @param sessionId - The SMTP session ID
+   * @param tlsInfo - TLS connection details (version, cipher, bits)
+   */
+  setTlsInfo(sessionId: string, tlsInfo: TlsInfo): void {
+    this.tlsInfoCache.set(sessionId, { value: tlsInfo, timestamp: Date.now() });
+    this.logger.debug(`TLS info cached for session ${sessionId}: ${tlsInfo.version} ${tlsInfo.cipher}`);
   }
 
   /**
@@ -243,6 +268,7 @@ export class SmtpHandlerService {
     const now = Date.now();
     let cleanedSpf = 0;
     let cleanedReverseDns = 0;
+    let cleanedTls = 0;
 
     // Cleanup stale SPF cache entries
     for (const [sessionId, entry] of this.spfResultCache.entries()) {
@@ -260,10 +286,19 @@ export class SmtpHandlerService {
       }
     }
 
-    if (cleanedSpf > 0 || cleanedReverseDns > 0) {
+    // Cleanup stale TLS info cache entries
+    for (const [sessionId, entry] of this.tlsInfoCache.entries()) {
+      if (now - entry.timestamp > this.sessionCacheMaxAge) {
+        this.tlsInfoCache.delete(sessionId);
+        cleanedTls++;
+      }
+    }
+
+    const totalCleaned = cleanedSpf + cleanedReverseDns + cleanedTls;
+    if (totalCleaned > 0) {
       this.logger.warn(
-        `Cleaned up ${cleanedSpf + cleanedReverseDns} stale session cache entries ` +
-          `(SPF: ${cleanedSpf}, ReverseDNS: ${cleanedReverseDns}). ` +
+        `Cleaned up ${totalCleaned} stale session cache entries ` +
+          `(SPF: ${cleanedSpf}, ReverseDNS: ${cleanedReverseDns}, TLS: ${cleanedTls}). ` +
           `This may indicate sessions not properly closing.`,
       );
     }
@@ -396,17 +431,24 @@ export class SmtpHandlerService {
     session: SMTPServerSession,
   ): Promise<ReceivedEmail> {
     const { inboxService, cryptoService } = this.ensureLocalModeServicesAvailable();
-    const parsedHeaders = this.parseHeaders(rawData.toString('utf8'));
-    const parsedMail = await this.emailProcessingService.parseEmail(rawData, session.id);
+
+    // Extract recipients early for Received header
+    const to = session.envelope.rcptTo
+      .map((recipient) => this.extractSmtpAddress(recipient))
+      .filter((address): address is string => Boolean(address));
+    const receivedAt = new Date();
+
+    // Prepend RFC 5321 Received header with transport security info (ESMTPS indicates TLS)
+    const receivedHeader = this.buildReceivedHeader(session, to[0] || 'unknown', receivedAt);
+    const rawDataWithReceived = Buffer.concat([Buffer.from(receivedHeader, 'utf8'), rawData]);
+
+    const parsedHeaders = this.parseHeaders(rawDataWithReceived.toString('utf8'));
+    const parsedMail = await this.emailProcessingService.parseEmail(rawDataWithReceived, session.id);
     const messageId = this.extractMessageId(parsedHeaders);
     const envelopeFrom = this.extractSmtpAddress(session.envelope.mailFrom);
     // Use the From header for display (e.g., "contact@example.com")
     // Fall back to envelope sender if header is missing
     const displayFrom = parsedMail?.from?.text || envelopeFrom;
-    const to = session.envelope.rcptTo
-      .map((recipient) => this.extractSmtpAddress(recipient))
-      .filter((address): address is string => Boolean(address));
-    const receivedAt = new Date();
 
     const recipientContexts = this.resolveRecipientInboxes(to, inboxService);
     const validationResults = await this.performEmailValidation(rawData, session, parsedHeaders);
@@ -418,7 +460,7 @@ export class SmtpHandlerService {
       validationResults,
       session,
     );
-    const rawPayload = rawData.toString('base64');
+    const rawPayload = rawDataWithReceived.toString('base64');
 
     for (const recipientContext of recipientContexts) {
       const emailId = randomUUID();
@@ -456,7 +498,7 @@ export class SmtpHandlerService {
       from: displayFrom,
       to,
       messageId,
-      rawData,
+      rawData: rawDataWithReceived,
       size: stream.byteLength,
       headers: parsedHeaders,
       spfResult,
@@ -879,6 +921,50 @@ export class SmtpHandlerService {
     }
 
     return undefined;
+  }
+
+  /**
+   * Builds an RFC 5321 compliant Received header for the email.
+   *
+   * The Received header documents the email's path through mail servers and includes
+   * transport security information including TLS version and cipher suite.
+   *
+   * Format follows RFC 5321 Section 4.4:
+   * - from: client hostname and IP
+   * - by: this server's hostname
+   * - with: protocol (SMTP, ESMTP, ESMTPS for TLS, ESMTPSA for TLS+Auth)
+   * - TLS details: version and cipher (when TLS is used)
+   * - id: session identifier
+   * - for: recipient address
+   * - date: RFC 2822 formatted timestamp
+   *
+   * @param session - SMTP session containing connection details
+   * @param recipient - The recipient email address
+   * @param receivedAt - Timestamp when the email was received
+   * @returns Formatted Received header string
+   */
+  private buildReceivedHeader(session: SMTPServerSession, recipient: string, receivedAt: Date): string {
+    const serverHostname = hostname();
+    const clientHostname = session.clientHostname || 'unknown';
+    const remoteAddress = normalizeIp(session.remoteAddress) || session.remoteAddress;
+    // transmissionType includes TLS indicator: ESMTP (no TLS), ESMTPS (TLS), ESMTPSA (TLS+Auth)
+    const transmissionType = session.transmissionType || (session.secure ? 'ESMTPS' : 'ESMTP');
+    const dateString = receivedAt.toUTCString();
+
+    // Get TLS details if available
+    const tlsInfo = this.tlsInfoCache.get(session.id)?.value;
+    // Format: (version=TLSv1.3 cipher=TLS_AES_256_GCM_SHA384 bits=256)
+    const tlsDetails =
+      tlsInfo && session.secure
+        ? ` (version=${tlsInfo.version} cipher=${tlsInfo.cipher}${tlsInfo.bits ? ` bits=${tlsInfo.bits}` : ''})`
+        : '';
+
+    return (
+      `Received: from ${clientHostname} (${clientHostname} [${remoteAddress}])\r\n` +
+      `\tby ${serverHostname} with ${transmissionType}${tlsDetails}\r\n` +
+      `\tid ${session.id} for <${recipient}>;\r\n` +
+      `\t${dateString}\r\n`
+    );
   }
 
   /**
