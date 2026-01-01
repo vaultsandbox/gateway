@@ -13,6 +13,22 @@ export interface CreateInboxBody {
   emailAddress?: string;
 }
 
+export interface AuthOptions {
+  spf?: 'pass' | 'fail' | 'softfail' | 'neutral' | 'none' | 'temperror' | 'permerror';
+  dkim?: 'pass' | 'fail' | 'none';
+  dmarc?: 'pass' | 'fail' | 'none';
+  reverseDns?: boolean;
+}
+
+export interface CreateTestEmailBody {
+  to: string;
+  from?: string;
+  subject?: string;
+  text?: string;
+  html?: string;
+  auth?: AuthOptions;
+}
+
 export class ApiClient {
   private readonly http: SuperTest<SuperTestRequest>;
   private readonly basePath: string;
@@ -96,6 +112,10 @@ export class ApiClient {
 
   checkApiKey() {
     return this.get('/check-key');
+  }
+
+  createTestEmail(body: CreateTestEmailBody) {
+    return this.post('/test/emails').send(body);
   }
 }
 

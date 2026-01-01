@@ -5,6 +5,14 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.5.5] - 2025-12-31
+
+### Added
+
+- **Test Email API Endpoint**: New `POST /api/test/emails` endpoint for creating test emails with controlled authentication results (SPF, DKIM, DMARC, ReverseDNS). Enables SDK integration tests to verify auth result parsing without sending real emails. Only available when `VSB_DEVELOPMENT=true`.
+
+[0.5.5]: https://github.com/vaultsandbox/gateway/releases/tag/v0.5.5
+
 ## [0.5.4] - 2025-12-28
 
 ### Added

@@ -122,6 +122,31 @@ export function expectDecryptedMetadata(metadata: DecryptedMetadata) {
 /**
  * Validates decrypted parsed email structure
  */
+export interface AuthResults {
+  spf?: {
+    result: string;
+    domain: string;
+    details: string;
+  };
+  dkim?: Array<{
+    domain: string;
+    result: string;
+    selector: string;
+    signature: string;
+  }>;
+  dmarc?: {
+    result: string;
+    policy: string;
+    domain: string;
+    aligned: boolean;
+  };
+  reverseDns?: {
+    hostname: string;
+    verified: boolean;
+    ip: string;
+  };
+}
+
 export interface DecryptedParsed {
   text?: string;
   html?: string;
@@ -131,6 +156,7 @@ export interface DecryptedParsed {
     contentType: string;
     size: number;
   }>;
+  authResults?: AuthResults;
 }
 
 export function expectDecryptedParsed(parsed: DecryptedParsed) {
@@ -139,6 +165,88 @@ export function expectDecryptedParsed(parsed: DecryptedParsed) {
       text: expect.any(String),
     }),
   );
+}
+
+/**
+ * Validates auth results structure in decrypted parsed email
+ */
+export function expectAuthResults(authResults: AuthResults) {
+  expect(authResults).toBeDefined();
+
+  if (authResults.spf) {
+    expect(authResults.spf).toEqual(
+      expect.objectContaining({
+        result: expect.any(String),
+        domain: expect.any(String),
+        details: expect.any(String),
+      }),
+    );
+  }
+
+  if (authResults.dkim && authResults.dkim.length > 0) {
+    authResults.dkim.forEach((dkimResult) => {
+      expect(dkimResult).toEqual(
+        expect.objectContaining({
+          domain: expect.any(String),
+          result: expect.any(String),
+          selector: expect.any(String),
+          signature: expect.any(String),
+        }),
+      );
+    });
+  }
+
+  if (authResults.dmarc) {
+    expect(authResults.dmarc).toEqual(
+      expect.objectContaining({
+        result: expect.any(String),
+        policy: expect.any(String),
+        domain: expect.any(String),
+        aligned: expect.any(Boolean),
+      }),
+    );
+  }
+
+  if (authResults.reverseDns) {
+    expect(authResults.reverseDns).toEqual(
+      expect.objectContaining({
+        hostname: expect.any(String),
+        verified: expect.any(Boolean),
+        ip: expect.any(String),
+      }),
+    );
+  }
+}
+
+/**
+ * Validates specific auth result values
+ */
+export function expectAuthResultValues(
+  authResults: AuthResults,
+  expected: {
+    spf?: string;
+    dkim?: string;
+    dmarc?: string;
+    reverseDnsVerified?: boolean;
+  },
+) {
+  if (expected.spf !== undefined) {
+    expect(authResults.spf?.result).toBe(expected.spf);
+  }
+
+  if (expected.dkim !== undefined) {
+    expect(authResults.dkim).toBeDefined();
+    expect(authResults.dkim?.length).toBeGreaterThan(0);
+    expect(authResults.dkim?.[0].result).toBe(expected.dkim);
+  }
+
+  if (expected.dmarc !== undefined) {
+    expect(authResults.dmarc?.result).toBe(expected.dmarc);
+  }
+
+  if (expected.reverseDnsVerified !== undefined) {
+    expect(authResults.reverseDns?.verified).toBe(expected.reverseDnsVerified);
+  }
 }
 
 /**

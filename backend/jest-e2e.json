@@ -3,6 +3,7 @@
   "rootDir": ".",
   "testEnvironment": "node",
   "testMatch": ["<rootDir>/test/**/*.e2e-spec.{ts,js}"],
+  "setupFiles": ["<rootDir>/test/jest-e2e.env-setup.ts"],
   "transform": {
     "^.+\\.(t|j)s$": ["ts-jest", {
       "tsconfig": {
