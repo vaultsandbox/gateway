@@ -75,7 +75,7 @@
     "rate-limiter-flexible": "^8.2.1",
     "reflect-metadata": "^0.2.2",
     "rxjs": "^7.8.1",
-    "smtp-server": "^3.16.1"
+    "smtp-server": "^3.17.1"
   },
   "devDependencies": {
     "@eslint/eslintrc": "^3.2.0",
