@@ -1,6 +1,7 @@
 import { Injectable } from '@angular/core';
 import { ExportedInboxData, InboxModel } from '../interfaces';
 import {
+  base64urlDecode,
   InboxStorageKeys,
   InboxStorageMapper,
   InboxStorageSafe,
@@ -69,7 +70,8 @@ export class InboxStorageService {
   }
 
   /**
-   * Builds an inbox model from imported data, decoding secret keys.
+   * Builds an inbox model from imported data, decoding base64url secret key.
+   * Per spec Section 10.2, the public key is derived from secretKey[1152:2400].
    * @param importData Validated inbox export payload.
    */
   createInboxModelFromImport(importData: ExportedInboxData): InboxModel {
@@ -78,7 +80,7 @@ export class InboxStorageService {
       expiresAt: importData.expiresAt,
       inboxHash: importData.inboxHash,
       serverSigPk: importData.serverSigPk,
-      secretKey: Uint8Array.from(atob(importData.secretKeyB64), (c) => c.charCodeAt(0)),
+      secretKey: base64urlDecode(importData.secretKey),
       emails: [],
       emailsHash: undefined,
     };

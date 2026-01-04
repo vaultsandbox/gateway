@@ -203,17 +203,26 @@ export class InboxService {
   }
 
   /**
-   * Get all emails for an inbox (metadata only)
+   * Get all emails for an inbox (metadata only, or with content if includeContent=true)
    * Serializes binary payloads to Base64URL for API response
    */
   getEmails(
     emailAddress: string,
-  ): Array<{ id: string; encryptedMetadata: SerializedEncryptedPayload; isRead: boolean }> {
+    includeContent = false,
+  ): Array<{
+    id: string;
+    encryptedMetadata: SerializedEncryptedPayload;
+    isRead: boolean;
+    encryptedParsed?: SerializedEncryptedPayload;
+  }> {
     const emails = this.storageService.getEmails(emailAddress);
     return emails.map((email) => ({
       id: email.id,
       encryptedMetadata: serializeEncryptedPayload(email.encryptedMetadata),
       isRead: email.isRead,
+      ...(includeContent && {
+        encryptedParsed: serializeEncryptedPayload(email.encryptedParsed),
+      }),
     }));
   }
 

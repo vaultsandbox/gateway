@@ -2,7 +2,12 @@ import { TestBed } from '@angular/core/testing';
 import { provideZonelessChangeDetection } from '@angular/core';
 import { InboxStorageService } from '../inbox-storage.service';
 import { InboxModel } from '../../interfaces';
-import { InboxStorageKeys } from '../helpers/storage.helpers';
+import {
+  base64urlEncode,
+  InboxStorageKeys,
+  MLKEM_SECRET_KEY_SIZE,
+  MLDSA_PUBLIC_KEY_SIZE,
+} from '../helpers/storage.helpers';
 
 describe('InboxStorageService', () => {
   let service: InboxStorageService;
@@ -43,16 +48,22 @@ describe('InboxStorageService', () => {
 
   it('validates import payloads', () => {
     const valid = {
+      version: 1 as const,
       emailAddress: 'user@example.com',
       expiresAt: new Date().toISOString(),
       inboxHash: 'hash-123',
-      serverSigPk: 'sig',
-      secretKeyB64: btoa('data'),
+      serverSigPk: base64urlEncode(new Uint8Array(MLDSA_PUBLIC_KEY_SIZE)),
+      secretKey: base64urlEncode(new Uint8Array(MLKEM_SECRET_KEY_SIZE)),
       exportedAt: new Date().toISOString(),
     };
 
     expect(service.validateImportData(valid)).toBeTrue();
     expect(service.validateImportData({})).toBeFalse();
-    expect(service.validateImportData({ ...valid, secretKeyB64: 'not-base64' })).toBeFalse();
+    // Invalid base64url (contains + character)
+    expect(service.validateImportData({ ...valid, secretKey: 'not+valid' })).toBeFalse();
+    // Missing version
+    expect(service.validateImportData({ ...valid, version: undefined })).toBeFalse();
+    // Wrong key size
+    expect(service.validateImportData({ ...valid, secretKey: base64urlEncode(new Uint8Array(100)) })).toBeFalse();
   });
 });

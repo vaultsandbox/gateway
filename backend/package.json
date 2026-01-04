@@ -1,6 +1,6 @@
 {
   "name": "vaultsandbox-gateway-backend",
-  "version": "0.5.5",
+  "version": "0.6.0",
   "description": "Secure receive-only SMTP server with automatic TLS, SPF/DKIM/DMARC validation, and zero-knowledge storage",
   "author": "Antero",
   "private": false,
@@ -71,11 +71,11 @@
     "class-transformer": "^0.5.1",
     "class-validator": "^0.14.2",
     "mailauth": "^4.11.0",
-    "mailparser": "^3.9.0",
+    "mailparser": "^3.9.1",
     "rate-limiter-flexible": "^8.2.1",
     "reflect-metadata": "^0.2.2",
     "rxjs": "^7.8.1",
-    "smtp-server": "^3.16.1"
+    "smtp-server": "^3.17.1"
   },
   "devDependencies": {
     "@eslint/eslintrc": "^3.2.0",

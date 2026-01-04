@@ -182,11 +182,12 @@ export class MailManagerStub implements Partial<MailManager> {
     consumeArgs(inboxHash);
     const now = new Date().toISOString();
     return {
+      version: 1,
       emailAddress: 'test@example.com',
       expiresAt: now,
       inboxHash: 'stub-hash',
       serverSigPk: 'stub-server-sig',
-      secretKeyB64: '',
+      secretKey: '',
       exportedAt: now,
     };
   }
@@ -265,11 +266,12 @@ export class InboxServiceStub implements Partial<InboxService> {
   exportInboxMetadata(): ExportedInboxData {
     const now = new Date().toISOString();
     return {
+      version: 1,
       emailAddress: 'stub@example.com',
       expiresAt: now,
       inboxHash: 'stub-hash',
       serverSigPk: 'stub-server-sig',
-      secretKeyB64: '',
+      secretKey: '',
       exportedAt: now,
     };
   }

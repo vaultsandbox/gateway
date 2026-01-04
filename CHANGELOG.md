@@ -5,6 +5,25 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.6.0] - 2026-01-04
+
+### Changed
+
+- **Inbox Export Format v1**: Export format now conforms to VaultSandbox Cryptographic Protocol Specification v1.0
+  - Added `version: 1` field for format versioning
+  - Renamed `secretKeyB64` to `secretKey`
+  - Switched to base64url encoding (RFC 4648 Section 5) for cryptographic keys
+  - Added key size validation (ML-KEM-768: 2400 bytes, ML-DSA-65: 1952 bytes)
+  - Export filenames now sanitize email addresses per spec (@ → _at_)
+- Added `includeContent` query parameter to `GET /api/inboxes/:email/emails` to optionally return full email content, reducing N+1 API calls for SDK clients
+
+### Updated
+
+- mailparser: 3.9.0 → 3.9.1
+- smtp-server: 3.16.1 → 3.17.1
+
+[0.6.0]: https://github.com/vaultsandbox/gateway/releases/tag/v0.6.0
+
 ## [0.5.5] - 2025-12-31
 
 ### Added

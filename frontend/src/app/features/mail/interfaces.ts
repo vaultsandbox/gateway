@@ -183,24 +183,28 @@ export interface MailDBModel {
 /**
  * Exported inbox data structure for sharing or backup purposes.
  * Contains all necessary information to import and access an inbox.
+ * Conforms to VaultSandbox Cryptographic Protocol Specification v1.0, Section 9.
  */
 export interface ExportedInboxData {
-  /** The email address for this inbox */
+  /** Export format version. MUST be 1. */
+  version: 1;
+
+  /** The email address for this inbox. MUST contain exactly one '@' character. */
   emailAddress: string;
 
-  /** ISO timestamp when the inbox expires */
+  /** ISO timestamp when the inbox expires (ISO 8601 with Z suffix) */
   expiresAt: string;
 
-  /** Unique hash identifier for the inbox */
+  /** Unique hash identifier for the inbox. Non-empty. */
   inboxHash: string;
 
-  /** Server's public signing key */
+  /** Server's ML-DSA-65 public key (base64url encoded, 1952 bytes decoded) */
   serverSigPk: string;
 
-  /** Base64-encoded secret key for decryption */
-  secretKeyB64: string;
+  /** ML-KEM-768 secret key (base64url encoded, 2400 bytes decoded) */
+  secretKey: string;
 
-  /** ISO timestamp when the inbox was exported */
+  /** ISO timestamp when the inbox was exported (ISO 8601 with Z suffix) */
   exportedAt: string;
 }
 

@@ -1,5 +1,6 @@
 import { Injectable, inject } from '@angular/core';
 import { ExportedInboxData } from '../interfaces';
+import { InboxStorageMapper } from './helpers/storage.helpers';
 import { InboxStorageService } from './inbox-storage.service';
 import { InboxStateService } from './inbox-state.service';
 
@@ -90,6 +91,7 @@ export class InboxImportExportService {
 
   /**
    * Downloads an inbox as a JSON file.
+   * Filename follows spec Section 9.6: inbox-{sanitized_email}.json
    */
   downloadInbox(inboxHash: string): boolean {
     const exportData = this.exportInboxMetadata(inboxHash);
@@ -97,11 +99,12 @@ export class InboxImportExportService {
       return false;
     }
 
+    const sanitizedEmail = InboxStorageMapper.sanitizeEmailForFilename(exportData.emailAddress);
     const blob = new Blob([JSON.stringify(exportData, null, 2)], { type: 'application/json' });
     const url = URL.createObjectURL(blob);
     const link = document.createElement('a');
     link.href = url;
-    link.download = `inbox-${exportData.emailAddress}.json`;
+    link.download = `inbox-${sanitizedEmail}.json`;
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);

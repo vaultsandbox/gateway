@@ -202,6 +202,13 @@ export class EmailListItemDto {
     example: false,
   })
   isRead: boolean;
+
+  @ApiProperty({
+    description: 'Encrypted parsed email content (only included when includeContent=true)',
+    type: EncryptedPayloadDto,
+    required: false,
+  })
+  encryptedParsed?: EncryptedPayloadDto;
 }
 
 /**

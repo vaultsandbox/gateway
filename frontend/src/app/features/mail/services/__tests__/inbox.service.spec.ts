@@ -16,7 +16,12 @@ import {
   VsToastStub,
 } from '../../../../../testing/mail-testing.mocks';
 import { ExportedInboxData } from '../../interfaces';
-import { InboxStorageKeys } from '../helpers/storage.helpers';
+import {
+  base64urlEncode,
+  InboxStorageKeys,
+  MLKEM_SECRET_KEY_SIZE,
+  MLDSA_PUBLIC_KEY_SIZE,
+} from '../helpers/storage.helpers';
 
 describe('InboxService', () => {
   let service: InboxService;
@@ -34,11 +39,12 @@ describe('InboxService', () => {
   }
 
   const createImportPayload = (): ExportedInboxData => ({
+    version: 1,
     emailAddress: 'user@example.com',
     expiresAt: new Date().toISOString(),
     inboxHash: 'hash-123',
-    serverSigPk: 'server-sig',
-    secretKeyB64: btoa('secret'),
+    serverSigPk: base64urlEncode(new Uint8Array(MLDSA_PUBLIC_KEY_SIZE)),
+    secretKey: base64urlEncode(new Uint8Array(MLKEM_SECRET_KEY_SIZE)),
     exportedAt: new Date().toISOString(),
   });
 
@@ -86,7 +92,8 @@ describe('InboxService', () => {
 
     const exported = service.exportInboxMetadata(payload.inboxHash);
     expect(exported?.emailAddress).toBe(payload.emailAddress);
-    expect(exported?.secretKeyB64).toBe(payload.secretKeyB64);
+    expect(exported?.secretKey).toBe(payload.secretKey);
+    expect(exported?.version).toBe(1);
   });
 
   it('deletes inboxes and clears selection', () => {

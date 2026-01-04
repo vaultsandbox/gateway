@@ -6,6 +6,8 @@ import {
   Patch,
   Body,
   Param,
+  Query,
+  ParseBoolPipe,
   UseGuards,
   HttpCode,
   HttpStatus,
@@ -18,6 +20,7 @@ import {
   ApiOperation,
   ApiResponse,
   ApiParam,
+  ApiQuery,
   ApiOkResponse,
   ApiCreatedResponse,
   ApiNoContentResponse,
@@ -110,7 +113,7 @@ export class InboxController {
 
   /**
    * GET /api/inboxes/:emailAddress/emails
-   * List all emails for an inbox (encrypted metadata only)
+   * List all emails for an inbox (encrypted metadata only, or with content if includeContent=true)
    * Requires X-API-Key header
    */
   @Get('inboxes/:emailAddress/emails')
@@ -118,11 +121,20 @@ export class InboxController {
   @HttpCode(HttpStatus.OK)
   @ApiOperation({ summary: 'List emails in an inbox' })
   @ApiParam({ name: 'emailAddress', description: 'The email address of the inbox.' })
+  @ApiQuery({
+    name: 'includeContent',
+    required: false,
+    type: Boolean,
+    description: 'When true, includes encryptedParsed content in each email item.',
+  })
   @ApiOkResponse({ type: [EmailListItemDto], description: 'A list of emails in the inbox.' })
   @ApiResponse({ status: 401, description: 'Unauthorized, API key is missing or invalid.' })
   @ApiResponse({ status: 404, description: 'Inbox not found.' })
-  listEmails(@Param('emailAddress') emailAddress: string): EmailListItemDto[] {
-    this.logger.debug(`GET /api/inboxes/.../emails`);
+  listEmails(
+    @Param('emailAddress') emailAddress: string,
+    @Query('includeContent', new ParseBoolPipe({ optional: true })) includeContent?: boolean,
+  ): EmailListItemDto[] {
+    this.logger.debug(`GET /api/inboxes/.../emails${includeContent ? '?includeContent=true' : ''}`);
 
     // Check if inbox exists
     const inbox = this.inboxService.getInboxByEmail(emailAddress);
@@ -130,7 +142,7 @@ export class InboxController {
       throw new NotFoundException(`Inbox not found: ${emailAddress}`);
     }
 
-    return this.inboxService.getEmails(emailAddress);
+    return this.inboxService.getEmails(emailAddress, includeContent);
   }
 
   /**
