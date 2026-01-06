@@ -1,4 +1,4 @@
-import { ServiceUnavailableException } from '@nestjs/common';
+import { ServiceUnavailableException, Logger } from '@nestjs/common';
 import { of, EMPTY } from 'rxjs';
 import { SseConsoleController } from './sse-console.controller';
 import { SseConsoleService } from './sse-console.service';
@@ -93,5 +93,49 @@ describe('SseConsoleController', () => {
     subscription.unsubscribe();
     jest.useRealTimers();
     done();
+  });
+
+  it('propagates Error stream errors to the subscriber', (done) => {
+    const errorSpy = jest.spyOn(Logger.prototype, 'error').mockImplementation();
+    const { Subject } = require('rxjs');
+    const errorSubject$ = new Subject();
+    const testError = new Error('Test stream error');
+
+    sseConsoleService.isEnabled.mockReturnValue(true);
+    sseConsoleService.getStream.mockReturnValue(EMPTY);
+    sseConsoleService.toMessageEvents.mockReturnValue(errorSubject$);
+
+    controller.stream().subscribe({
+      next: () => {},
+      error: (err) => {
+        expect(err).toBe(testError);
+        errorSpy.mockRestore();
+        done();
+      },
+    });
+
+    errorSubject$.error(testError);
+  });
+
+  it('handles non-Error stream errors', (done) => {
+    const errorSpy = jest.spyOn(Logger.prototype, 'error').mockImplementation();
+    const { Subject } = require('rxjs');
+    const errorSubject$ = new Subject();
+    const testError = 'string error';
+
+    sseConsoleService.isEnabled.mockReturnValue(true);
+    sseConsoleService.getStream.mockReturnValue(EMPTY);
+    sseConsoleService.toMessageEvents.mockReturnValue(errorSubject$);
+
+    controller.stream().subscribe({
+      next: () => {},
+      error: (err) => {
+        expect(err).toBe(testError);
+        errorSpy.mockRestore();
+        done();
+      },
+    });
+
+    errorSubject$.error(testError);
   });
 });

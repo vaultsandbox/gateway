@@ -18,6 +18,7 @@ export class CertificateWatcherService {
   /**
    * Constructor
    */
+  /* v8 ignore next 5 - false positive on constructor parameter properties */
   constructor(
     @Inject(CERTIFICATE_CONFIG) private readonly config: CertificateConfig,
     private readonly storageService: CertificateStorageService,

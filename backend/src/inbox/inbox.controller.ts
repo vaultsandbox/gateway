@@ -45,6 +45,7 @@ import {
 export class InboxController {
   private readonly logger = new Logger(InboxController.name);
 
+  /* v8 ignore next - false positive on constructor parameter property */
   constructor(private readonly inboxService: InboxService) {}
 
   /**
@@ -61,6 +62,7 @@ export class InboxController {
   })
   @ApiOkResponse({ type: CheckKeyResponseDto, description: 'API key is valid.' })
   @ApiResponse({ status: 401, description: 'Unauthorized, API key is missing or invalid.' })
+  /* v8 ignore next - decorator metadata evaluation */
   getCheckKey(): CheckKeyResponseDto {
     return { ok: true };
   }
@@ -79,6 +81,7 @@ export class InboxController {
   })
   @ApiOkResponse({ type: ServerInfoResponseDto, description: 'Server information retrieved successfully.' })
   @ApiResponse({ status: 401, description: 'Unauthorized, API key is missing or invalid.' })
+  /* v8 ignore next - decorator metadata evaluation */
   getServerInfo(): ServerInfoResponseDto {
     return this.inboxService.getServerInfo();
   }
@@ -94,6 +97,7 @@ export class InboxController {
   @ApiOperation({ summary: 'Create a new inbox' })
   @ApiCreatedResponse({ type: CreateInboxResponseDto, description: 'The inbox has been successfully created.' })
   @ApiResponse({ status: 401, description: 'Unauthorized, API key is missing or invalid.' })
+  /* v8 ignore next - decorator metadata evaluation */
   createInbox(@Body() createInboxDto: CreateInboxDto): CreateInboxResponseDto {
     this.logger.debug(`POST /api/inboxes`);
 
@@ -158,6 +162,7 @@ export class InboxController {
   @ApiOkResponse({ type: SyncStatusResponseDto, description: 'The synchronization status of the inbox.' })
   @ApiResponse({ status: 401, description: 'Unauthorized, API key is missing or invalid.' })
   @ApiResponse({ status: 404, description: 'Inbox not found.' })
+  /* v8 ignore next - decorator metadata evaluation */
   getInboxSyncStatus(@Param('emailAddress') emailAddress: string): SyncStatusResponseDto {
     this.logger.debug(`GET /api/inboxes/.../sync`);
 
@@ -186,6 +191,7 @@ export class InboxController {
   @ApiOkResponse({ type: EmailResponseDto, description: 'The requested email.' })
   @ApiResponse({ status: 401, description: 'Unauthorized, API key is missing or invalid.' })
   @ApiResponse({ status: 404, description: 'Email or inbox not found.' })
+  /* v8 ignore next - decorator metadata evaluation */
   getEmail(@Param('emailAddress') emailAddress: string, @Param('emailId') emailId: string): EmailResponseDto {
     this.logger.debug(`GET /api/inboxes/.../emails/${emailId}`);
 
@@ -206,6 +212,7 @@ export class InboxController {
   @ApiOkResponse({ type: RawEmailResponseDto, description: 'The raw content of the requested email.' })
   @ApiResponse({ status: 401, description: 'Unauthorized, API key is missing or invalid.' })
   @ApiResponse({ status: 404, description: 'Email or inbox not found.' })
+  /* v8 ignore next - decorator metadata evaluation */
   getRawEmail(@Param('emailAddress') emailAddress: string, @Param('emailId') emailId: string): RawEmailResponseDto {
     this.logger.debug(`GET /api/inboxes/.../emails/${emailId}/raw`);
 
@@ -294,6 +301,7 @@ export class InboxController {
   })
   @ApiOkResponse({ type: ClearAllInboxesResponseDto, description: 'All inboxes have been cleared.' })
   @ApiResponse({ status: 401, description: 'Unauthorized, API key is missing or invalid.' })
+  /* v8 ignore next - decorator metadata evaluation */
   clearAllInboxes(): ClearAllInboxesResponseDto {
     this.logger.debug('DELETE /api/inboxes');
     const removed = this.inboxService.clearAllInboxes();

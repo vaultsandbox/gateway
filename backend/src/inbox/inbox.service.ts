@@ -39,6 +39,7 @@ export class InboxService {
   /**
    * Constructor
    */
+  /* v8 ignore next 5 - false positive on constructor parameter properties */
   constructor(
     private readonly storageService: InboxStorageService,
     private readonly cryptoService: CryptoService,

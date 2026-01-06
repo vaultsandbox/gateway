@@ -193,6 +193,27 @@ describe('RedirectToHttpsMiddleware', () => {
     });
   });
 
+  describe('VaultSandbox verification endpoint', () => {
+    beforeEach(() => {
+      setupConfig();
+    });
+
+    it('should allow VaultSandbox verification endpoint (/.well-known/vaultsandbox)', () => {
+      mockRequest = {
+        secure: false,
+        protocol: 'http',
+        originalUrl: '/.well-known/vaultsandbox',
+        path: '/.well-known/vaultsandbox',
+        url: '/.well-known/vaultsandbox',
+      };
+
+      middleware.use(mockRequest as Request, mockResponse as Response, mockNext);
+
+      expect(mockNext).toHaveBeenCalledTimes(1);
+      expect(mockResponse.redirect).not.toHaveBeenCalled();
+    });
+  });
+
   describe('Cluster endpoints', () => {
     beforeEach(() => {
       setupConfig();
@@ -545,6 +566,88 @@ describe('RedirectToHttpsMiddleware', () => {
 
       expect(mockNext).toHaveBeenCalledTimes(1);
       expect(mockResponse.redirect).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('getAllowedHosts', () => {
+    it('should include certificate domain when configured', () => {
+      setupConfig({ 'vsb.certificate.domain': 'cert.example.com' });
+      mockRequest = {
+        secure: false,
+        protocol: 'http',
+        originalUrl: '/some-path',
+        url: '/some-path',
+        hostname: 'cert.example.com',
+      };
+
+      middleware.use(mockRequest as Request, mockResponse as Response, mockNext);
+
+      expect(mockNext).not.toHaveBeenCalled();
+      expect(mockResponse.redirect).toHaveBeenCalledWith(301, 'https://cert.example.com/some-path');
+    });
+
+    it('should handle wildcard origin (*) by not including it in allowed hosts', () => {
+      setupConfig({
+        'vsb.main.origin': '*',
+        'vsb.smtp.allowedRecipientDomains': [],
+        'vsb.certificate.domain': undefined,
+        'vsb.certificate.additionalDomains': [],
+      });
+      mockRequest = {
+        secure: false,
+        protocol: 'http',
+        originalUrl: '/some-path',
+        url: '/some-path',
+        hostname: 'any-host.com',
+      };
+
+      middleware.use(mockRequest as Request, mockResponse as Response, mockNext);
+
+      expect(mockNext).not.toHaveBeenCalled();
+      expect(mockResponse.status).toHaveBeenCalledWith(400);
+      expect(mockResponse.send).toHaveBeenCalledWith('Invalid host header');
+    });
+
+    it('should handle invalid origin URL by not including it in allowed hosts', () => {
+      setupConfig({
+        'vsb.main.origin': ':::invalid-url:::',
+        'vsb.smtp.allowedRecipientDomains': ['valid-domain.com'],
+        'vsb.certificate.domain': undefined,
+        'vsb.certificate.additionalDomains': [],
+      });
+      mockRequest = {
+        secure: false,
+        protocol: 'http',
+        originalUrl: '/some-path',
+        url: '/some-path',
+        hostname: 'valid-domain.com',
+      };
+
+      middleware.use(mockRequest as Request, mockResponse as Response, mockNext);
+
+      // Should still work with valid-domain.com from allowedRecipientDomains
+      expect(mockNext).not.toHaveBeenCalled();
+      expect(mockResponse.redirect).toHaveBeenCalledWith(301, 'https://valid-domain.com/some-path');
+    });
+  });
+
+  describe('resolveRedirectHost', () => {
+    it('should return 400 when request has no hostname', () => {
+      setupConfig();
+      mockRequest = {
+        secure: false,
+        protocol: 'http',
+        originalUrl: '/some-path',
+        url: '/some-path',
+        hostname: undefined,
+      };
+
+      middleware.use(mockRequest as Request, mockResponse as Response, mockNext);
+
+      expect(mockNext).not.toHaveBeenCalled();
+      expect(mockResponse.redirect).not.toHaveBeenCalled();
+      expect(mockResponse.status).toHaveBeenCalledWith(400);
+      expect(mockResponse.send).toHaveBeenCalledWith('Invalid host header');
     });
   });
 });

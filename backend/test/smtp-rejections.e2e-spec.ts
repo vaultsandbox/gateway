@@ -217,4 +217,145 @@ describe('SMTP Rejection Edge Cases', () => {
       expect(validSend.accepted).toContain(inbox.emailAddress);
     });
   });
+
+  describe('Invalid Sender Address Rejection', () => {
+    it('should reject sender address without domain', async () => {
+      // Create an inbox so hard mode doesn't interfere
+      const keypair = generateClientKeypair();
+      const inbox = await createTestInbox(apiClient, keypair.publicKeyB64);
+
+      const smtpClient = createSmtpClient({
+        port: appLifecycle.smtpPort,
+      });
+
+      // Attempt to send with invalid sender (no domain)
+      await expect(
+        smtpClient.sendFixture('plaintext', {
+          to: inbox.emailAddress,
+          from: 'invalid', // No @ symbol
+        }),
+      ).rejects.toThrow();
+
+      try {
+        await smtpClient.sendFixture('plaintext', {
+          to: inbox.emailAddress,
+          from: 'invalid',
+        });
+        fail('Should have thrown an error');
+      } catch (error: any) {
+        // Server should reject during MAIL FROM phase
+        expect(error.message.toLowerCase()).toMatch(/invalid|rejected|syntax|format/i);
+      }
+    });
+
+    it('should reject sender address with control characters', async () => {
+      // Create an inbox so hard mode doesn't interfere
+      const keypair = generateClientKeypair();
+      const inbox = await createTestInbox(apiClient, keypair.publicKeyB64);
+
+      const smtpClient = createSmtpClient({
+        port: appLifecycle.smtpPort,
+      });
+
+      // Attempt to send with sender containing null byte
+      await expect(
+        smtpClient.sendFixture('plaintext', {
+          to: inbox.emailAddress,
+          from: 'user\x00@domain.com',
+        }),
+      ).rejects.toThrow();
+
+      try {
+        await smtpClient.sendFixture('plaintext', {
+          to: inbox.emailAddress,
+          from: 'user\x00@domain.com',
+        });
+        fail('Should have thrown an error');
+      } catch (error: any) {
+        // Server should reject during MAIL FROM phase due to control characters
+        expect(error.message.toLowerCase()).toMatch(/invalid|rejected|control|character/i);
+      }
+    });
+
+    it('should reject sender with oversized local part (>64 chars)', async () => {
+      // Create an inbox so hard mode doesn't interfere
+      const keypair = generateClientKeypair();
+      const inbox = await createTestInbox(apiClient, keypair.publicKeyB64);
+
+      const smtpClient = createSmtpClient({
+        port: appLifecycle.smtpPort,
+      });
+
+      // Local part exceeding 64 characters
+      const oversizedLocal = 'a'.repeat(65);
+
+      await expect(
+        smtpClient.sendFixture('plaintext', {
+          to: inbox.emailAddress,
+          from: `${oversizedLocal}@domain.com`,
+        }),
+      ).rejects.toThrow();
+
+      try {
+        await smtpClient.sendFixture('plaintext', {
+          to: inbox.emailAddress,
+          from: `${oversizedLocal}@domain.com`,
+        });
+        fail('Should have thrown an error');
+      } catch (error: any) {
+        // Server should reject during MAIL FROM phase due to RFC 5321 length limit
+        expect(error.message.toLowerCase()).toMatch(/invalid|rejected|length|long|limit/i);
+      }
+    });
+
+    it('should reject sender with oversized domain (>255 chars)', async () => {
+      // Create an inbox so hard mode doesn't interfere
+      const keypair = generateClientKeypair();
+      const inbox = await createTestInbox(apiClient, keypair.publicKeyB64);
+
+      const smtpClient = createSmtpClient({
+        port: appLifecycle.smtpPort,
+      });
+
+      // Domain exceeding 255 characters
+      const oversizedDomain = 'a'.repeat(256) + '.com';
+
+      await expect(
+        smtpClient.sendFixture('plaintext', {
+          to: inbox.emailAddress,
+          from: `user@${oversizedDomain}`,
+        }),
+      ).rejects.toThrow();
+
+      try {
+        await smtpClient.sendFixture('plaintext', {
+          to: inbox.emailAddress,
+          from: `user@${oversizedDomain}`,
+        });
+        fail('Should have thrown an error');
+      } catch (error: any) {
+        // Server should reject during MAIL FROM phase due to RFC 5321 length limit
+        // May also reject with "bad sender address syntax" for malformed addresses
+        expect(error.message.toLowerCase()).toMatch(/invalid|rejected|length|long|limit|bad|syntax/i);
+      }
+    });
+
+    it('should accept valid sender address', async () => {
+      // Create an inbox
+      const keypair = generateClientKeypair();
+      const inbox = await createTestInbox(apiClient, keypair.publicKeyB64);
+
+      const smtpClient = createSmtpClient({
+        port: appLifecycle.smtpPort,
+      });
+
+      // Should accept valid sender
+      const sendInfo = await smtpClient.sendFixture('plaintext', {
+        to: inbox.emailAddress,
+        from: 'valid@sender.example.com',
+      });
+
+      expect(sendInfo.accepted).toContain(inbox.emailAddress);
+    });
+  });
 });

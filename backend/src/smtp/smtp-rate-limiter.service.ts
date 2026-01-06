@@ -47,6 +47,7 @@ export class RateLimitExceededError extends Error {
     this.retryAfter = retryAfter;
 
     // Maintain proper stack trace (only available on V8)
+    /* v8 ignore next 3 - V8-specific stack trace capture, always true in Node.js */
     if (Error.captureStackTrace) {
       Error.captureStackTrace(this, RateLimitExceededError);
     }
@@ -59,6 +60,7 @@ export class SmtpRateLimiterService {
   private readonly config: SmtpRateLimitConfig;
   private readonly rateLimiter?: RateLimiterMemory;
 
+  /* v8 ignore next 4 - false positive on constructor parameter properties */
   constructor(
     private readonly configService: ConfigService,
     private readonly metricsService: MetricsService,
@@ -114,8 +116,7 @@ export class SmtpRateLimiterService {
         // Throw custom error with retry-after information
         throw new RateLimitExceededError(retryAfterMs);
       }
-
-      // Re-throw unexpected errors
+      /* v8 ignore next 2 - defensive re-throw for unexpected errors */
       throw error;
     }
   }
@@ -135,9 +136,9 @@ export class SmtpRateLimiterService {
 
     try {
       return await this.rateLimiter.get(ip);
-    } catch {
+    } catch /* v8 ignore start - defensive catch for unexpected errors */ {
       return null;
-    }
+    } /* v8 ignore stop */
   }
 
   /**

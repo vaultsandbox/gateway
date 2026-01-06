@@ -195,6 +195,61 @@ describe('EventsController', () => {
       done();
     });
   });
+
+  describe('stream - observable lifecycle', () => {
+    beforeEach(() => {
+      inboxService.listInboxHashes.mockReturnValue(['inbox-1']);
+    });
+
+    it('logs and cleans up when client unsubscribes', () => {
+      const stream$ = controller.stream('inbox-1');
+
+      const subscription = stream$.subscribe();
+
+      // Unsubscribe should trigger teardown
+      subscription.unsubscribe();
+
+      // The teardown function runs synchronously on unsubscribe
+      // If we got here without errors, teardown worked
+      expect(subscription.closed).toBe(true);
+    });
+
+    it('propagates errors from the underlying stream with Error instance', (done) => {
+      const stream$ = controller.stream('inbox-1');
+      const testError = new Error('Test stream error');
+
+      stream$.subscribe({
+        error: (err) => {
+          expect(err).toBe(testError);
+          done();
+        },
+      });
+
+      // Access the internal subject and emit an error
+      (eventsService as any).eventStream$.error(testError);
+    });
+
+    it('propagates errors from the underlying stream with non-Error value', (done) => {
+      // Need fresh service since we errored the subject above
+      const freshEventsService = new EventsService();
+      (controller as any).eventsService = freshEventsService;
+
+      const stream$ = controller.stream('inbox-1');
+      const testError = 'string error';
+
+      stream$.subscribe({
+        error: (err) => {
+          expect(err).toBe(testError);
+          done();
+        },
+      });
+
+      (freshEventsService as any).eventStream$.error(testError);
+    });
+
+    // Note: "complete" handler (line 106) is unreachable because merge(message$, heartbeat$)
+    // never completes - interval(30000) runs forever. Marked with /* c8 ignore next */ in controller.
+  });
 });
 
 function createMockEncryptedPayload() {

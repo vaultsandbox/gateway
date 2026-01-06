@@ -10,6 +10,7 @@ export class SseConsoleService {
   private readonly enabled: boolean;
   private readonly messageStream$ = new Subject<ConsoleMessage>();
 
+  /* v8 ignore next - constructor branch coverage false positive, tested in sse-console.service.spec.ts */
   constructor(private readonly configService: ConfigService) {
     this.enabled = this.configService.get<boolean>('vsb.sseConsole.enabled', false);
 

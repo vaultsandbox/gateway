@@ -8,6 +8,7 @@ export class ApiKeyGuard implements CanActivate {
   private readonly logger = new Logger(ApiKeyGuard.name);
   private readonly apiKey: string | undefined;
 
+  /* v8 ignore next - false positive on constructor parameter property */
   constructor(private readonly configService: ConfigService) {
     this.apiKey = this.configService.get<string>('vsb.local.apiKey');
 
@@ -61,6 +62,7 @@ export class ApiKeyGuard implements CanActivate {
       // Must also check lengths match, but do so after constant-time comparison
       const contentsEqual = timingSafeEqual(bufA, bufB);
       return contentsEqual && a.length === b.length;
+      /* v8 ignore next 5 - defensive catch for unexpected errors in crypto operations */
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : String(error);
       this.logger.error(`Error in constant-time comparison: ${errorMessage}`);

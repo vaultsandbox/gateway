@@ -21,6 +21,7 @@ export class HealthController {
    * @param certificate The CertificateHealthIndicator.
    * @param configService The ConfigService.
    */
+  /* v8 ignore next 7 - false positive on constructor */
   constructor(
     private readonly health: HealthCheckService,
     private readonly http: HttpHealthIndicator,

@@ -14,6 +14,7 @@ export class SseConsoleController {
   private readonly logger = new Logger(SseConsoleController.name);
   private readonly heartbeatIntervalMs = 30000; // 30 seconds
 
+  /* v8 ignore next - constructor branch coverage false positive, tested in sse-console.controller.spec.ts */
   constructor(private readonly sseConsoleService: SseConsoleService) {}
 
   @Sse('stream')
@@ -27,6 +28,7 @@ export class SseConsoleController {
       'SSE connection established. The stream will send log messages as they occur. Messages have the structure: { type: string, text: string, timestamp: string } and are HTML-escaped on the server.',
   })
   @ApiResponse({ status: 401, description: 'Unauthorized, API key is missing or invalid.' })
+  /* v8 ignore next - decorator branch coverage false positive, tested in sse-console.controller.spec.ts */
   stream(): Observable<MessageEvent> {
     if (!this.sseConsoleService.isEnabled()) {
       throw new ServiceUnavailableException('SSE Console is disabled');

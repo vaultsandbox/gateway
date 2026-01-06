@@ -302,6 +302,18 @@ describe('CryptoService', () => {
       expect(ml_kem768.encapsulate).not.toHaveBeenCalled();
     });
 
+    it('should reject client KEM key that decodes to wrong byte length', async () => {
+      // A 1578-char base64url string passes length validation but decodes to 1183 bytes
+      // (ML-KEM-768 requires exactly 1184 bytes)
+      const wrongSizeKey = 'A'.repeat(1578);
+      const plaintext = new TextEncoder().encode('test message');
+
+      await expect(service.encryptForClient(wrongSizeKey, plaintext)).rejects.toThrow(
+        'Invalid client KEM public key: failed to decode key',
+      );
+      expect(ml_kem768.encapsulate).not.toHaveBeenCalled();
+    });
+
     it('should throw error if encryption fails', async () => {
       (ml_kem768.encapsulate as jest.Mock).mockImplementation(() => {
         throw new Error('Encapsulation failed');

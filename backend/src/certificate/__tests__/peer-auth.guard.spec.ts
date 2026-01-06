@@ -91,6 +91,23 @@ describe('PeerAuthGuard', () => {
       expect(() => guardUndefinedSecret.canActivate(context)).toThrow('Peer authentication not configured');
     });
 
+    it('should throw UnauthorizedException when shared secret is null', () => {
+      // Create a new guard instance with null shared secret (tests ?? fallback)
+      const mockConfigServiceNull = {
+        get: jest.fn().mockReturnValue(null),
+      };
+      const guardNullSecret = new PeerAuthGuard(mockConfigServiceNull as any);
+
+      const context = createMockContext({
+        'x-peer-token': mockPeerToken,
+        'x-peer-timestamp': mockTimestamp,
+        'x-peer-signature': generateValidSignature(mockPeerToken, mockTimestamp, mockSharedSecret),
+      });
+
+      expect(() => guardNullSecret.canActivate(context)).toThrow(UnauthorizedException);
+      expect(() => guardNullSecret.canActivate(context)).toThrow('Peer authentication not configured');
+    });
+
     it('should throw UnauthorizedException when x-peer-token header is missing', () => {
       const context = createMockContext({
         'x-peer-timestamp': mockTimestamp,
@@ -172,6 +189,19 @@ describe('PeerAuthGuard', () => {
         'x-peer-token': mockPeerToken,
         'x-peer-timestamp': mockTimestamp,
         'x-peer-signature': 'invalid-signature-with-same-length-as-real-one-but-wrong',
+      });
+
+      expect(() => guard.canActivate(context)).toThrow(UnauthorizedException);
+      expect(() => guard.canActivate(context)).toThrow('Invalid signature');
+    });
+
+    it('should throw UnauthorizedException when signature has correct length but wrong value', () => {
+      // Valid 64-character hex string (32 bytes) - same length as real SHA-256 signature
+      const wrongSignature = '0'.repeat(64);
+      const context = createMockContext({
+        'x-peer-token': mockPeerToken,
+        'x-peer-timestamp': mockTimestamp,
+        'x-peer-signature': wrongSignature,
       });
 
       expect(() => guard.canActivate(context)).toThrow(UnauthorizedException);

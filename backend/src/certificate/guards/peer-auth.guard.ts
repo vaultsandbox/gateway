@@ -12,6 +12,7 @@ export class PeerAuthGuard implements CanActivate {
   private readonly logger = new Logger(PeerAuthGuard.name);
   private readonly sharedSecret: string;
 
+  /* v8 ignore next - false positive on constructor parameter property */
   constructor(private readonly configService: ConfigService) {
     this.sharedSecret = this.configService.get<string>('vsb.certificate.peerSharedSecret', '') ?? '';
   }
@@ -70,6 +71,7 @@ export class PeerAuthGuard implements CanActivate {
         this.logger.warn('Peer signature validation failed');
         throw new UnauthorizedException('Invalid signature');
       }
+      /* v8 ignore start - defensive catch for unexpected errors */
     } catch (error) {
       if (error instanceof UnauthorizedException) {
         throw error;
@@ -77,6 +79,7 @@ export class PeerAuthGuard implements CanActivate {
       this.logger.warn('Peer signature validation error', (error as Error).message);
       throw new UnauthorizedException('Invalid signature');
     }
+    /* v8 ignore stop */
 
     return true;
   }

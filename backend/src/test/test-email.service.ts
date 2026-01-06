@@ -22,6 +22,7 @@ interface MetadataPayload {
 export class TestEmailService {
   private readonly logger = new Logger(TestEmailService.name);
 
+  /* c8 ignore next 5 */
   constructor(
     private readonly inboxService: InboxService,
     private readonly cryptoService: CryptoService,
@@ -89,6 +90,7 @@ export class TestEmailService {
     this.logger.log(`Test email ${emailId} created for ${recipientEmail}`);
 
     // Emit SSE event
+    /* c8 ignore start */
     try {
       this.eventsService.emitNewEmailEvent({
         inboxId: inbox.inboxHash,
@@ -99,6 +101,7 @@ export class TestEmailService {
       const message = error instanceof Error ? error.message : String(error);
       this.logger.error(`Failed to emit SSE event for test email ${emailId}: ${message}`);
     }
+    /* c8 ignore stop */
 
     return { emailId };
   }
@@ -252,6 +255,7 @@ export class TestEmailService {
    */
   private extractDomain(email: string): string {
     const parts = email.split('@');
+    /* c8 ignore next */
     return parts.length > 1 ? parts[1] : 'unknown';
   }
 

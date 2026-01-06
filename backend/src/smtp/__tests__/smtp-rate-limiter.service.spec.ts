@@ -201,5 +201,85 @@ describe('SmtpRateLimiterService', () => {
         await expect(disabledService.consumeIp(testIp)).resolves.not.toThrow();
       }
     });
+
+    it('should return null from getStatus when disabled', async () => {
+      const disabledModule = await Test.createTestingModule({
+        providers: [
+          SmtpRateLimiterService,
+          {
+            provide: ConfigService,
+            useValue: {
+              get: jest.fn((key: string) => {
+                if (key === 'vsb.smtpRateLimit') {
+                  return { enabled: false, points: 5, duration: 60 };
+                }
+                return undefined;
+              }),
+            },
+          },
+          {
+            provide: MetricsService,
+            useValue: { increment: jest.fn() },
+          },
+        ],
+      }).compile();
+
+      const disabledService = disabledModule.get<SmtpRateLimiterService>(SmtpRateLimiterService);
+      const status = await disabledService.getStatus('192.168.1.10');
+      expect(status).toBeNull();
+    });
+
+    it('should do nothing when resetIp is called with rate limiting disabled', async () => {
+      const disabledModule = await Test.createTestingModule({
+        providers: [
+          SmtpRateLimiterService,
+          {
+            provide: ConfigService,
+            useValue: {
+              get: jest.fn((key: string) => {
+                if (key === 'vsb.smtpRateLimit') {
+                  return { enabled: false, points: 5, duration: 60 };
+                }
+                return undefined;
+              }),
+            },
+          },
+          {
+            provide: MetricsService,
+            useValue: { increment: jest.fn() },
+          },
+        ],
+      }).compile();
+
+      const disabledService = disabledModule.get<SmtpRateLimiterService>(SmtpRateLimiterService);
+      // Should not throw
+      await expect(disabledService.resetIp('192.168.1.11')).resolves.not.toThrow();
+    });
+  });
+});
+
+describe('RateLimitExceededError', () => {
+  it('should create error with retryAfter', () => {
+    const error = new RateLimitExceededError(5000);
+    expect(error.name).toBe('RateLimitExceededError');
+    expect(error.responseCode).toBe(421);
+    expect(error.retryAfter).toBe(5000);
+    expect(error.message).toContain('5 seconds');
+    expect(error.message).toContain('4.7.0');
+  });
+
+  it('should create error without retryAfter', () => {
+    const error = new RateLimitExceededError();
+    expect(error.name).toBe('RateLimitExceededError');
+    expect(error.responseCode).toBe(421);
+    expect(error.retryAfter).toBeUndefined();
+    expect(error.message).toContain('try again later');
+    expect(error.message).toContain('4.7.0');
+  });
+
+  it('should have proper stack trace', () => {
+    const error = new RateLimitExceededError(1000);
+    expect(error.stack).toBeDefined();
+    expect(error.stack).toContain('RateLimitExceededError');
   });
 });

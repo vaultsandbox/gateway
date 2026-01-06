@@ -11,6 +11,7 @@ import { StorageMetricsResponseDto } from './dto/storage-metrics-response.dto';
 @ApiSecurity('api-key')
 @Controller('api/metrics')
 export class MetricsController {
+  /* v8 ignore next 5 - false positive on constructor parameter properties */
   constructor(
     private readonly metricsService: MetricsService,
     @Optional() private readonly emailStorageService?: EmailStorageService,

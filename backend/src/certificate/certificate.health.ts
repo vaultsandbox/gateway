@@ -11,6 +11,7 @@ export class CertificateHealthIndicator {
   /**
    * Constructor
    */
+  /* v8 ignore next 4 - false positive on constructor parameter properties */
   constructor(
     private readonly certificateService: CertificateService,
     private readonly healthIndicatorService: HealthIndicatorService,

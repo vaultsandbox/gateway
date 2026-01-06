@@ -131,6 +131,41 @@ const EMAIL_FIXTURES: Record<string, FixtureDefinition> = {
       return [baseHeaders(ctx, ctx.to), 'Content-Type: text/plain; charset="utf-8"', '', repeatedBody, ''].join('\r\n');
     },
   },
+  htmlWithUrls: {
+    description: 'HTML email with embedded URLs for URL extraction testing',
+    build: (ctx) => {
+      const boundary = `----=_VSBE2E_${randomBytes(6).toString('hex')}`;
+
+      return [
+        baseHeaders(ctx, ctx.to),
+        `Content-Type: multipart/alternative; boundary="${boundary}"`,
+        '',
+        `--${boundary}`,
+        'Content-Type: text/plain; charset="utf-8"',
+        '',
+        'Check out these links:',
+        'https://example.com/plain-text-url',
+        'Visit https://docs.example.org/guide for documentation.',
+        '',
+        `--${boundary}`,
+        'Content-Type: text/html; charset="utf-8"',
+        '',
+        '<html><body>',
+        '<h1>VaultSandbox URL Extraction Test</h1>',
+        '<p>Here are some links:</p>',
+        '<ul>',
+        '<li><a href="https://example.com/link1">Link 1</a></li>',
+        '<li><a href="https://example.org/link2?query=param">Link 2 with query</a></li>',
+        '<li><a href="https://test.example.net/path/to/page#anchor">Link 3 with anchor</a></li>',
+        '</ul>',
+        '<p>Plain text URL in HTML: https://inline.example.com/url</p>',
+        '</body></html>',
+        '',
+        `--${boundary}--`,
+        '',
+      ].join('\r\n');
+    },
+  },
 };
 
 function baseHeaders(ctx: FixtureContext, recipient: string): string {
@@ -199,6 +234,8 @@ function subjectForFixture(name: EmailFixtureName): string {
       return 'VaultSandbox alias delivery test';
     case 'oversized':
       return 'VaultSandbox oversized email test';
+    case 'htmlWithUrls':
+      return 'VaultSandbox URL extraction test';
     default:
       return 'VaultSandbox email fixture';
   }

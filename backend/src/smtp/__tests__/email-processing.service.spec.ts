@@ -55,6 +55,48 @@ describe('EmailProcessingService', () => {
       // The test is more about ensuring no errors are thrown
       expect(parsed).toBeDefined();
     });
+
+    it('should parse email with complex headers including Date objects', async () => {
+      const rawEmail = Buffer.from(
+        'From: sender@example.com\r\n' +
+          'To: recipient@example.com\r\n' +
+          'Subject: Test with Date\r\n' +
+          'Date: Mon, 15 Jan 2024 10:30:00 +0000\r\n' +
+          '\r\n' +
+          'Body with date header.\r\n',
+      );
+
+      const parsed = await service.parseEmail(rawEmail, 'test-session');
+      expect(parsed).toBeDefined();
+      expect(parsed?.date).toBeInstanceOf(Date);
+    });
+
+    it('should parse email with attachments', async () => {
+      const rawEmail = Buffer.from(
+        'From: sender@example.com\r\n' +
+          'To: recipient@example.com\r\n' +
+          'Subject: Test with Attachment\r\n' +
+          'MIME-Version: 1.0\r\n' +
+          'Content-Type: multipart/mixed; boundary="boundary123"\r\n' +
+          '\r\n' +
+          '--boundary123\r\n' +
+          'Content-Type: text/plain\r\n' +
+          '\r\n' +
+          'Body text\r\n' +
+          '--boundary123\r\n' +
+          'Content-Type: application/octet-stream\r\n' +
+          'Content-Disposition: attachment; filename="test.bin"\r\n' +
+          'Content-Transfer-Encoding: base64\r\n' +
+          '\r\n' +
+          'SGVsbG8gV29ybGQ=\r\n' +
+          '--boundary123--\r\n',
+      );
+
+      const parsed = await service.parseEmail(rawEmail, 'test-session');
+      expect(parsed).toBeDefined();
+      expect(parsed?.attachments).toBeDefined();
+      expect(parsed?.attachments?.length).toBeGreaterThan(0);
+    });
   });
 
   describe('URL extraction in serializeParsedMail', () => {
@@ -261,6 +303,80 @@ describe('EmailProcessingService', () => {
     });
   });
 
+  describe('normalizeHeaderValue edge cases', () => {
+    it('should pass through BigInt values unchanged', () => {
+      const session = createMockSession();
+      const rawEmail = Buffer.from('test email');
+      const email = createMockReceivedEmail(rawEmail);
+      const headersMap = new Map<string, unknown>();
+      // BigInt is typeof 'bigint', not 'object', so it falls through to the return value fallback
+      headersMap.set('x-bigint', BigInt(9007199254740991));
+
+      const parsedMail = {
+        subject: 'BigInt Header',
+        messageId: '<bigint-123@example.com>',
+        from: { text: 'sender@example.com', html: '', value: [] },
+        to: { text: 'recipient@example.com', html: '', value: [] },
+        text: 'Email body',
+        headers: headersMap,
+      };
+      const receivedAt = new Date();
+
+      const record = service.buildEmailRecord(email, session, parsedMail, receivedAt);
+
+      // BigInt falls through to the default return value
+      expect(record.parsed?.headers?.['x-bigint']).toBe(BigInt(9007199254740991));
+    });
+
+    it('should pass through Symbol values unchanged', () => {
+      const session = createMockSession();
+      const rawEmail = Buffer.from('test email');
+      const email = createMockReceivedEmail(rawEmail);
+      const headersMap = new Map<string, unknown>();
+      const testSymbol = Symbol('test');
+      headersMap.set('x-symbol', testSymbol);
+
+      const parsedMail = {
+        subject: 'Symbol Header',
+        messageId: '<symbol-123@example.com>',
+        from: { text: 'sender@example.com', html: '', value: [] },
+        to: { text: 'recipient@example.com', html: '', value: [] },
+        text: 'Email body',
+        headers: headersMap,
+      };
+      const receivedAt = new Date();
+
+      const record = service.buildEmailRecord(email, session, parsedMail, receivedAt);
+
+      // Symbol falls through to the default return value
+      expect(record.parsed?.headers?.['x-symbol']).toBe(testSymbol);
+    });
+
+    it('should pass through Function values unchanged', () => {
+      const session = createMockSession();
+      const rawEmail = Buffer.from('test email');
+      const email = createMockReceivedEmail(rawEmail);
+      const headersMap = new Map<string, unknown>();
+      const testFn = () => 'test';
+      headersMap.set('x-function', testFn);
+
+      const parsedMail = {
+        subject: 'Function Header',
+        messageId: '<function-123@example.com>',
+        from: { text: 'sender@example.com', html: '', value: [] },
+        to: { text: 'recipient@example.com', html: '', value: [] },
+        text: 'Email body',
+        headers: headersMap,
+      };
+      const receivedAt = new Date();
+
+      const record = service.buildEmailRecord(email, session, parsedMail, receivedAt);
+
+      // Function falls through to the default return value
+      expect(record.parsed?.headers?.['x-function']).toBe(testFn);
+    });
+  });
+
   describe('buildEmailRecord', () => {
     it('should create complete email record with all fields', () => {
       const session = createMockSession();
@@ -300,6 +416,272 @@ describe('EmailProcessingService', () => {
       expect(record.parsed).toBeUndefined();
       expect(record.id).toBe(email.messageId);
       expect(record.raw).toBeDefined();
+    });
+
+    it('should serialize email with attachments correctly', () => {
+      const session = createMockSession();
+      const rawEmail = Buffer.from('test email with attachment');
+      const email = createMockReceivedEmail(rawEmail);
+      const attachmentContent = Buffer.from('attachment content');
+      const parsedMail = {
+        subject: 'Email with Attachment',
+        messageId: '<attach-123@example.com>',
+        from: { text: 'sender@example.com', html: '', value: [] },
+        to: { text: 'recipient@example.com', html: '', value: [] },
+        text: 'See attached file',
+        attachments: [
+          {
+            filename: 'document.pdf',
+            contentType: 'application/pdf',
+            size: attachmentContent.length,
+            checksum: 'abc123',
+            contentDisposition: 'attachment',
+            cid: undefined,
+            related: false,
+            content: attachmentContent,
+          },
+        ],
+      };
+      const receivedAt = new Date('2025-11-17T12:00:00Z');
+
+      const record = service.buildEmailRecord(email, session, parsedMail, receivedAt);
+
+      expect(record.parsed?.attachments).toBeDefined();
+      expect(record.parsed?.attachments).toHaveLength(1);
+      expect(record.parsed?.attachments?.[0].filename).toBe('document.pdf');
+      expect(record.parsed?.attachments?.[0].contentType).toBe('application/pdf');
+      expect(record.parsed?.attachments?.[0].contentEncoding).toBe('base64');
+      expect(record.parsed?.attachments?.[0].content).toBe(attachmentContent.toString('base64'));
+    });
+
+    it('should handle headers Map in parsedMail', () => {
+      const session = createMockSession();
+      const rawEmail = Buffer.from('test email');
+      const email = createMockReceivedEmail(rawEmail);
+      const headersMap = new Map<string, unknown>();
+      headersMap.set('x-custom-header', 'custom-value');
+      headersMap.set('x-numeric', 42);
+      headersMap.set('x-boolean', true);
+      headersMap.set('x-array', ['item1', 'item2']);
+      headersMap.set('x-buffer', Buffer.from('buffer-content'));
+      headersMap.set('x-date', new Date('2025-01-15T10:00:00Z'));
+      headersMap.set('x-null', null);
+      headersMap.set('x-undefined', undefined);
+      headersMap.set('x-nested-map', new Map([['nested', 'value']]));
+      headersMap.set('x-object', { key: 'object-value' });
+
+      const parsedMail = {
+        subject: 'Test with Headers Map',
+        messageId: '<headers-123@example.com>',
+        from: { text: 'sender@example.com', html: '', value: [] },
+        to: { text: 'recipient@example.com', html: '', value: [] },
+        text: 'Email body',
+        headers: headersMap,
+      };
+      const receivedAt = new Date('2025-11-17T12:00:00Z');
+
+      const record = service.buildEmailRecord(email, session, parsedMail, receivedAt);
+
+      expect(record.parsed?.headers).toBeDefined();
+      expect(record.parsed?.headers?.['x-custom-header']).toBe('custom-value');
+      expect(record.parsed?.headers?.['x-numeric']).toBe(42);
+      expect(record.parsed?.headers?.['x-boolean']).toBe(true);
+      expect(record.parsed?.headers?.['x-array']).toEqual(['item1', 'item2']);
+      expect(record.parsed?.headers?.['x-buffer']).toBe('buffer-content');
+      expect(record.parsed?.headers?.['x-date']).toBe('2025-01-15T10:00:00.000Z');
+      expect(record.parsed?.headers?.['x-null']).toBeNull();
+      expect(record.parsed?.headers?.['x-undefined']).toBeUndefined();
+      expect(record.parsed?.headers?.['x-nested-map']).toEqual({ nested: 'value' });
+      expect(record.parsed?.headers?.['x-object']).toEqual({ key: 'object-value' });
+    });
+
+    it('should handle parsedMail with HTML as Buffer', () => {
+      const session = createMockSession();
+      const rawEmail = Buffer.from('test email');
+      const email = createMockReceivedEmail(rawEmail);
+      const parsedMail = {
+        subject: 'HTML as Buffer',
+        messageId: '<html-buf-123@example.com>',
+        from: { text: 'sender@example.com', html: '', value: [] },
+        to: { text: 'recipient@example.com', html: '', value: [] },
+        text: 'Plain text',
+        html: Buffer.from('<html><body>HTML content</body></html>'),
+        textAsHtml: Buffer.from('<p>Plain text as HTML</p>'),
+      };
+      const receivedAt = new Date('2025-11-17T12:00:00Z');
+
+      const record = service.buildEmailRecord(email, session, parsedMail, receivedAt);
+
+      expect(record.parsed?.html).toBe('<html><body>HTML content</body></html>');
+      expect(record.parsed?.textAsHtml).toBe('<p>Plain text as HTML</p>');
+    });
+
+    it('should use session ID when messageId is missing', () => {
+      const session = createMockSession();
+      const rawEmail = Buffer.from('test email');
+      const email = createMockReceivedEmail(rawEmail);
+      email.messageId = undefined; // No message ID
+
+      const parsedMail = {
+        subject: 'No Message ID',
+        from: { text: 'sender@example.com', html: '', value: [] },
+        to: { text: 'recipient@example.com', html: '', value: [] },
+        text: 'Email body',
+      };
+      const receivedAt = new Date();
+
+      const record = service.buildEmailRecord(email, session, parsedMail, receivedAt);
+
+      // Should fall back to session.id
+      expect(record.id).toBe('test-session-123');
+    });
+
+    it('should handle envelope with false mailFrom (bounce message)', () => {
+      const session = createMockSession();
+      // Simulate bounce message with false mailFrom
+      (session.envelope as any).mailFrom = false;
+      const rawEmail = Buffer.from('bounce email');
+      const email = createMockReceivedEmail(rawEmail);
+      const receivedAt = new Date();
+
+      const record = service.buildEmailRecord(email, session, undefined, receivedAt);
+
+      expect(record.envelope.mailFrom).toBeUndefined();
+    });
+
+    it('should handle non-string remoteAddress and clientHostname', () => {
+      const session = createMockSession();
+      // Simulate non-string values (e.g., undefined or numbers)
+      (session as any).remoteAddress = undefined;
+      (session as any).clientHostname = 123; // number instead of string
+      const rawEmail = Buffer.from('test email');
+      const email = createMockReceivedEmail(rawEmail);
+      const receivedAt = new Date();
+
+      const record = service.buildEmailRecord(email, session, undefined, receivedAt);
+
+      expect(record.remoteAddress).toBeUndefined();
+      expect(record.clientHostname).toBeUndefined();
+    });
+
+    it('should handle non-Buffer attachment content', () => {
+      const session = createMockSession();
+      const rawEmail = Buffer.from('test email');
+      const email = createMockReceivedEmail(rawEmail);
+      const parsedMail = {
+        subject: 'Email with non-Buffer attachment',
+        messageId: '<attach-nonbuf@example.com>',
+        from: { text: 'sender@example.com', html: '', value: [] },
+        to: { text: 'recipient@example.com', html: '', value: [] },
+        text: 'Body',
+        attachments: [
+          {
+            filename: 'test.txt',
+            contentType: 'text/plain',
+            size: 10,
+            checksum: 'abc123',
+            contentDisposition: 'attachment',
+            cid: undefined,
+            related: false,
+            content: 'not a buffer', // String instead of Buffer
+          },
+        ],
+      };
+      const receivedAt = new Date();
+
+      const record = service.buildEmailRecord(email, session, parsedMail, receivedAt);
+
+      expect(record.parsed?.attachments).toHaveLength(1);
+      expect(record.parsed?.attachments?.[0].content).toBeUndefined();
+      expect(record.parsed?.attachments?.[0].contentEncoding).toBeUndefined();
+    });
+
+    it('should handle address object without address property', () => {
+      const session = createMockSession();
+      // Simulate address object without address property
+      (session.envelope as any).mailFrom = { args: {} }; // missing address property
+      (session.envelope as any).rcptTo = [
+        { args: {} }, // missing address property
+        { address: 'valid@example.com', args: {} },
+      ];
+      const rawEmail = Buffer.from('test email');
+      const email = createMockReceivedEmail(rawEmail);
+      const receivedAt = new Date();
+
+      const record = service.buildEmailRecord(email, session, undefined, receivedAt);
+
+      expect(record.envelope.mailFrom).toBeUndefined();
+      expect(record.envelope.rcptTo).toEqual(['valid@example.com']);
+    });
+
+    it('should filter out undefined addresses from rcptTo', () => {
+      const session = createMockSession();
+      (session.envelope as any).rcptTo = [
+        false, // falsy value
+        true, // boolean true (should return undefined)
+        { address: 'valid@example.com', args: {} },
+        null, // null value
+      ];
+      const rawEmail = Buffer.from('test email');
+      const email = createMockReceivedEmail(rawEmail);
+      const receivedAt = new Date();
+
+      const record = service.buildEmailRecord(email, session, undefined, receivedAt);
+
+      // Only valid@example.com should remain after filtering
+      expect(record.envelope.rcptTo).toEqual(['valid@example.com']);
+    });
+
+    it('should handle empty string fields (coerced to undefined)', () => {
+      const session = createMockSession();
+      const rawEmail = Buffer.from('test email');
+      const email = createMockReceivedEmail(rawEmail);
+      const parsedMail = {
+        subject: 'Empty Fields Test',
+        messageId: '<empty-123@example.com>',
+        from: { text: '', html: '', value: [] }, // empty string
+        to: { text: '', html: '', value: [] }, // empty string
+        text: '', // empty string
+      };
+      const receivedAt = new Date();
+
+      const record = service.buildEmailRecord(email, session, parsedMail, receivedAt);
+
+      // Empty strings should be coerced to undefined
+      expect(record.parsed?.from).toBeUndefined();
+      expect(record.parsed?.to).toBeUndefined();
+      expect(record.parsed?.text).toBeUndefined();
+    });
+
+    it('should handle optional address fields (cc, bcc, replyTo)', () => {
+      const session = createMockSession();
+      const rawEmail = Buffer.from('test email');
+      const email = createMockReceivedEmail(rawEmail);
+      const parsedMail = {
+        subject: 'With CC and BCC',
+        messageId: '<cc-123@example.com>',
+        from: { text: 'sender@example.com', html: '', value: [] },
+        to: { text: 'recipient@example.com', html: '', value: [] },
+        cc: { text: 'cc@example.com', html: '', value: [] },
+        bcc: { text: 'bcc@example.com', html: '', value: [] },
+        replyTo: { text: 'replyto@example.com', html: '', value: [] },
+        text: 'Email body',
+        date: new Date('2025-01-15T10:00:00Z'),
+        inReplyTo: '<original-123@example.com>',
+        references: '<ref-1@example.com> <ref-2@example.com>',
+        priority: 'high',
+      };
+      const receivedAt = new Date('2025-11-17T12:00:00Z');
+
+      const record = service.buildEmailRecord(email, session, parsedMail, receivedAt);
+
+      expect(record.parsed?.cc).toBe('cc@example.com');
+      expect(record.parsed?.bcc).toBe('bcc@example.com');
+      expect(record.parsed?.replyTo).toBe('replyto@example.com');
+      expect(record.parsed?.date).toBe('2025-01-15T10:00:00.000Z');
+      expect(record.parsed?.inReplyTo).toBe('<original-123@example.com>');
+      expect(record.parsed?.references).toBe('<ref-1@example.com> <ref-2@example.com>');
+      expect(record.parsed?.priority).toBe('high');
     });
   });
 });

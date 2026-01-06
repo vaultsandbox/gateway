@@ -22,6 +22,7 @@ export class EventsController {
   /**
    * Constructor
    */
+  /* c8 ignore next 3*/
   constructor(
     private readonly eventsService: EventsService,
     private readonly inboxService: InboxService,
@@ -61,6 +62,7 @@ export class EventsController {
     },
   })
   @ApiResponse({ status: 401, description: 'Unauthorized, API key is missing or invalid.' })
+  /* c8 ignore next - V8 signature artifact; covered by events-sse.e2e-spec.ts */
   stream(@Query('inboxes') inboxes?: string | string[]): Observable<MessageEvent> {
     const requested = this.normalizeInboxIds(inboxes);
     if (requested.length === 0) {
@@ -103,6 +105,7 @@ export class EventsController {
           this.logger.error(`SSE stream error: ${error instanceof Error ? error.message : error}`);
           subscriber.error(error);
         },
+        /* c8 ignore next - unreachable: merge() with interval() never completes */
         complete: () => subscriber.complete(),
       });
 

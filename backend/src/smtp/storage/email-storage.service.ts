@@ -61,6 +61,7 @@ export class EmailStorageService {
   // Eviction statistics
   private evictedCount = 0;
 
+  /* c8 ignore next 4 */
   constructor(
     private readonly configService: ConfigService,
     private readonly inboxStorageService: InboxStorageService,
@@ -106,6 +107,7 @@ export class EmailStorageService {
     this.evictIfNeeded(emailSize);
 
     // Safety net: if we still don't have room, reject
+    /* c8 ignore next 3 -- defensive check: eviction should always free enough space */
     if (this.currentMemoryUsage + emailSize > this.maxMemoryBytes) {
       throw new Error('Unable to free enough space for incoming email. Rejecting to stay within memory limit.');
     }
@@ -159,8 +161,8 @@ export class EmailStorageService {
       // Find first email that hasn't been tombstoned yet
       const oldest = this.emails.find((e) => !e.isTombstone);
 
+      /* c8 ignore next 9 -- defensive check: should always have non-tombstoned emails if eviction is needed */
       if (!oldest) {
-        // No more emails to evict - shouldn't happen but safety check
         this.logger.warn(
           'Cannot evict - no emails remaining. ' +
             `Incoming: ${(incomingSize / 1024).toFixed(2)}KB, ` +

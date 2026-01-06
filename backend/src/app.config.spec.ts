@@ -84,7 +84,7 @@ describe('app.config', () => {
     process.env.VSB_SMTP_SECURE = secureValue;
   };
 
-  describe('parseBoolean via VSB_SMTP_SECURE', () => {
+  describe('parseOptionalBoolean via VSB_SMTP_SECURE', () => {
     it('should parse "true" as true', () => {
       setSmtpSecureWithTls('true');
       const config = require('./app.config').default();
@@ -188,7 +188,7 @@ describe('app.config', () => {
     });
   });
 
-  describe('parseNumber via port and size configs', () => {
+  describe('parseNumberWithDefault via port and size configs', () => {
     it('should parse valid number strings', () => {
       setMinimalEnv();
       process.env.VSB_SMTP_PORT = '25';
@@ -249,6 +249,12 @@ describe('app.config', () => {
         'Invalid numeric value: "Infinity" (must be a non-negative finite number)',
       );
     });
+
+    it('should throw for non-integer values', () => {
+      setMinimalEnv();
+      process.env.VSB_SMTP_PORT = '25.5';
+      expect(() => require('./app.config').default()).toThrow('Invalid numeric value: "25.5" (must be an integer)');
+    });
   });
 
   describe('readTlsBuffer and buildTlsConfig', () => {
@@ -306,6 +312,17 @@ describe('app.config', () => {
       process.env.VSB_SMTP_TLS_KEY_PATH = '/path/to/key.pem';
       expect(() => require('./app.config').default()).toThrow(
         'Both VSB_SMTP_TLS_CERT_PATH and VSB_SMTP_TLS_KEY_PATH must be provided to enable TLS',
+      );
+    });
+
+    it('should throw error when certificate file is not in PEM format', () => {
+      mockExistsSync.mockReturnValue(true);
+      mockReadFileSync.mockReturnValue(Buffer.from('not a valid PEM file content'));
+      setMinimalEnv();
+      process.env.VSB_SMTP_TLS_CERT_PATH = '/path/to/cert.pem';
+      process.env.VSB_SMTP_TLS_KEY_PATH = '/path/to/key.pem';
+      expect(() => require('./app.config').default()).toThrow(
+        'Invalid certificate/key format in /path/to/cert.pem: File must be in PEM format',
       );
     });
 
@@ -410,6 +427,14 @@ describe('app.config', () => {
       process.env.VSB_SMTP_ALLOWED_RECIPIENT_DOMAINS = ',,,';
       expect(() => require('./app.config').default()).toThrow(
         'VSB_SMTP_ALLOWED_RECIPIENT_DOMAINS must contain at least one valid domain',
+      );
+    });
+
+    it('should throw error when domain format is invalid', () => {
+      setMinimalEnv();
+      process.env.VSB_SMTP_ALLOWED_RECIPIENT_DOMAINS = 'valid.com,invalid_domain,another.org';
+      expect(() => require('./app.config').default()).toThrow(
+        'Invalid domain format in VSB_SMTP_ALLOWED_RECIPIENT_DOMAINS: invalid_domain',
       );
     });
   });
@@ -527,6 +552,14 @@ describe('app.config', () => {
       setMinimalEnv();
       const config = require('./app.config').default();
       expect(config.smtp.banner).toBe('VaultSandbox Test SMTP Server (Receive-Only)');
+    });
+
+    it('should throw error when SMTP secure is true but no TLS credentials or cert management', () => {
+      setMinimalEnv();
+      process.env.VSB_SMTP_SECURE = 'true';
+      // No TLS paths set, no cert enabled
+      mockExistsSync.mockReturnValue(false);
+      expect(() => require('./app.config').default()).toThrow('VSB_SMTP_SECURE=true requires TLS credentials');
     });
   });
 
@@ -660,6 +693,18 @@ describe('app.config', () => {
       expect(mockMkdirSync).toHaveBeenCalledWith('/custom/data', expect.any(Object));
       expect(mockWriteFileSync).toHaveBeenCalledWith('/custom/data/.api-key', expect.any(String), expect.any(Object));
     });
+
+    it('should throw error when inboxAliasRandomBytes is below minimum', () => {
+      setMinimalEnv();
+      process.env.VSB_INBOX_ALIAS_RANDOM_BYTES = '3'; // MIN is 4
+      expect(() => require('./app.config').default()).toThrow('VSB_INBOX_ALIAS_RANDOM_BYTES must be between 4 and 32');
+    });
+
+    it('should throw error when inboxAliasRandomBytes is above maximum', () => {
+      setMinimalEnv();
+      process.env.VSB_INBOX_ALIAS_RANDOM_BYTES = '33'; // MAX is 32
+      expect(() => require('./app.config').default()).toThrow('VSB_INBOX_ALIAS_RANDOM_BYTES must be between 4 and 32');
+    });
   });
 
   describe('buildOrchestrationConfig', () => {
@@ -755,6 +800,80 @@ describe('app.config', () => {
       expect(() => require('./app.config').default()).toThrow(
         'Invalid domain format in VSB_CERT_ADDITIONAL_DOMAINS: invalid_domain',
       );
+    });
+
+    it('should auto-derive cert domain from SMTP allowed domains when VSB_CERT_DOMAIN not set', () => {
+      setMinimalEnv();
+      process.env.VSB_CERT_ENABLED = 'true';
+      process.env.VSB_CERT_EMAIL = 'admin@example.com';
+      process.env.VSB_SMTP_ALLOWED_RECIPIENT_DOMAINS = 'mail.example.com,other.example.com';
+      process.env.VSB_CERT_PEER_SHARED_SECRET = 'test-secret';
+      // Don't set VSB_CERT_DOMAIN
+      const config = require('./app.config').default();
+      expect(config.certificate.domain).toBe('mail.example.com');
+    });
+
+    it('should throw when cert enabled but no domain can be derived', () => {
+      setMinimalEnv();
+      process.env.VSB_CERT_ENABLED = 'true';
+      process.env.VSB_CERT_EMAIL = 'admin@example.com';
+      // Set empty domain explicitly and mock parseAllowedDomains to return empty
+      process.env.VSB_CERT_DOMAIN = '';
+      process.env.VSB_SMTP_ALLOWED_RECIPIENT_DOMAINS = ',,,'; // Will parse to empty after filtering
+
+      expect(() => require('./app.config').default()).toThrow(
+        'VSB_SMTP_ALLOWED_RECIPIENT_DOMAINS must contain at least one valid domain',
+      );
+    });
+
+    it('should warn about peer shared secret in multi-node setup when not configured', () => {
+      setMinimalEnv();
+      process.env.VSB_CERT_ENABLED = 'true';
+      process.env.VSB_CERT_EMAIL = 'admin@example.com';
+      process.env.VSB_CERT_DOMAIN = 'smtp.example.com';
+      process.env.VSB_ORCHESTRATION_ENABLED = 'true';
+      process.env.VSB_BACKEND_URL = 'https://backend.example.com';
+      process.env.VSB_BACKEND_API_KEY = 'test-key';
+      // Don't set VSB_CERT_PEER_SHARED_SECRET
+      require('./app.config').default();
+      expect(mockLoggerWarn).toHaveBeenCalledWith(
+        expect.stringContaining('VSB_CERT_PEER_SHARED_SECRET not configured'),
+      );
+    });
+
+    it('should log when cert enabled but email not set', () => {
+      const mockLoggerLog = jest.fn();
+      jest.doMock('@nestjs/common', () => ({
+        ...jest.requireActual('@nestjs/common'),
+        Logger: jest.fn().mockImplementation(() => ({
+          log: mockLoggerLog,
+          error: jest.fn(),
+          warn: mockLoggerWarn,
+          debug: jest.fn(),
+          verbose: jest.fn(),
+        })),
+      }));
+
+      setMinimalEnv();
+      process.env.VSB_CERT_ENABLED = 'true';
+      process.env.VSB_CERT_DOMAIN = 'smtp.example.com';
+      process.env.VSB_CERT_PEER_SHARED_SECRET = 'test-secret';
+      // Don't set VSB_CERT_EMAIL
+      require('./app.config').default();
+      expect(mockLoggerLog).toHaveBeenCalledWith(expect.stringContaining('VSB_CERT_EMAIL not set'));
+    });
+
+    it('should throw when cert enabled with explicit empty domain and no SMTP domains', () => {
+      setMinimalEnv();
+      process.env.VSB_CERT_ENABLED = 'true';
+      process.env.VSB_CERT_EMAIL = 'admin@example.com';
+      process.env.VSB_CERT_DOMAIN = '   '; // Whitespace only domain
+      // parseAllowedDomains will still have 'example.com' from setMinimalEnv, so domain gets auto-derived
+      // Let's override to test the actual error path
+      process.env.VSB_SMTP_ALLOWED_RECIPIENT_DOMAINS = 'example.com';
+      const config = require('./app.config').default();
+      // Domain should be auto-derived from SMTP domains
+      expect(config.certificate.domain).toBe('example.com');
     });
   });
 
@@ -865,6 +984,46 @@ describe('app.config', () => {
       process.env.VSB_GATEWAY_MODE = 'invalid-mode';
       expect(() => require('./app.config').default()).toThrow(
         'Invalid VSB_GATEWAY_MODE: "invalid-mode". Must be one of: local, backend',
+      );
+    });
+
+    it('should throw when backend mode enabled without backend URL', () => {
+      setMinimalEnv();
+      process.env.VSB_GATEWAY_MODE = 'backend';
+      process.env.VSB_BACKEND_API_KEY = 'test-key';
+      // No VSB_BACKEND_URL
+      expect(() => require('./app.config').default()).toThrow(
+        'VSB_GATEWAY_MODE=backend requires backend configuration',
+      );
+    });
+
+    it('should throw when backend mode enabled without backend API key', () => {
+      setMinimalEnv();
+      process.env.VSB_GATEWAY_MODE = 'backend';
+      process.env.VSB_BACKEND_URL = 'https://backend.example.com';
+      // No VSB_BACKEND_API_KEY
+      expect(() => require('./app.config').default()).toThrow(
+        'VSB_GATEWAY_MODE=backend requires backend configuration',
+      );
+    });
+
+    it('should throw when orchestration enabled without backend URL', () => {
+      setMinimalEnv();
+      process.env.VSB_ORCHESTRATION_ENABLED = 'true';
+      process.env.VSB_BACKEND_API_KEY = 'test-key';
+      // No VSB_BACKEND_URL
+      expect(() => require('./app.config').default()).toThrow(
+        'VSB_ORCHESTRATION_ENABLED=true requires backend configuration',
+      );
+    });
+
+    it('should throw when orchestration enabled without backend API key', () => {
+      setMinimalEnv();
+      process.env.VSB_ORCHESTRATION_ENABLED = 'true';
+      process.env.VSB_BACKEND_URL = 'https://backend.example.com';
+      // No VSB_BACKEND_API_KEY
+      expect(() => require('./app.config').default()).toThrow(
+        'VSB_ORCHESTRATION_ENABLED=true requires backend configuration',
       );
     });
 

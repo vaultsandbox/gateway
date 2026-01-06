@@ -7,5 +7,5 @@ import { config as loadEnv } from 'dotenv';
 // env vars are available during module compilation
 const envPath = resolve(__dirname, '../.env.test-e2e');
 if (existsSync(envPath)) {
-  loadEnv({ path: envPath, override: true });
+  loadEnv({ path: envPath, override: true, quiet: true });
 }

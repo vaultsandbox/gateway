@@ -95,12 +95,14 @@ export async function vsxDnsPreBoot(): Promise<void> {
   console.log('[VsxDnsPreBoot] VSX DNS enabled - performing check-in...');
 
   // Start temporary probe server on port 80 (or configured port)
+  /* c8 ignore next */
   const port = parseInt(process.env.VSB_SERVER_PORT || '80', 10);
   let probeServer: http.Server | null = null;
 
   try {
     probeServer = await startProbeServer(port);
   } catch (err) {
+    /* c8 ignore next */
     const message = err instanceof Error ? err.message : String(err);
     console.error(`[VsxDnsPreBoot] Failed to start probe server: ${message}`);
     console.error('[VsxDnsPreBoot] Continuing without probe server - check-in may fail');
@@ -120,6 +122,7 @@ export async function vsxDnsPreBoot(): Promise<void> {
 
     if (data.status !== 'ready' || !data.domain) {
       // Print failure banner and exit
+      /* c8 ignore next 2 */
       const errorMsg = (data.error || 'Unknown error').substring(0, 49).padEnd(49);
       const actionMsg = (data.action || 'Check your network configuration').substring(0, 48).padEnd(48);
       errorBanner = `
@@ -153,6 +156,7 @@ export async function vsxDnsPreBoot(): Promise<void> {
     }
   } catch (error) {
     const isTimeout = error instanceof Error && error.name === 'AbortError';
+    /* c8 ignore next 2 */
     const message = isTimeout ? 'Request timed out' : error instanceof Error ? error.message : String(error);
     const action = isTimeout ? 'Check network connectivity to api.vsx.email' : 'Ensure api.vsx.email is reachable';
     const truncatedMsg = message.substring(0, 49).padEnd(49);

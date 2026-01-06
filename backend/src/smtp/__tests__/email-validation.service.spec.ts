@@ -40,13 +40,25 @@ describe('EmailValidationService', () => {
   });
 
   describe('verifySpf', () => {
-    it('returns default result when the domain or remote IP is missing', async () => {
+    it('returns default result when the domain is missing', async () => {
       const result = await service.verifySpf(undefined, '192.0.2.5', 'sender@example.com', 'session-default');
 
       expect(result).toEqual({
         status: 'none',
         domain: undefined,
         ip: '192.0.2.5',
+        info: 'SPF check skipped',
+      });
+      expect(mockedSpf).not.toHaveBeenCalled();
+    });
+
+    it('returns default result when the remote IP is missing', async () => {
+      const result = await service.verifySpf('example.com', undefined, 'sender@example.com', 'session-no-ip');
+
+      expect(result).toEqual({
+        status: 'none',
+        domain: 'example.com',
+        ip: undefined,
         info: 'SPF check skipped',
       });
       expect(mockedSpf).not.toHaveBeenCalled();
@@ -83,6 +95,65 @@ describe('EmailValidationService', () => {
         info: 'spf boom',
       });
       expect(warnSpy).toHaveBeenCalledWith('SPF check failed (session=session-spf): spf boom');
+    });
+
+    it('returns temperror with timeout message when the SPF lookup times out', async () => {
+      mockedSpf.mockRejectedValue(new Error('SPF lookup timed out after 5000ms'));
+
+      const result = await service.verifySpf('example.com', '192.0.2.1', 'sender@example.com', 'session-timeout');
+
+      expect(result).toEqual({
+        status: 'temperror',
+        domain: 'example.com',
+        ip: '192.0.2.1',
+        info: 'DNS lookup timed out after 5000ms',
+      });
+    });
+
+    it('falls back to statusObj.comment when result.info is missing', async () => {
+      mockedSpf.mockResolvedValue({
+        status: { result: 'pass', comment: 'comment fallback' },
+      } as never);
+
+      const result = await service.verifySpf('example.com', '192.0.2.1', 'sender@example.com', 'session-comment');
+
+      expect(result).toEqual({
+        status: 'pass',
+        domain: 'example.com',
+        ip: '192.0.2.1',
+        info: 'comment fallback',
+      });
+    });
+
+    it('falls back to statusToString when both info and comment are missing', async () => {
+      mockedSpf.mockResolvedValue({
+        status: { result: 'softfail' },
+      } as never);
+
+      const result = await service.verifySpf('example.com', '192.0.2.1', 'sender@example.com', 'session-fallback');
+
+      expect(result).toEqual({
+        status: 'softfail',
+        domain: 'example.com',
+        ip: '192.0.2.1',
+        info: 'softfail',
+      });
+    });
+
+    it('handles status as a non-object (string-like)', async () => {
+      mockedSpf.mockResolvedValue({
+        status: 'neutral',
+        info: 'neutral info',
+      } as never);
+
+      const result = await service.verifySpf('example.com', '192.0.2.1', 'sender@example.com', 'session-string');
+
+      expect(result).toEqual({
+        status: 'none',
+        domain: 'example.com',
+        ip: '192.0.2.1',
+        info: 'neutral info',
+      });
     });
   });
 
@@ -134,6 +205,57 @@ describe('EmailValidationService', () => {
         },
       ]);
       expect(warnSpy).toHaveBeenCalledWith('DKIM verification error (session=session-err): dkim boom');
+    });
+
+    it('returns none when dkimResult is null', async () => {
+      mockedDkimVerify.mockResolvedValue(null as never);
+
+      const result = await service.verifyDkim(Buffer.from('raw'), 'session-null');
+
+      expect(result).toEqual([
+        {
+          status: 'none',
+          info: 'No DKIM signatures found in email',
+        },
+      ]);
+    });
+
+    it('returns none when dkimResult.results is undefined', async () => {
+      mockedDkimVerify.mockResolvedValue({} as never);
+
+      const result = await service.verifyDkim(Buffer.from('raw'), 'session-no-results');
+
+      expect(result).toEqual([
+        {
+          status: 'none',
+          info: 'No DKIM signatures found in email',
+        },
+      ]);
+    });
+
+    it('returns timeout message when DKIM verification times out', async () => {
+      mockedDkimVerify.mockRejectedValue(new Error('DKIM verification timed out after 5000ms'));
+
+      const result = await service.verifyDkim(Buffer.from('raw'), 'session-timeout');
+
+      expect(result).toEqual([
+        {
+          status: 'none',
+          info: 'DNS lookup timed out after 5000ms',
+        },
+      ]);
+    });
+
+    it('falls back to statusObj.comment when info is missing', async () => {
+      mockedDkimVerify.mockResolvedValue({
+        results: [
+          { status: { result: 'pass', comment: 'good signature' }, signingDomain: 'example.com', selector: 'sel1' },
+        ],
+      } as never);
+
+      const result = await service.verifyDkim(Buffer.from('raw'), 'session-comment');
+
+      expect(result).toEqual([{ status: 'pass', domain: 'example.com', selector: 'sel1', info: 'good signature' }]);
     });
   });
 
@@ -236,6 +358,113 @@ describe('EmailValidationService', () => {
         info: 'dmarc boom',
       });
       expect(warnSpy).toHaveBeenCalledWith('DMARC verification error (session=session-error): dmarc boom');
+    });
+
+    it('returns timeout message when DMARC lookup times out', async () => {
+      mockedDmarc.mockRejectedValue(new Error('DMARC lookup timed out after 5000ms'));
+
+      const result = await service.verifyDmarc(headersWithFrom, spfResult, dkimResults, 'session-timeout');
+
+      expect(result).toEqual({
+        status: 'none',
+        info: 'DNS lookup timed out after 5000ms',
+      });
+    });
+
+    it('uses p property as fallback when policy is missing', async () => {
+      mockedDmarc.mockResolvedValue({
+        status: { result: 'pass' },
+        p: 'reject',
+        alignment: { spf: { result: 'pass' } },
+        domain: 'example.com',
+      } as never);
+
+      const result = await service.verifyDmarc(headersWithFrom, spfResult, dkimResults, 'session-p');
+
+      expect(result.policy).toBe('reject');
+    });
+
+    it('sets aligned true when dkim alignment passes but spf does not', async () => {
+      mockedDmarc.mockResolvedValue({
+        status: { result: 'pass' },
+        policy: 'none',
+        alignment: { dkim: { result: 'pass' } },
+        domain: 'example.com',
+      } as never);
+
+      const result = await service.verifyDmarc(headersWithFrom, undefined, dkimResults, 'session-dkim-align');
+
+      expect(result.aligned).toBe(true);
+    });
+
+    it('handles From header without angle brackets', async () => {
+      mockedDmarc.mockResolvedValue({
+        status: { result: 'pass' },
+        domain: 'simple.com',
+      } as never);
+
+      const result = await service.verifyDmarc({ from: 'user@simple.com' }, undefined, undefined, 'session-simple');
+
+      expect(result.status).toBe('pass');
+    });
+
+    it('falls back to statusObj.comment when info is missing', async () => {
+      mockedDmarc.mockResolvedValue({
+        status: { result: 'pass', comment: 'dmarc comment' },
+        domain: 'example.com',
+      } as never);
+
+      const result = await service.verifyDmarc(headersWithFrom, spfResult, dkimResults, 'session-comment');
+
+      expect(result.info).toBe('dmarc comment');
+    });
+
+    it('handles status as non-object value', async () => {
+      mockedDmarc.mockResolvedValue({
+        status: 'weird',
+        domain: 'example.com',
+      } as never);
+
+      const result = await service.verifyDmarc(headersWithFrom, spfResult, dkimResults, 'session-weird');
+
+      expect(result.status).toBe('none');
+    });
+
+    it('logs with fallback info when domain is unknown and status is pass', async () => {
+      mockedDmarc.mockResolvedValue({
+        status: { result: 'pass' },
+        alignment: { spf: { result: 'pass' } },
+      } as never);
+
+      await service.verifyDmarc(headersWithFrom, spfResult, dkimResults, 'session-nodomain');
+
+      expect(logSpy).toHaveBeenCalledWith(
+        "DMARC check (session=session-nodomain): PASS for domain='unknown' policy=none aligned=true",
+      );
+    });
+
+    it('logs with Alignment failure fallback when status is fail and info is missing', async () => {
+      mockedDmarc.mockResolvedValue({
+        status: { result: 'fail' },
+      } as never);
+
+      await service.verifyDmarc(headersWithFrom, undefined, undefined, 'session-fail-noinfo');
+
+      expect(warnSpy).toHaveBeenCalledWith(
+        'DMARC validation failed (session=session-fail-noinfo): domain=unknown policy=none aligned=false - Alignment failure',
+      );
+    });
+
+    it('logs with No DMARC policy fallback when status is none and info is missing', async () => {
+      mockedDmarc.mockResolvedValue({
+        status: { result: 'other' },
+      } as never);
+
+      await service.verifyDmarc(headersWithFrom, undefined, undefined, 'session-none-noinfo');
+
+      expect(logSpy).toHaveBeenCalledWith(
+        "DMARC check (session=session-none-noinfo): NONE for domain='unknown' - No DMARC policy",
+      );
     });
   });
 
@@ -343,6 +572,102 @@ describe('EmailValidationService', () => {
 
       reverseSpy.mockRestore();
     });
+
+    it('fails with ENODATA error code', async () => {
+      const reverseSpy = jest
+        .spyOn(dns, 'reverse')
+        .mockRejectedValue(Object.assign(new Error('no data'), { code: 'ENODATA' }));
+
+      const result = await service.verifyReverseDns('203.0.113.13', 'session-enodata');
+
+      expect(result).toEqual({
+        status: 'fail',
+        ip: '203.0.113.13',
+        info: 'No PTR record found for remote IP',
+      });
+      expect(warnSpy).toHaveBeenCalledWith(
+        "Reverse DNS check (session=session-enodata): FAIL ip='203.0.113.13' - No PTR record (ENODATA)",
+      );
+
+      reverseSpy.mockRestore();
+    });
+
+    it('fails with NXDOMAIN error code', async () => {
+      const reverseSpy = jest
+        .spyOn(dns, 'reverse')
+        .mockRejectedValue(Object.assign(new Error('no domain'), { code: 'NXDOMAIN' }));
+
+      const result = await service.verifyReverseDns('203.0.113.14', 'session-nxdomain');
+
+      expect(result).toEqual({
+        status: 'fail',
+        ip: '203.0.113.14',
+        info: 'No PTR record found for remote IP',
+      });
+      expect(warnSpy).toHaveBeenCalledWith(
+        "Reverse DNS check (session=session-nxdomain): FAIL ip='203.0.113.14' - No PTR record (NXDOMAIN)",
+      );
+
+      reverseSpy.mockRestore();
+    });
+
+    it('continues checking other hostnames when forward lookup fails', async () => {
+      const debugSpy = jest.spyOn(service['logger'], 'debug').mockImplementation(() => undefined);
+      const reverseSpy = jest.spyOn(dns, 'reverse').mockResolvedValue(['bad.example', 'good.example']);
+      const lookupSpy = jest
+        .spyOn(dns, 'lookup')
+        .mockRejectedValueOnce(new Error('lookup failed'))
+        .mockResolvedValueOnce([{ address: '203.0.113.15' } as LookupAddress]);
+
+      const result = await service.verifyReverseDns('203.0.113.15', 'session-forward-fail');
+
+      expect(result).toEqual({
+        status: 'pass',
+        ip: '203.0.113.15',
+        hostname: 'good.example',
+        info: 'PTR hostname resolves back to originating IP',
+      });
+      expect(debugSpy).toHaveBeenCalledWith(
+        "Forward lookup error (session=session-forward-fail) for hostname='bad.example': lookup failed",
+      );
+
+      reverseSpy.mockRestore();
+      lookupSpy.mockRestore();
+      debugSpy.mockRestore();
+    });
+
+    it('returns fail when all forward lookups fail', async () => {
+      const debugSpy = jest.spyOn(service['logger'], 'debug').mockImplementation(() => undefined);
+      const reverseSpy = jest.spyOn(dns, 'reverse').mockResolvedValue(['host1.example', 'host2.example']);
+      const lookupSpy = jest.spyOn(dns, 'lookup').mockRejectedValue(new Error('all lookups fail'));
+
+      const result = await service.verifyReverseDns('203.0.113.16', 'session-all-fail');
+
+      expect(result).toEqual({
+        status: 'fail',
+        ip: '203.0.113.16',
+        hostname: 'host1.example',
+        info: 'PTR hostname does not resolve back to originating IP',
+      });
+
+      reverseSpy.mockRestore();
+      lookupSpy.mockRestore();
+      debugSpy.mockRestore();
+    });
+
+    it('handles error without message property', async () => {
+      const reverseSpy = jest.spyOn(dns, 'reverse').mockRejectedValue({ code: 'UNKNOWN' });
+
+      const result = await service.verifyReverseDns('203.0.113.17', 'session-no-message');
+
+      expect(result).toEqual({
+        status: 'fail',
+        ip: '203.0.113.17',
+        info: '[object Object]',
+      });
+
+      reverseSpy.mockRestore();
+    });
   });
 
   describe('logValidationResults', () => {
@@ -375,27 +700,100 @@ describe('EmailValidationService', () => {
         'Reverse DNS validation failed (session=session-logs): ip=198.51.100.10 hostname=host.example - mismatch',
       );
     });
+
+    it('logs with defaults when all results are undefined', () => {
+      logSpy.mockClear();
+
+      service.logValidationResults('session-empty');
+
+      expect(logSpy).toHaveBeenCalledWith(
+        'Validation results (session=session-empty): [SPF=none, DKIM=none, DMARC=none, PTR=none]',
+      );
+    });
+
+    it('logs without policy when dmarc policy is missing', () => {
+      logSpy.mockClear();
+
+      service.logValidationResults('session-no-policy', undefined, undefined, { status: 'pass' });
+
+      expect(logSpy).toHaveBeenCalledWith(
+        'Validation results (session=session-no-policy): [SPF=none, DKIM=none, DMARC=PASS, PTR=none]',
+      );
+    });
+
+    it('logs without hostname when ptr hostname is missing', () => {
+      logSpy.mockClear();
+      warnSpy.mockClear();
+
+      service.logValidationResults('session-no-hostname', undefined, undefined, undefined, {
+        status: 'fail',
+        ip: '192.0.2.1',
+      });
+
+      expect(logSpy).toHaveBeenCalledWith(
+        'Validation results (session=session-no-hostname): [SPF=none, DKIM=none, DMARC=none, PTR=FAIL]',
+      );
+      expect(warnSpy).toHaveBeenCalledWith(
+        'Reverse DNS validation failed (session=session-no-hostname): ip=192.0.2.1 hostname=n/a - No additional details',
+      );
+    });
+
+    it('does not warn for passing SPF result', () => {
+      logSpy.mockClear();
+      warnSpy.mockClear();
+
+      service.logValidationResults('session-pass', { status: 'pass', info: 'ok' });
+
+      expect(warnSpy).not.toHaveBeenCalledWith(expect.stringContaining('SPF validation warning'));
+    });
+
+    it('handles DKIM results with none status', () => {
+      logSpy.mockClear();
+      warnSpy.mockClear();
+
+      service.logValidationResults('session-dkim-none', undefined, [{ status: 'none', info: 'no sig' }]);
+
+      expect(logSpy).not.toHaveBeenCalledWith(expect.stringContaining('DKIM validation passed'));
+      expect(warnSpy).not.toHaveBeenCalledWith(expect.stringContaining('DKIM validation failed'));
+    });
+
+    it('does not warn for passing ptr result', () => {
+      warnSpy.mockClear();
+
+      service.logValidationResults('session-ptr-pass', undefined, undefined, undefined, {
+        status: 'pass',
+        ip: '192.0.2.1',
+        hostname: 'mail.example.com',
+      });
+
+      expect(warnSpy).not.toHaveBeenCalledWith(expect.stringContaining('Reverse DNS validation failed'));
+    });
   });
 
   describe('statusToString', () => {
     it('normalizes status inputs regardless of shape', () => {
-      const statusToString = (service as unknown as { statusToString: (status?: unknown) => string }).statusToString;
+      const statusToString = (
+        service as unknown as { statusToString: (status?: unknown) => string }
+      ).statusToString.bind(service);
 
       expect(statusToString('pass')).toBe('pass');
       expect(statusToString({ result: 'fail' })).toBe('fail');
       expect(statusToString({ comment: 'fallback' })).toBe('fallback');
+      expect(statusToString({})).toBe('unknown');
       expect(statusToString(undefined)).toBe('unknown');
     });
   });
 
   describe('normalizeDmarcPolicy', () => {
     it('normalizes policy strings and handles missing values', () => {
-      const normalize = (service as unknown as { normalizeDmarcPolicy: (policy?: string) => string | undefined })
-        .normalizeDmarcPolicy;
+      const normalize = (
+        service as unknown as { normalizeDmarcPolicy: (policy?: string) => string | undefined }
+      ).normalizeDmarcPolicy.bind(service);
 
       expect(normalize(undefined)).toBeUndefined();
       expect(normalize('NONE')).toBe('none');
       expect(normalize('quarantine')).toBe('quarantine');
+      expect(normalize('reject')).toBe('reject');
       expect(normalize('invalid')).toBeUndefined();
     });
   });

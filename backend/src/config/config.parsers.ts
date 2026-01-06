@@ -4,23 +4,6 @@ import * as process from 'process';
 import { BOOLEAN_TRUE_VALUES } from './config.constants';
 import { isValidDomain } from './config.validators';
 
-/**
- * Parses a string environment variable as a boolean.
- *
- * Accepts common boolean representations: 'true', '1', 'yes', 'on' (case-insensitive).
- * Any other value is treated as false. This function requires a value to be present.
- *
- * @param value - The string value to parse
- * @returns The parsed boolean value
- * @throws {Error} If value is undefined (required values must be explicitly set)
- */
-export function parseBoolean(value: string | undefined): boolean {
-  if (value === undefined) {
-    throw new Error('Boolean value is required but not provided');
-  }
-  return BOOLEAN_TRUE_VALUES.includes(value.toLowerCase());
-}
-
 export function parseOptionalBoolean(value: string | undefined, defaultValue = false): boolean {
   if (value === undefined) {
     return defaultValue;
@@ -36,27 +19,6 @@ export function parseOptionalBoolean(value: string | undefined, defaultValue = f
   }
 
   return defaultValue;
-}
-
-/**
- * Parses a string environment variable as a number.
- *
- * Validates that the value is present and can be parsed as a valid number.
- * Used for numeric configuration like ports, sizes, and timeouts.
- *
- * @param value - The string value to parse
- * @returns The parsed numeric value
- * @throws {Error} If value is missing or cannot be parsed as a number
- */
-export function parseNumber(value: string | undefined): number {
-  if (!value) {
-    throw new Error('Number value is required but not provided');
-  }
-  const parsed = Number(value);
-  if (Number.isNaN(parsed)) {
-    throw new Error(`Invalid number value: ${value}`);
-  }
-  return parsed;
 }
 
 export function parseNumberWithDefault(value: string | undefined, defaultValue: number): number {

@@ -30,6 +30,7 @@ export class HttpServerService implements OnModuleDestroy {
   private httpsServer?: https.Server;
   private app?: INestApplication;
 
+  /* v8 ignore next 4 - false positive on constructor parameter properties */
   constructor(
     private readonly configService: ConfigService,
     private readonly certificateService: CertificateService,
@@ -71,6 +72,7 @@ export class HttpServerService implements OnModuleDestroy {
    * (e.g., first-time certificate creation), it starts the server. The HTTP server
    * continues running without interruption, ensuring ACME challenges remain accessible.
    */
+  /* v8 ignore next 2 - false positive on decorator and async function */
   @OnEvent('certificate.reloaded')
   async handleCertificateReload(): Promise<void> {
     this.logger.log('Certificate reload event received, restarting HTTPS server');
@@ -129,6 +131,7 @@ export class HttpServerService implements OnModuleDestroy {
    * - Redirects to HTTPS (all other requests)
    */
   private async startHttpServer(port: number): Promise<void> {
+    /* v8 ignore next 3 - defensive check: app always set by initializeServers before this method */
     if (!this.app) {
       throw new Error('NestJS app not initialized');
     }
@@ -156,6 +159,7 @@ export class HttpServerService implements OnModuleDestroy {
    * If no certificates are available, logs a warning and skips HTTPS setup.
    */
   private async startHttpsServer(): Promise<void> {
+    /* v8 ignore next 3 - defensive check: app always set by initializeServers before this method */
     if (!this.app) {
       throw new Error('NestJS app not initialized');
     }
@@ -213,6 +217,7 @@ export class HttpServerService implements OnModuleDestroy {
    * Gracefully stops the HTTP server with timeout protection.
    */
   private async stopHttpServer(): Promise<void> {
+    /* v8 ignore next 3 - defensive check: only called when server exists */
     if (!this.httpServer) {
       return;
     }
@@ -248,6 +253,7 @@ export class HttpServerService implements OnModuleDestroy {
    * reload hangs caused by long-lived HTTP keep-alive connections.
    */
   private async stopHttpsServer(): Promise<void> {
+    /* v8 ignore next 3 - defensive check: only called when server exists */
     if (!this.httpsServer) {
       return;
     }

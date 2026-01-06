@@ -19,6 +19,7 @@ export class AcmeClientService {
 
   constructor(
     @Inject(CERTIFICATE_CONFIG) private readonly config: CertificateConfig,
+    /* v8 ignore next - false positive on constructor parameter property */
     private readonly storageService: CertificateStorageService,
   ) {}
 

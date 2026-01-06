@@ -4,6 +4,7 @@ import { ApiKeyGuard } from '../inbox/guards/api-key.guard';
 import { TestEmailService } from './test-email.service';
 import { CreateTestEmailDto } from './dto/create-test-email.dto';
 
+/* c8 ignore next 3 - DTO class declaration */
 class CreateTestEmailResponseDto {
   emailId: string;
 }
@@ -14,6 +15,7 @@ class CreateTestEmailResponseDto {
 export class TestController {
   private readonly logger = new Logger(TestController.name);
 
+  /* c8 ignore next */
   constructor(private readonly testEmailService: TestEmailService) {}
 
   /**
@@ -36,6 +38,7 @@ export class TestController {
   })
   @ApiResponse({ status: 401, description: 'Unauthorized, API key is missing or invalid.' })
   @ApiResponse({ status: 404, description: 'Inbox not found.' })
+  /* c8 ignore next - V8 async artifact; covered by test-email-auth.e2e-spec.ts */
   async createTestEmail(@Body() dto: CreateTestEmailDto): Promise<CreateTestEmailResponseDto> {
     this.logger.debug(`POST /api/test/emails to=${dto.to}`);
     return this.testEmailService.createTestEmail(dto);

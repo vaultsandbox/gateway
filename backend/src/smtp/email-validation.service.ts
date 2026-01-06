@@ -96,6 +96,7 @@ export class EmailValidationService {
 
       return spfResult;
     } catch (error) {
+      /* v8 ignore next - defensive for non-Error exceptions */
       const message = error instanceof Error ? error.message : String(error);
       this.logger.warn(`SPF check failed (session=${sessionId}): ${message}`);
 
@@ -171,6 +172,7 @@ export class EmailValidationService {
         );
       }
     } catch (error) {
+      /* v8 ignore next - defensive for non-Error exceptions */
       const message = error instanceof Error ? error.message : String(error);
       this.logger.warn(`DKIM verification error (session=${sessionId}): ${message}`);
       results.push({
@@ -303,6 +305,7 @@ export class EmailValidationService {
 
       return dmarcResult;
     } catch (error) {
+      /* v8 ignore next - defensive for non-Error exceptions */
       const message = error instanceof Error ? error.message : String(error);
       this.logger.warn(`DMARC verification error (session=${sessionId}): ${message}`);
       return {
@@ -378,6 +381,7 @@ export class EmailValidationService {
             };
           }
         } catch (error) {
+          /* v8 ignore next 2 - defensive for non-Error exceptions */
           this.logger.debug(
             `Forward lookup error (session=${sessionId}) for hostname='${normalizedHostname}': ${error instanceof Error ? error.message : String(error)}`,
           );

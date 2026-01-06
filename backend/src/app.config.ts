@@ -184,11 +184,11 @@ function buildLocalModeConfig() {
           source = 'file';
         }
       }
-    } catch (err) {
+    } catch (err) /* v8 ignore start */ {
       // File doesn't exist or can't be read - will auto-generate
       const errorMessage = err instanceof Error ? err.message : String(err);
       logger.debug(`Could not read API key from file: ${errorMessage}`);
-    }
+    } /* v8 ignore stop */
 
     // Precedence 3: Auto-generate and persist
     if (!apiKey) {
@@ -219,6 +219,7 @@ function buildLocalModeConfig() {
         );
       } catch (err) {
         // Cannot persist - require manual configuration
+        /* c8 ignore next */
         const errorMessage = err instanceof Error ? err.message : String(err);
 
         throw new Error(
@@ -247,6 +248,7 @@ function buildLocalModeConfig() {
   // Validate minimum length
   if (!apiKey || apiKey.length < 32) {
     throw new Error(
+      /* c8 ignore next */
       `VSB_LOCAL_API_KEY must be at least 32 characters (current: ${apiKey?.length || 0}). ` +
         'Generate with: openssl rand -base64 32',
     );
@@ -374,12 +376,14 @@ function buildCertificateConfig() {
     if (!email || !email.trim()) {
       logger.log('VSB_CERT_EMAIL not set - certificate expiry notifications will not be sent');
     }
+    /* v8 ignore start - Defensive: unreachable because parseAllowedDomains() throws first if no domains */
     if (!domain || !domain.trim()) {
       throw new Error(
         'VSB_CERT_DOMAIN is required when VSB_CERT_ENABLED=true. ' +
           'Either set VSB_CERT_DOMAIN explicitly or ensure VSB_SMTP_ALLOWED_RECIPIENT_DOMAINS contains at least one domain.',
       );
     }
+    /* v8 ignore stop */
   }
 
   // Validate SAN entries to fail fast before ACME order

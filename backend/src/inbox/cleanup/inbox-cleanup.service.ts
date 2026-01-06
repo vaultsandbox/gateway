@@ -10,6 +10,7 @@ export class InboxCleanupService implements OnModuleInit, OnModuleDestroy {
   private cleanupInterval: NodeJS.Timeout;
   private readonly intervalMs: number;
 
+  /* v8 ignore next 5 */
   constructor(
     private readonly storageService: InboxStorageService,
     private readonly configService: ConfigService,

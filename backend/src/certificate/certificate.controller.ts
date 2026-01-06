@@ -19,6 +19,7 @@ export class CertificateController {
   /**
    * Constructor
    */
+  /* v8 ignore next 6 - false positive on constructor parameter properties */
   constructor(
     @Inject(CERTIFICATE_CONFIG) private readonly config: CertificateConfig,
     private readonly storageService: CertificateStorageService,
@@ -91,6 +92,7 @@ export class CertificateController {
    * Protected by the PeerAuthGuard.
    * @returns A promise that resolves to the certificate's status.
    */
+  /* v8 ignore next 4 - decorator branch coverage false positive */
   @Get('cluster/certificates/status')
   @UseGuards(PeerAuthGuard)
   async getCertificateStatus(): Promise<CertificateStatus> {
@@ -102,6 +104,7 @@ export class CertificateController {
    * This is useful for forcing a renewal via an API call.
    * Protected by the PeerAuthGuard.
    */
+  /* v8 ignore next 5 - decorator branch coverage false positive */
   @Post('cluster/certificates/renew')
   @UseGuards(PeerAuthGuard)
   async renewCertificate(): Promise<{ message: string }> {

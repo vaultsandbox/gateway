@@ -12,6 +12,7 @@ export class SmtpHealthIndicator {
    * @param smtpService The SmtpService.
    * @param healthIndicatorService The HealthIndicatorService.
    */
+  /* v8 ignore next 4 - false positive on constructor */
   constructor(
     private readonly smtpService: SmtpService,
     private readonly healthIndicatorService: HealthIndicatorService,

@@ -113,6 +113,7 @@ export class CertificateStorageService {
       };
     }
 
+    /* v8 ignore next 3 - defensive check, metadata is always set by preceding branches */
     if (!metadata) {
       throw new Error('Unable to load certificate metadata');
     }
