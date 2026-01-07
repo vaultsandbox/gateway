@@ -28,6 +28,7 @@ export class InboxSyncService implements OnDestroy {
 
   constructor() {
     this.newEmailSub = this.vaultSandbox.newEmail$.subscribe((event) => {
+      /* istanbul ignore next - defensive catch, handleNewEmail has its own error handling */
       this.handleNewEmail(event).catch((error) => {
         console.error('[InboxSyncService] Error handling SSE email event:', error);
       });

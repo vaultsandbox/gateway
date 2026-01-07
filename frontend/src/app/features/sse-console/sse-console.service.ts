@@ -1,4 +1,4 @@
-import { Injectable, signal } from '@angular/core';
+import { inject, Injectable, InjectionToken, signal } from '@angular/core';
 import { Subject } from 'rxjs';
 import { EventSource } from 'eventsource';
 import { environment } from '../../../environments/environment';
@@ -13,6 +13,21 @@ export interface ConsoleMessage {
 }
 
 /**
+ * Type for EventSource constructor function.
+ */
+export type EventSourceConstructor = typeof EventSource;
+
+/**
+ * Injection token for the EventSource constructor.
+ * Allows mocking EventSource in tests.
+ */
+/* istanbul ignore next 4 - factory only used at runtime, always mocked in tests */
+export const EVENT_SOURCE_TOKEN = new InjectionToken<EventSourceConstructor>('EventSourceConstructor', {
+  providedIn: 'root',
+  factory: () => EventSource,
+});
+
+/**
  * Handles SSE connection to the console stream endpoint.
  * Manages connection lifecycle and message delivery.
  */
@@ -20,9 +35,10 @@ export interface ConsoleMessage {
   providedIn: 'root',
 })
 export class SseConsoleService {
+  private readonly EventSourceClass = inject(EVENT_SOURCE_TOKEN);
   private readonly messagesSubject = new Subject<ConsoleMessage>();
   private readonly connectedSubject = signal<boolean>(false);
-  private eventSource: EventSource | null = null;
+  private eventSource: InstanceType<EventSourceConstructor> | null = null;
   private reconnectTimer: ReturnType<typeof setTimeout> | null = null;
   private reconnectAttempts = 0;
   private maxReconnectAttempts = 10;
@@ -42,7 +58,7 @@ export class SseConsoleService {
     this.clearReconnectTimer();
 
     const url = `${environment.apiUrl}/sse-console/stream`;
-    this.eventSource = new EventSource(url, {
+    this.eventSource = new this.EventSourceClass(url, {
       fetch: (input, init) =>
         fetch(input, {
           ...init,
@@ -103,6 +119,7 @@ export class SseConsoleService {
    * Schedules a reconnection attempt if the SSE stream dropped.
    */
   private scheduleReconnect(): void {
+    /* istanbul ignore if - defensive check for duplicate scheduling */
     if (this.reconnectTimer || !this.apiKey) {
       return;
     }

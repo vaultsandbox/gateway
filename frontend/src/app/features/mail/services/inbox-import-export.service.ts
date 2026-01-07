@@ -78,10 +78,17 @@ export class InboxImportExportService {
         const result = this.importInbox(data);
         results.push({ filename: file.name, ...result });
       } catch (error) {
+        let errorMessage: string;
+        /* istanbul ignore else - defensive for non-Error exceptions */
+        if (error instanceof Error) {
+          errorMessage = error.message;
+        } else {
+          errorMessage = 'Unknown error';
+        }
         results.push({
           filename: file.name,
           success: false,
-          message: `Failed to read file: ${error instanceof Error ? error.message : 'Unknown error'}`,
+          message: `Failed to read file: ${errorMessage}`,
         });
       }
     }

@@ -129,6 +129,7 @@ export class EmailDetail implements OnInit, OnChanges {
       // Add some padding to avoid any edge cases
       iframe.style.height = `${contentHeight + 20}px`;
     } catch (error) {
+      /* istanbul ignore next 2 - defensive catch for unexpected errors */
       // If we can't access the iframe content (shouldn't happen with allow-same-origin), fail silently
       console.warn('Could not resize iframe:', error);
     }

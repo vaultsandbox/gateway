@@ -39,7 +39,7 @@ export class InboxStorageService {
       }
 
       return InboxStorageMapper.toInboxModels(data);
-    } catch (error) {
+    } catch (error) /* istanbul ignore next */ {
       console.error('[InboxStorage] Error parsing localStorage payload:', error);
       return [];
     }

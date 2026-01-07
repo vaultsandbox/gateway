@@ -3,7 +3,7 @@ import { provideZonelessChangeDetection } from '@angular/core';
 import { provideNoopAnimations } from '@angular/platform-browser/animations';
 import { MetricsDialog } from './metrics-dialog';
 import { MetricsService } from './metrics.service';
-import { of } from 'rxjs';
+import { of, throwError } from 'rxjs';
 import { Metrics, StorageMetrics } from '../../shared/interfaces/metrics.interfaces';
 
 describe('MetricsDialog', () => {
@@ -123,6 +123,25 @@ describe('MetricsDialog', () => {
     expect(component.error).toBeNull();
   });
 
+  it('should handle error when loading metrics fails', async () => {
+    spyOn(console, 'error');
+    metricsService.getMetrics.and.returnValue(throwError(() => new Error('Network error')));
+
+    await component.loadMetrics();
+
+    expect(component.error).toBe('Network error');
+    expect(component.loading).toBeFalse();
+  });
+
+  it('should handle non-Error exceptions when loading metrics', async () => {
+    spyOn(console, 'error');
+    metricsService.getMetrics.and.returnValue(throwError(() => 'String error'));
+
+    await component.loadMetrics();
+
+    expect(component.error).toBe('Failed to load metrics');
+  });
+
   it('should emit closed output when dialog closes', () => {
     const closedSpy = spyOn(component.closed, 'emit');
 
@@ -184,6 +203,17 @@ describe('MetricsDialog', () => {
     expect(component.activeTab).toBe('general');
   });
 
+  it('should handle undefined tab change', () => {
+    const currentTab = component.activeTab;
+    component.onTabChange(undefined);
+    expect(component.activeTab).toBe(currentTab);
+  });
+
+  it('should handle numeric tab change', () => {
+    component.onTabChange(0);
+    expect(component.activeTab).toBe('0');
+  });
+
   it('should determine healthy storage status when utilization is low', () => {
     component.storageMetrics = {
       ...mockStorageMetrics,
@@ -208,6 +238,19 @@ describe('MetricsDialog', () => {
     expect(component.storageHealthStatus).toBe('critical');
   });
 
+  it('should return healthy when storage metrics is null', () => {
+    component.storageMetrics = null;
+    expect(component.storageHealthStatus).toBe('healthy');
+  });
+
+  it('should return healthy when utilization is NaN', () => {
+    component.storageMetrics = {
+      ...mockStorageMetrics,
+      storage: { ...mockStorageMetrics.storage, utilizationPercent: 'invalid' },
+    };
+    expect(component.storageHealthStatus).toBe('healthy');
+  });
+
   it('should format bytes correctly', () => {
     expect(component.formatBytes(0)).toBe('0 Bytes');
     expect(component.formatBytes(1024)).toBe('1 KB');
@@ -222,5 +265,146 @@ describe('MetricsDialog', () => {
     expect(component.formatDuration(3600)).toBe('1h');
     expect(component.formatDuration(86400)).toBe('1d');
     expect(component.formatDuration(172800)).toBe('2d');
+  });
+
+  it('should format duration in ms correctly', () => {
+    expect(component.formatDurationMs(1000)).toBe('1s');
+    expect(component.formatDurationMs(60000)).toBe('1m');
+  });
+
+  it('should refresh metrics when onRefresh is called', async () => {
+    metricsService.getMetrics.calls.reset();
+
+    component.onRefresh();
+    await fixture.whenStable();
+
+    expect(metricsService.getMetrics).toHaveBeenCalled();
+  });
+
+  describe('helper getters', () => {
+    it('should return default values when metrics is null', () => {
+      component.metrics = null;
+
+      expect(component.authPassRates).toEqual({ spf: 0, dkim: 0, dmarc: 0 });
+      expect(component.rejectionRate).toBe(0);
+      expect(component.totalRejections).toBe(0);
+      expect(component.avgRecipientsPerEmail).toBe(0);
+      expect(component.certificateStatus).toBe('disabled');
+      expect(component.processingTimeStatus).toBe('fast');
+      expect(component.certRenewalSuccessRate).toBe(0);
+    });
+
+    it('should delegate to service when metrics is set', () => {
+      component.metrics = mockMetrics;
+
+      // Access getters to trigger service calls
+      void component.authPassRates;
+      void component.rejectionRate;
+      void component.totalRejections;
+      void component.avgRecipientsPerEmail;
+      void component.certificateStatus;
+      void component.processingTimeStatus;
+      void component.certRenewalSuccessRate;
+
+      expect(metricsService.calculateAuthPassRates).toHaveBeenCalledWith(mockMetrics);
+      expect(metricsService.calculateRejectionRate).toHaveBeenCalledWith(mockMetrics);
+      expect(metricsService.getTotalRejections).toHaveBeenCalledWith(mockMetrics);
+      expect(metricsService.getAvgRecipientsPerEmail).toHaveBeenCalledWith(mockMetrics);
+      expect(metricsService.getCertificateStatus).toHaveBeenCalledWith(mockMetrics.certificate.days_until_expiry);
+      expect(metricsService.getProcessingTimeStatus).toHaveBeenCalledWith(mockMetrics.email.processing_time_ms);
+      expect(metricsService.getCertRenewalSuccessRate).toHaveBeenCalledWith(mockMetrics);
+    });
+  });
+
+  describe('getAuthStatusSeverity', () => {
+    it('returns success for pass rate >= 80', () => {
+      expect(component.getAuthStatusSeverity(80)).toBe('success');
+      expect(component.getAuthStatusSeverity(100)).toBe('success');
+    });
+
+    it('returns warn for pass rate >= 50 and < 80', () => {
+      expect(component.getAuthStatusSeverity(50)).toBe('warn');
+      expect(component.getAuthStatusSeverity(79)).toBe('warn');
+    });
+
+    it('returns danger for pass rate < 50', () => {
+      expect(component.getAuthStatusSeverity(49)).toBe('danger');
+      expect(component.getAuthStatusSeverity(0)).toBe('danger');
+    });
+  });
+
+  describe('getAuthStatusIcon', () => {
+    it('returns pi-check for pass rate >= 80', () => {
+      expect(component.getAuthStatusIcon(80)).toBe('pi-check');
+      expect(component.getAuthStatusIcon(100)).toBe('pi-check');
+    });
+
+    it('returns pi-exclamation-triangle for pass rate >= 50 and < 80', () => {
+      expect(component.getAuthStatusIcon(50)).toBe('pi-exclamation-triangle');
+      expect(component.getAuthStatusIcon(79)).toBe('pi-exclamation-triangle');
+    });
+
+    it('returns pi-times for pass rate < 50', () => {
+      expect(component.getAuthStatusIcon(49)).toBe('pi-times');
+      expect(component.getAuthStatusIcon(0)).toBe('pi-times');
+    });
+  });
+
+  describe('getCertStatusSeverity', () => {
+    it('returns correct severity for all certificate statuses', () => {
+      expect(component.getCertStatusSeverity('healthy')).toBe('success');
+      expect(component.getCertStatusSeverity('warning')).toBe('warn');
+      expect(component.getCertStatusSeverity('critical')).toBe('danger');
+      expect(component.getCertStatusSeverity('expired')).toBe('danger');
+      expect(component.getCertStatusSeverity('disabled')).toBe('secondary');
+    });
+  });
+
+  describe('getCertStatusIcon', () => {
+    it('returns correct icon for all certificate statuses', () => {
+      expect(component.getCertStatusIcon('healthy')).toBe('pi-check-circle');
+      expect(component.getCertStatusIcon('warning')).toBe('pi-exclamation-triangle');
+      expect(component.getCertStatusIcon('critical')).toBe('pi-times-circle');
+      expect(component.getCertStatusIcon('expired')).toBe('pi-times-circle');
+      expect(component.getCertStatusIcon('disabled')).toBe('pi-minus-circle');
+    });
+  });
+
+  describe('getCertStatusText', () => {
+    it('returns correct text for all certificate statuses', () => {
+      expect(component.getCertStatusText('healthy', 45)).toBe('Valid - Expires in 45 days');
+      expect(component.getCertStatusText('warning', 25)).toBe('Expires in 25 days');
+      expect(component.getCertStatusText('critical', 5)).toBe('Expires in 5 days (urgent)');
+      expect(component.getCertStatusText('expired', 0)).toBe('Expired');
+      expect(component.getCertStatusText('disabled', 0)).toBe('Certificate management disabled');
+    });
+  });
+
+  describe('getProcessingTimeSeverity', () => {
+    it('returns correct severity for all processing time statuses', () => {
+      expect(component.getProcessingTimeSeverity('fast')).toBe('success');
+      expect(component.getProcessingTimeSeverity('acceptable')).toBe('warn');
+      expect(component.getProcessingTimeSeverity('slow')).toBe('danger');
+    });
+  });
+
+  describe('formatProcessingTime', () => {
+    it('formats milliseconds correctly', () => {
+      expect(component.formatProcessingTime(500)).toBe('500ms');
+      expect(component.formatProcessingTime(999)).toBe('999ms');
+    });
+
+    it('formats seconds correctly', () => {
+      expect(component.formatProcessingTime(1000)).toBe('1.00s');
+      expect(component.formatProcessingTime(1500)).toBe('1.50s');
+      expect(component.formatProcessingTime(2500)).toBe('2.50s');
+    });
+  });
+
+  describe('formatUptime', () => {
+    it('formats uptime correctly', () => {
+      expect(component.formatUptime(3600)).toBe('1h');
+      expect(component.formatUptime(86400)).toBe('1d');
+    });
   });
 });

@@ -24,6 +24,32 @@ describe('MailContentSanitizer', () => {
       const embedded = MailContentSanitizer.embedInlineImages(inlineImg, attachments);
       expect(embedded).toContain('src="data:image/png;base64,ZmFrZUJhc2U2NA=="');
     });
+
+    it('returns html unchanged when attachments is empty', () => {
+      const html = '<img src="cid:test" />';
+      expect(MailContentSanitizer.embedInlineImages(html, [])).toBe(html);
+    });
+
+    it('returns html unchanged when attachments is undefined', () => {
+      const html = '<img src="cid:test" />';
+      expect(MailContentSanitizer.embedInlineImages(html, undefined as never)).toBe(html);
+    });
+
+    it('preserves original src when CID is not found in attachments', () => {
+      const html = '<img src="cid:unknown-cid" />';
+      const attachments = [
+        {
+          contentId: '<other-cid>',
+          contentDisposition: 'inline',
+          contentType: 'image/png',
+          content: 'ZmFrZQ==',
+          filename: 'file.png',
+          size: 10,
+        },
+      ];
+      const result = MailContentSanitizer.embedInlineImages(html, attachments);
+      expect(result).toBe('<img src="cid:unknown-cid" />');
+    });
   });
 
   describe('Secure mode (dompurify)', () => {
@@ -104,6 +130,41 @@ describe('MailContentSanitizer', () => {
       const sanitized = MailContentSanitizer.applySanitization(html, SanitizationLevel.DomPurify, false);
       expect(sanitized).not.toContain('srcset');
       expect(sanitized).not.toContain('<img');
+    });
+
+    it('skips inline image processing in trusted mode (useIframe)', () => {
+      const html = `<div>${inlineImg}</div>`;
+      const result = MailContentSanitizer.sanitizeEmailHtml(html, {
+        displayInlineImages: false,
+        sanitizationLevel: SanitizationLevel.None,
+        attachments: [],
+      });
+
+      expect(result.useIframe).toBe(true);
+      expect(result.processedHtml).toContain('cid:12345');
+      expect(result.sanitizedHtml).toContain('<style>');
+    });
+
+    it('embeds inline images in sanitizeEmailHtml when displayInlineImages is true', () => {
+      const html = `<div>${inlineImg}</div>`;
+      const attachments = [
+        {
+          contentId: '<12345>',
+          contentDisposition: 'inline',
+          contentType: 'image/png',
+          content: 'ZmFrZUJhc2U2NA==',
+          filename: 'file.png',
+          size: 10,
+        },
+      ];
+      const result = MailContentSanitizer.sanitizeEmailHtml(html, {
+        displayInlineImages: true,
+        sanitizationLevel: SanitizationLevel.DomPurify,
+        attachments,
+      });
+
+      expect(result.processedHtml).toContain('data:image/png;base64,ZmFrZUJhc2U2NA==');
+      expect(result.useIframe).toBe(false);
     });
   });
 });
