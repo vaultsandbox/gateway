@@ -60,6 +60,7 @@ export class EmailLinksComponent {
       // Use fetch with no-cors mode to check if the link is accessible
       // Note: This is a basic check and won't work for all URLs due to CORS
       const controller = new AbortController();
+      /* istanbul ignore next - timeout callback only fires when fetch takes too long */
       const timeoutId = setTimeout(() => controller.abort(), FETCH_TIMEOUT_MS);
 
       const response = await fetch(linkStatus.url, {

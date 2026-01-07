@@ -1,4 +1,4 @@
-import { signal } from '@angular/core';
+import { Signal, signal, computed } from '@angular/core';
 import { of, Subject } from 'rxjs';
 import {
   EmailItemModel,
@@ -9,6 +9,7 @@ import {
   EmailDetailResponse,
   RawEmailResponse,
 } from '../app/features/mail/interfaces';
+import { InboxStateService } from '../app/features/mail/services/inbox-state.service';
 import { SettingsManager, SanitizationLevel, TimeFormat } from '../app/features/mail/services/settings-manager';
 import { VaultSandboxApi } from '../app/features/mail/services/vault-sandbox-api';
 import { EncryptionService, KeyPair } from '../app/features/mail/services/encryption.service';
@@ -56,24 +57,24 @@ export class VaultSandboxStub implements Partial<VaultSandbox> {
 }
 
 export class VsToastStub implements Partial<VsToast> {
-  showWarning(): void {
-    return;
+  showWarning(summary: string, detail: string, life?: number): void {
+    consumeArgs(summary, detail, life);
   }
 
-  showError(): void {
-    return;
+  showError(summary: string, detail: string, life?: number): void {
+    consumeArgs(summary, detail, life);
   }
 
-  showInfo(): void {
-    return;
+  showInfo(summary: string, detail: string, life?: number): void {
+    consumeArgs(summary, detail, life);
   }
 
-  showSuccess(): void {
-    return;
+  showSuccess(summary: string, detail: string, life?: number): void {
+    consumeArgs(summary, detail, life);
   }
 
-  showInboxDeleted(): void {
-    return;
+  showInboxDeleted(emailAddress: string): void {
+    consumeArgs(emailAddress);
   }
 }
 
@@ -505,5 +506,110 @@ export class EncryptionServiceStub implements Partial<EncryptionService> {
   async decryptBody(encryptedBody: EncryptedPayload, clientSecretKey: Uint8Array): Promise<string> {
     consumeArgs(encryptedBody, clientSecretKey);
     return '{}';
+  }
+}
+
+export class InboxStateServiceStub implements Partial<InboxStateService> {
+  private readonly inboxesSignal = signal<InboxModel[]>([]);
+  private readonly selectedInboxSignal = signal<InboxModel | null>(null);
+  private readonly unreadCountMapSignal = computed<Record<string, number>>(() => {
+    return this.inboxesSignal().reduce<Record<string, number>>((acc, inbox) => {
+      acc[inbox.inboxHash] = inbox.emails.reduce((count, email) => (email.isRead ? count : count + 1), 0);
+      return acc;
+    }, {});
+  });
+
+  readonly totalUnreadCount = computed<number>(() =>
+    Object.values(this.unreadCountMapSignal()).reduce((sum, count) => sum + count, 0),
+  );
+
+  private readonly inboxCreatedSubject = new Subject<InboxModel>();
+  private readonly inboxDeletedSubject = new Subject<string>();
+  private readonly inboxUpdatedSubject = new Subject<InboxModel>();
+  private readonly newEmailArrivedSubject = new Subject<EmailItemModel>();
+
+  get inboxes(): InboxModel[] {
+    return this.inboxesSignal();
+  }
+
+  get selectedInbox(): Signal<InboxModel | null> {
+    return this.selectedInboxSignal.asReadonly();
+  }
+
+  get unreadCountByInbox(): Signal<Record<string, number>> {
+    return this.unreadCountMapSignal;
+  }
+
+  get inboxCreated$() {
+    return this.inboxCreatedSubject.asObservable();
+  }
+
+  get inboxDeleted$() {
+    return this.inboxDeletedSubject.asObservable();
+  }
+
+  get inboxUpdated$() {
+    return this.inboxUpdatedSubject.asObservable();
+  }
+
+  get newEmailArrived$() {
+    return this.newEmailArrivedSubject.asObservable();
+  }
+
+  selectInbox(inboxHash: string): void {
+    const inbox = this.inboxesSignal().find((i) => i.inboxHash === inboxHash);
+    if (inbox) {
+      this.selectedInboxSignal.set(inbox);
+    }
+  }
+
+  getInboxSnapshot(inboxHash: string): InboxModel | undefined {
+    return this.inboxesSignal().find((inbox) => inbox.inboxHash === inboxHash);
+  }
+
+  getInboxHashes(): string[] {
+    return this.inboxesSignal().map((inbox) => inbox.inboxHash);
+  }
+
+  getUnreadCount(inboxHash: string): number {
+    return this.unreadCountMapSignal()[inboxHash] ?? 0;
+  }
+
+  addInbox(inbox: InboxModel, options?: { persist?: boolean }): void {
+    consumeArgs(options);
+    this.inboxesSignal.set([...this.inboxesSignal(), inbox]);
+    this.inboxCreatedSubject.next(inbox);
+  }
+
+  removeInbox(inboxHash: string): InboxModel[] {
+    const updatedInboxes = this.inboxesSignal().filter((i) => i.inboxHash !== inboxHash);
+    this.inboxesSignal.set(updatedInboxes);
+    this.inboxDeletedSubject.next(inboxHash);
+
+    if (this.selectedInboxSignal()?.inboxHash === inboxHash) {
+      this.selectedInboxSignal.set(updatedInboxes[0] ?? null);
+    }
+
+    return updatedInboxes;
+  }
+
+  updateInbox(inbox: InboxModel): void {
+    const inboxes = this.inboxesSignal();
+    const updated = inboxes.map((existing) => (existing.inboxHash === inbox.inboxHash ? inbox : existing));
+    this.inboxesSignal.set(updated);
+    this.inboxUpdatedSubject.next(inbox);
+  }
+
+  notifyNewEmail(email: EmailItemModel): void {
+    this.newEmailArrivedSubject.next(email);
+  }
+
+  clearLocalStorage(): void {
+    return;
+  }
+
+  // Test helper methods
+  setInboxes(inboxes: InboxModel[]): void {
+    this.inboxesSignal.set(inboxes);
   }
 }

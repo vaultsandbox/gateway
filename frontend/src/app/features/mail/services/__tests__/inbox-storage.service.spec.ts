@@ -41,9 +41,36 @@ describe('InboxStorageService', () => {
     expect(loaded[0].secretKey).toEqual(inbox.secretKey);
   });
 
+  it('returns empty list when localStorage is empty', () => {
+    expect(service.loadInboxes()).toEqual([]);
+  });
+
   it('returns empty list when payload is invalid', () => {
     localStorage.setItem(InboxStorageKeys.INBOXES_KEY, '{"not":"json"}');
     expect(service.loadInboxes()).toEqual([]);
+  });
+
+  it('returns empty list and logs error on JSON parse error', () => {
+    localStorage.setItem(InboxStorageKeys.INBOXES_KEY, 'invalid json {{{');
+    spyOn(console, 'error');
+
+    const result = service.loadInboxes();
+
+    expect(result).toEqual([]);
+    expect(console.error).toHaveBeenCalledWith(
+      '[InboxStorage] Error parsing localStorage payload:',
+      jasmine.any(SyntaxError),
+    );
+  });
+
+  it('clears storage keys', () => {
+    localStorage.setItem(InboxStorageKeys.INBOXES_KEY, 'test-inboxes');
+    localStorage.setItem(InboxStorageKeys.SETTINGS_KEY, 'test-settings');
+
+    service.clearStorage();
+
+    expect(localStorage.getItem(InboxStorageKeys.INBOXES_KEY)).toBeNull();
+    expect(localStorage.getItem(InboxStorageKeys.SETTINGS_KEY)).toBeNull();
   });
 
   it('validates import payloads', () => {
@@ -65,5 +92,41 @@ describe('InboxStorageService', () => {
     expect(service.validateImportData({ ...valid, version: undefined })).toBeFalse();
     // Wrong key size
     expect(service.validateImportData({ ...valid, secretKey: base64urlEncode(new Uint8Array(100)) })).toBeFalse();
+  });
+
+  it('exports inbox to export format', () => {
+    const inbox = createInbox();
+
+    const exported = service.exportInbox(inbox);
+
+    expect(exported.version).toBe(1);
+    expect(exported.emailAddress).toBe(inbox.emailAddress);
+    expect(exported.inboxHash).toBe(inbox.inboxHash);
+    expect(exported.serverSigPk).toBe(inbox.serverSigPk);
+    expect(exported.expiresAt).toBe(inbox.expiresAt);
+    expect(exported.exportedAt).toBeDefined();
+    expect(exported.secretKey).toBeDefined();
+  });
+
+  it('creates inbox model from import data', () => {
+    const importData = {
+      version: 1 as const,
+      emailAddress: 'imported@example.com',
+      expiresAt: new Date().toISOString(),
+      inboxHash: 'import-hash',
+      serverSigPk: base64urlEncode(new Uint8Array(MLDSA_PUBLIC_KEY_SIZE)),
+      secretKey: base64urlEncode(new Uint8Array(MLKEM_SECRET_KEY_SIZE)),
+      exportedAt: new Date().toISOString(),
+    };
+
+    const inbox = service.createInboxModelFromImport(importData);
+
+    expect(inbox.emailAddress).toBe(importData.emailAddress);
+    expect(inbox.expiresAt).toBe(importData.expiresAt);
+    expect(inbox.inboxHash).toBe(importData.inboxHash);
+    expect(inbox.serverSigPk).toBe(importData.serverSigPk);
+    expect(inbox.secretKey).toBeInstanceOf(Uint8Array);
+    expect(inbox.emails).toEqual([]);
+    expect(inbox.emailsHash).toBeUndefined();
   });
 });

@@ -4,7 +4,7 @@ import { provideHttpClient } from '@angular/common/http';
 import { HttpTestingController, provideHttpClientTesting } from '@angular/common/http/testing';
 import { MetricsService } from '../../../features/metrics-dialog/metrics.service';
 import { environment } from '../../../../environments/environment';
-import { Metrics } from '../../interfaces/metrics.interfaces';
+import { Metrics, StorageMetrics } from '../../interfaces/metrics.interfaces';
 
 describe('MetricsService', () => {
   let service: MetricsService;
@@ -67,6 +67,39 @@ describe('MetricsService', () => {
     req.flush(mockMetrics);
   });
 
+  it('should fetch storage metrics', () => {
+    const mockStorageMetrics: StorageMetrics = {
+      storage: {
+        maxMemoryBytes: 104857600,
+        maxMemoryMB: '100.00',
+        usedMemoryBytes: 52428800,
+        usedMemoryMB: '50.00',
+        availableMemoryBytes: 52428800,
+        availableMemoryMB: '50.00',
+        utilizationPercent: '50.00',
+      },
+      emails: {
+        totalStored: 150,
+        totalEvicted: 25,
+        tombstones: 8,
+        oldestEmailAge: 3600000,
+        newestEmailAge: 60000,
+      },
+      eviction: {
+        maxAgeSeconds: 3600,
+        maxAgeEnabled: true,
+      },
+    };
+
+    service.getStorageMetrics().subscribe((metrics) => {
+      expect(metrics).toEqual(mockStorageMetrics);
+    });
+
+    const req = httpMock.expectOne(`${environment.apiUrl}/metrics/storage`);
+    expect(req.request.method).toBe('GET');
+    req.flush(mockStorageMetrics);
+  });
+
   it('should calculate auth pass rates correctly', () => {
     const rates = service.calculateAuthPassRates(mockMetrics);
 
@@ -78,6 +111,14 @@ describe('MetricsService', () => {
   it('should calculate rejection rate correctly', () => {
     const rate = service.calculateRejectionRate(mockMetrics);
     expect(rate).toBeCloseTo(2, 1);
+  });
+
+  it('should return 0 rejection rate when no connections', () => {
+    const metricsNoConnections: Metrics = {
+      ...mockMetrics,
+      connections: { total: 0, active: 0, rejected: 0 },
+    };
+    expect(service.calculateRejectionRate(metricsNoConnections)).toBe(0);
   });
 
   it('should calculate total rejections correctly', () => {
@@ -107,10 +148,19 @@ describe('MetricsService', () => {
     expect(avg).toBe(1.5);
   });
 
+  it('should return 0 avg recipients when no emails received', () => {
+    const metricsNoEmails: Metrics = {
+      ...mockMetrics,
+      email: { received_total: 0, recipients_total: 0, processing_time_ms: 0 },
+    };
+    expect(service.getAvgRecipientsPerEmail(metricsNoEmails)).toBe(0);
+  });
+
   it('should return correct certificate status', () => {
     expect(service.getCertificateStatus(45)).toBe('healthy');
     expect(service.getCertificateStatus(25)).toBe('warning');
     expect(service.getCertificateStatus(10)).toBe('critical');
+    expect(service.getCertificateStatus(5)).toBe('critical'); // < 7 days
     expect(service.getCertificateStatus(0)).toBe('disabled');
     expect(service.getCertificateStatus(-1)).toBe('expired');
   });
@@ -124,5 +174,31 @@ describe('MetricsService', () => {
   it('should calculate cert renewal success rate', () => {
     const rate = service.getCertRenewalSuccessRate(mockMetrics);
     expect(rate).toBe(100);
+  });
+
+  it('should return 0 cert renewal success rate when no attempts', () => {
+    const metricsNoAttempts: Metrics = {
+      ...mockMetrics,
+      certificate: { ...mockMetrics.certificate, renewal_attempts: 0, renewal_success: 0 },
+    };
+    expect(service.getCertRenewalSuccessRate(metricsNoAttempts)).toBe(0);
+  });
+
+  it('should return 0 auth pass rates when no auth checks', () => {
+    const metricsNoAuth: Metrics = {
+      ...mockMetrics,
+      auth: {
+        spf_pass: 0,
+        spf_fail: 0,
+        dkim_pass: 0,
+        dkim_fail: 0,
+        dmarc_pass: 0,
+        dmarc_fail: 0,
+      },
+    };
+    const rates = service.calculateAuthPassRates(metricsNoAuth);
+    expect(rates.spf).toBe(0);
+    expect(rates.dkim).toBe(0);
+    expect(rates.dmarc).toBe(0);
   });
 });

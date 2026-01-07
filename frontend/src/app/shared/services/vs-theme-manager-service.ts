@@ -58,6 +58,7 @@ export class VsThemeManagerService {
    */
   public isDarkMode(): boolean {
     const htmlElement = document.querySelector('html');
+    /* istanbul ignore next - defensive fallback, html element always exists in browser */
     return htmlElement?.classList.contains('vs-app-dark') ?? false;
   }
 

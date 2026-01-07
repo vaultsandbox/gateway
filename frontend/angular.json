@@ -92,6 +92,12 @@
           "builder": "@angular/build:karma",
           "options": {
             "codeCoverage": true,
+            "codeCoverageExclude": [
+              "src/testing/**",
+              "src/main.ts",
+              "src/environments/**",
+              "**/index.ts"
+            ],
             "tsConfig": "tsconfig.spec.json",
             "inlineStyleLanguage": "scss",
             "assets": [

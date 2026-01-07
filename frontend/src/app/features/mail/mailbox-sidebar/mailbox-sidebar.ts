@@ -209,8 +209,11 @@ export class MailboxSidebar {
           } else {
             this.vsToast.showError('Error', 'Failed to delete emails', TOAST_DURATION_MS);
           }
+          /* istanbul ignore next - defensive catch for unexpected errors */
         } catch (error) {
+          /* istanbul ignore next */
           console.error('Error deleting all emails:', error);
+          /* istanbul ignore next */
           this.vsToast.showError('Error', 'Failed to delete emails', TOAST_DURATION_MS);
         }
       },

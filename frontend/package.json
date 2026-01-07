@@ -33,6 +33,7 @@
     "watch": "ng build --watch --configuration development",
     "test": "ng test",
     "test:h": "npx ng test --watch=false --browsers=ChromeHeadless",
+    "test:cov": "ng test --no-watch --code-coverage",
     "lint": "ng lint",
     "format": "prettier --write \"src/**/*.{ts,html,css,scss,json}\"",
     "format:check": "prettier --check \"src/**/*.{ts,html,css,scss,json}\""

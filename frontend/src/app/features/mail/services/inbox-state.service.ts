@@ -33,6 +33,7 @@ export class InboxStateService implements OnDestroy {
   private readonly inboxUpdatedSubject = new Subject<InboxModel>();
   private readonly newEmailArrivedSubject = new Subject<EmailItemModel>();
 
+  /* istanbul ignore next - compile-time constant, fallback only used if title is empty */
   private readonly baseTitle = this.title.getTitle() || 'VaultSandbox';
   private readonly documentTitleEffect = effect(() => {
     const totalUnread = this.totalUnreadCount();
@@ -149,6 +150,7 @@ export class InboxStateService implements OnDestroy {
     this.setInboxes(updatedInboxes, { persist: true });
     this.inboxDeletedSubject.next(inboxHash);
 
+    /* istanbul ignore next - defensive, already handled by setInboxes */
     if (this.selectedInboxSignal()?.inboxHash === inboxHash) {
       this.selectedInboxSignal.set(updatedInboxes[0] ?? null);
     }

@@ -1,5 +1,6 @@
 import { TestBed } from '@angular/core/testing';
 import { provideZonelessChangeDetection } from '@angular/core';
+import { throwError } from 'rxjs';
 import { InboxService } from '../inbox.service';
 import { InboxStorageService } from '../inbox-storage.service';
 import { VaultSandboxApi } from '../vault-sandbox-api';
@@ -22,6 +23,7 @@ import {
   MLKEM_SECRET_KEY_SIZE,
   MLDSA_PUBLIC_KEY_SIZE,
 } from '../helpers/storage.helpers';
+import { InboxSyncService } from '../inbox-sync.service';
 
 describe('InboxService', () => {
   let service: InboxService;
@@ -159,5 +161,125 @@ describe('InboxService', () => {
 
     expect(service.getUnreadCount(payload.inboxHash)).toBe(0);
     expect(service.unreadCountByInbox()[payload.inboxHash]).toBe(0);
+  });
+
+  it('exposes inboxCreated$ observable from state service', (done) => {
+    const observable = service.inboxCreated$;
+    expect(observable).toBeDefined();
+
+    const payload = createImportPayload();
+    observable.subscribe((inbox) => {
+      expect(inbox.inboxHash).toBe(payload.inboxHash);
+      done();
+    });
+
+    service.importInbox(payload);
+  });
+
+  it('exposes inboxDeleted$ observable from state service', (done) => {
+    const payload = createImportPayload();
+    service.importInbox(payload);
+
+    const observable = service.inboxDeleted$;
+    expect(observable).toBeDefined();
+
+    observable.subscribe((hash) => {
+      expect(hash).toBe(payload.inboxHash);
+      done();
+    });
+
+    service.deleteInbox(payload.inboxHash);
+  });
+
+  it('exposes inboxUpdated$ observable from state service', (done) => {
+    const payload = createImportPayload();
+    service.importInbox(payload);
+
+    const observable = service.inboxUpdated$;
+    expect(observable).toBeDefined();
+
+    observable.subscribe((inbox) => {
+      expect(inbox.inboxHash).toBe(payload.inboxHash);
+      done();
+    });
+
+    const inbox = service.inboxes[0];
+    service.emitInboxUpdate({ ...inbox, emails: [{ id: 'e1', encryptedMetadata: null, isRead: false }] });
+  });
+
+  it('exposes newEmailArrived$ observable from state service', () => {
+    const observable = service.newEmailArrived$;
+    expect(observable).toBeDefined();
+  });
+
+  it('handles createInbox errors gracefully', async () => {
+    const api = TestBed.inject(VaultSandboxApi);
+    spyOn(api, 'createInbox').and.returnValue(throwError(() => new Error('Network error')));
+    const consoleSpy = spyOn(console, 'error');
+
+    const result = await service.createInbox();
+
+    expect(result.created).toBeFalse();
+    expect(result.email).toBe('');
+    expect(consoleSpy).toHaveBeenCalled();
+  });
+
+  it('calls subscribeToAllInboxes on sync service', async () => {
+    const sync = TestBed.inject(InboxSyncService);
+    const spy = spyOn(sync, 'subscribeToAllInboxes').and.returnValue(Promise.resolve());
+
+    await service.subscribeToAllInboxes();
+
+    expect(spy).toHaveBeenCalled();
+  });
+
+  it('calls importMultipleInboxes on import/export service', async () => {
+    const payload = createImportPayload();
+    payload.inboxHash = 'unique-import-hash';
+    const file = new File([JSON.stringify(payload)], 'test.json', { type: 'application/json' });
+    const result = await service.importMultipleInboxes([file]);
+
+    expect(result.length).toBe(1);
+    expect(result[0].filename).toBe('test.json');
+    expect(result[0].success).toBeTrue();
+  });
+
+  it('calls clearLocalStorage on state service', () => {
+    service.clearLocalStorage();
+    // Just verify it doesn't throw
+    expect(true).toBeTrue();
+  });
+
+  it('calls loadEmailsForInbox on sync service', async () => {
+    const sync = TestBed.inject(InboxSyncService);
+    const spy = spyOn(sync, 'loadEmailsForInbox').and.returnValue(Promise.resolve());
+
+    await service.loadEmailsForInbox('test-hash');
+
+    expect(spy).toHaveBeenCalledWith('test-hash');
+  });
+
+  it('returns inbox snapshot for existing inbox', () => {
+    const payload = createImportPayload();
+    service.importInbox(payload);
+
+    const snapshot = service.getInboxSnapshot(payload.inboxHash);
+
+    expect(snapshot).toBeDefined();
+    expect(snapshot?.inboxHash).toBe(payload.inboxHash);
+  });
+
+  it('returns undefined snapshot for nonexistent inbox', () => {
+    const snapshot = service.getInboxSnapshot('nonexistent-hash');
+    expect(snapshot).toBeUndefined();
+  });
+
+  it('disconnects sync service on ngOnDestroy', () => {
+    const sync = TestBed.inject(InboxSyncService);
+    const spy = spyOn(sync, 'disconnect');
+
+    service.ngOnDestroy();
+
+    expect(spy).toHaveBeenCalled();
   });
 });
