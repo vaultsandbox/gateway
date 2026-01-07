@@ -58,7 +58,7 @@
     "@angular/router": "^20.3.14",
     "@noble/post-quantum": "^0.5.2",
     "@primeuix/themes": "^1.2.5",
-    "@tailwindcss/postcss": "^4.1.17",
+    "@tailwindcss/postcss": "^4.1.18",
     "dompurify": "^3.3.0",
     "eventsource": "^4.1.0",
     "postcss": "^8.5.6",
