@@ -19,6 +19,7 @@ class ConfigurableServerInfoServiceStub {
     maxTtl: 86400, // 24 hours
     defaultTtl: 3600, // 1 hour
     sseConsole: false,
+    allowClearAllInboxes: true,
     allowedDomains: ['example.com', 'test.com'],
   });
 
@@ -50,6 +51,7 @@ describe('CustomInboxDialog', () => {
     maxTtl: 86400, // 24 hours in seconds
     defaultTtl: 3600, // 1 hour in seconds
     sseConsole: false,
+    allowClearAllInboxes: true,
     allowedDomains: ['example.com', 'test.com'],
     ...overrides,
   });

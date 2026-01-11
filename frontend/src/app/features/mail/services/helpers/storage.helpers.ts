@@ -204,7 +204,6 @@ export class InboxStorageMapper {
       serverSigPk: inbox.serverSigPk,
       secretKey: base64urlDecode(inbox.secretKey),
       emails: [],
-      emailsHash: undefined,
     }));
   }
 

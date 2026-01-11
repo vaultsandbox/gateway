@@ -27,6 +27,7 @@ class TestableServerInfoServiceStub implements Partial<ServerInfoService> {
     maxTtl: 86400,
     defaultTtl: 3600,
     sseConsole: false,
+    allowClearAllInboxes: true,
     allowedDomains: [],
   });
 
@@ -121,6 +122,7 @@ describe('Mail', () => {
         maxTtl: 86400,
         defaultTtl: 3600,
         sseConsole: true,
+        allowClearAllInboxes: true,
         allowedDomains: [],
       });
 
@@ -137,6 +139,7 @@ describe('Mail', () => {
         maxTtl: 86400,
         defaultTtl: 3600,
         sseConsole: false,
+        allowClearAllInboxes: true,
         allowedDomains: [],
       });
 
@@ -188,6 +191,7 @@ describe('Mail', () => {
         maxTtl: 86400,
         defaultTtl: 3600,
         sseConsole: true,
+        allowClearAllInboxes: true,
         allowedDomains: [],
       });
 

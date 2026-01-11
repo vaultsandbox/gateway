@@ -1,6 +1,6 @@
 {
   "name": "vaultsandbox-gateway-frontend",
-  "version": "0.6.0",
+  "version": "0.6.1",
   "description": "Web interface for VaultSandbox Gateway with inbox management, HTML email preview, and real-time delivery via SSE",
   "author": "Antero",
   "private": false,
@@ -51,12 +51,13 @@
     ]
   },
   "dependencies": {
-    "@angular/common": "^20.3.10",
-    "@angular/compiler": "^20.3.14",
-    "@angular/core": "^20.3.14",
-    "@angular/forms": "^20.3.14",
-    "@angular/platform-browser": "^20.3.14",
-    "@angular/router": "^20.3.14",
+    "@angular/animations": "^20.3.16",
+    "@angular/common": "^20.3.16",
+    "@angular/compiler": "^20.3.16",
+    "@angular/core": "^20.3.16",
+    "@angular/forms": "^20.3.16",
+    "@angular/platform-browser": "^20.3.16",
+    "@angular/router": "^20.3.16",
     "@noble/post-quantum": "^0.5.2",
     "@primeuix/themes": "^1.2.5",
     "@tailwindcss/postcss": "^4.1.18",
@@ -73,7 +74,7 @@
   "devDependencies": {
     "@angular/build": "^20.3.9",
     "@angular/cli": "^20.3.9",
-    "@angular/compiler-cli": "^20.3.14",
+    "@angular/compiler-cli": "^20.3.16",
     "@types/jasmine": "~5.1.0",
     "angular-eslint": "20.6.0",
     "eslint": "^9.39.0",

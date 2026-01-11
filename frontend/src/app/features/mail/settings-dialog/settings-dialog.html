@@ -62,19 +62,21 @@
         <p class="text-xs text-surface-500 mt-1">Choose between 24-hour and 12-hour time display format</p>
       </div>
 
-      <div class="border-t border-red-200 dark:border-red-900 pt-4 mt-4">
-        <h3 class="text-sm font-semibold mb-2 text-red-700 dark:text-red-400">Danger Zone</h3>
-        <p class="text-xs text-surface-600 dark:text-surface-400 mb-3">
-          Permanently delete all inboxes and emails from the server. This action cannot be undone.
-        </p>
-        <p-button
-          label="Delete All Inboxes"
-          severity="danger"
-          icon="pi pi-trash"
-          (onClick)="onDeleteAllInboxes()"
-          [disabled]="!settingsLoaded"
-        />
-      </div>
+      @if (allowClearAllInboxes()) {
+        <div class="border-t border-red-200 dark:border-red-900 pt-4 mt-4">
+          <h3 class="text-sm font-semibold mb-2 text-red-700 dark:text-red-400">Danger Zone</h3>
+          <p class="text-xs text-surface-600 dark:text-surface-400 mb-3">
+            Permanently delete all inboxes and emails from the server. This action cannot be undone.
+          </p>
+          <p-button
+            label="Delete All Inboxes"
+            severity="danger"
+            icon="pi pi-trash"
+            (onClick)="onDeleteAllInboxes()"
+            [disabled]="!settingsLoaded"
+          />
+        </div>
+      }
     </div>
   } @else {
     <div class="py-8 flex items-center justify-center text-surface-500 dark:text-surface-300">Loading settings...</div>

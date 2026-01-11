@@ -301,6 +301,10 @@ export class InboxController {
   })
   @ApiOkResponse({ type: ClearAllInboxesResponseDto, description: 'All inboxes have been cleared.' })
   @ApiResponse({ status: 401, description: 'Unauthorized, API key is missing or invalid.' })
+  @ApiResponse({
+    status: 403,
+    description: 'Forbidden, clear all inboxes is disabled via VSB_LOCAL_ALLOW_CLEAR_ALL_INBOXES.',
+  })
   /* v8 ignore next - decorator metadata evaluation */
   clearAllInboxes(): ClearAllInboxesResponseDto {
     this.logger.debug('DELETE /api/inboxes');

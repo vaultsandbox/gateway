@@ -137,6 +137,7 @@ function buildSmtpConfig() {
  * - VSB_LOCAL_INBOX_MAX_TTL: Maximum inbox TTL in seconds (default: 604800 = 7 days)
  * - VSB_LOCAL_CLEANUP_INTERVAL: Interval for cleaning up expired inboxes in seconds (default: 300 = 5 minutes)
  * - VSB_SMTP_HARD_MODE_REJECT_CODE: SMTP reject code for hard mode (default: 421)
+ * - VSB_LOCAL_ALLOW_CLEAR_ALL_INBOXES: Allow DELETE /api/inboxes endpoint (default: true)
  *
  * @returns Local mode configuration object
  * @throws {Error} If strict mode enabled and VSB_LOCAL_API_KEY is missing, or if API key is too short
@@ -279,6 +280,7 @@ function buildLocalModeConfig() {
       process.env.VSB_SMTP_HARD_MODE_REJECT_CODE,
       DEFAULT_HARD_MODE_REJECT_CODE,
     ),
+    allowClearAllInboxes: parseOptionalBoolean(process.env.VSB_LOCAL_ALLOW_CLEAR_ALL_INBOXES, true),
   };
 }
 

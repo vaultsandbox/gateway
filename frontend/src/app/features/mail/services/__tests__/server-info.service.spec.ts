@@ -21,6 +21,7 @@ describe('ServerInfoService', () => {
     maxTtl: 86400,
     defaultTtl: 3600,
     sseConsole: false,
+    allowClearAllInboxes: true,
     allowedDomains: ['example.com'],
   });
 

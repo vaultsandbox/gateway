@@ -208,11 +208,13 @@ describe('InboxSyncService', () => {
       expect(vsToastStub.showError).toHaveBeenCalledWith('Error', 'Cannot load emails: inbox not found');
     });
 
-    it('should skip sync when emailsHash unchanged', async () => {
-      const inbox = createInbox({ emailsHash: 'current-hash' });
+    it('should skip sync when computed local hash matches server hash', async () => {
+      // Empty inbox has hash: 47DEQpj8HBSa-_TImW-5JCeuQeRkm5NMpJWZG3hSuFU (sha256 of "")
+      const emptyHashBase64Url = '47DEQpj8HBSa-_TImW-5JCeuQeRkm5NMpJWZG3hSuFU';
+      const inbox = createInbox({ emails: [] });
       inboxStateServiceStub.setInboxes([inbox]);
       spyOn(vaultSandboxApiStub, 'getInboxSyncStatus').and.returnValue(
-        of({ emailsHash: 'current-hash', emailCount: 0 }),
+        of({ emailsHash: emptyHashBase64Url, emailCount: 0 }),
       );
       const listEmailsSpy = spyOn(vaultSandboxApiStub, 'listEmails');
 
@@ -241,7 +243,7 @@ describe('InboxSyncService', () => {
       expect(inboxStateServiceStub.updateInbox).toHaveBeenCalled();
       const updatedInbox = (inboxStateServiceStub.updateInbox as jasmine.Spy).calls.mostRecent().args[0] as InboxModel;
       expect(updatedInbox.emails.length).toBe(1);
-      expect(updatedInbox.emailsHash).toBe('new-hash');
+      expect(updatedInbox.emails[0].id).toBe('new-email-1');
     });
 
     it('should not add duplicate emails', async () => {
@@ -261,6 +263,32 @@ describe('InboxSyncService', () => {
 
       const updatedInbox = (inboxStateServiceStub.updateInbox as jasmine.Spy).calls.mostRecent().args[0] as InboxModel;
       expect(updatedInbox.emails.length).toBe(1);
+    });
+
+    it('should remove emails deleted on server', async () => {
+      const emailToKeep = {
+        id: 'keep-email',
+        encryptedMetadata: createEncryptedPayload(),
+        isRead: false,
+      };
+      const emailToDelete = {
+        id: 'delete-email',
+        encryptedMetadata: createEncryptedPayload(),
+        isRead: true,
+      };
+      const inbox = createInbox({ emails: [emailToKeep, emailToDelete] });
+      inboxStateServiceStub.setInboxes([inbox]);
+
+      // Server only returns one email (the other was deleted)
+      spyOn(vaultSandboxApiStub, 'getInboxSyncStatus').and.returnValue(of({ emailsHash: 'new-hash', emailCount: 1 }));
+      spyOn(vaultSandboxApiStub, 'listEmails').and.returnValue(of([createEmailListItem({ id: 'keep-email' })]));
+      spyOn(inboxStateServiceStub, 'updateInbox');
+
+      await service.loadEmailsForInbox(inbox.inboxHash);
+
+      const updatedInbox = (inboxStateServiceStub.updateInbox as jasmine.Spy).calls.mostRecent().args[0] as InboxModel;
+      expect(updatedInbox.emails.length).toBe(1);
+      expect(updatedInbox.emails[0].id).toBe('keep-email');
     });
 
     it('should create fallback metadata on decryption failure', async () => {
@@ -379,6 +407,56 @@ describe('InboxSyncService', () => {
       service.ngOnDestroy();
 
       expect(vaultSandboxStub.disconnectEvents).toHaveBeenCalled();
+    });
+  });
+
+  describe('syncAllInboxesAfterReconnect (via reconnected$ event)', () => {
+    beforeEach(() => {
+      service = TestBed.inject(InboxSyncService);
+    });
+
+    it('should sync all inboxes when reconnected$ emits', async () => {
+      const inbox1 = createInbox({ inboxHash: 'hash-1', emailAddress: 'test1@example.com' });
+      const inbox2 = createInbox({ inboxHash: 'hash-2', emailAddress: 'test2@example.com' });
+      inboxStateServiceStub.setInboxes([inbox1, inbox2]);
+
+      const getSyncSpy = spyOn(vaultSandboxApiStub, 'getInboxSyncStatus').and.returnValue(
+        of({ emailsHash: 'new-hash', emailCount: 0 }),
+      );
+      spyOn(vaultSandboxApiStub, 'listEmails').and.returnValue(of([]));
+
+      vaultSandboxStub.emitReconnected();
+
+      await new Promise((resolve) => setTimeout(resolve, 10));
+
+      expect(getSyncSpy).toHaveBeenCalledTimes(2);
+    });
+
+    it('should not sync when no inboxes exist on reconnect', async () => {
+      const getSyncSpy = spyOn(vaultSandboxApiStub, 'getInboxSyncStatus');
+
+      vaultSandboxStub.emitReconnected();
+
+      await new Promise((resolve) => setTimeout(resolve, 10));
+
+      expect(getSyncSpy).not.toHaveBeenCalled();
+    });
+
+    it('should handle sync errors gracefully on reconnect', async () => {
+      const inbox = createInbox();
+      inboxStateServiceStub.setInboxes([inbox]);
+
+      spyOn(vaultSandboxApiStub, 'getInboxSyncStatus').and.returnValue(throwError(() => new Error('Network error')));
+      spyOn(console, 'error');
+
+      vaultSandboxStub.emitReconnected();
+
+      await new Promise((resolve) => setTimeout(resolve, 10));
+
+      expect(console.error).toHaveBeenCalledWith(
+        `[InboxSyncService] Error syncing inbox ${inbox.inboxHash} after reconnect:`,
+        jasmine.any(Error),
+      );
     });
   });
 

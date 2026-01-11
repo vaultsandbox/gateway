@@ -8,6 +8,7 @@ import { VaultSandbox, NewEmailEvent } from '../../../shared/services/vault-sand
 import { VsToast } from '../../../shared/services/vs-toast';
 import { EmailItemModel, InboxModel } from '../interfaces';
 import { MetadataNormalizer } from './helpers/metadata-normalizer.helper';
+import { computeEmailsHash } from './helpers/emails-hash.helper';
 import { InboxStateService } from './inbox-state.service';
 
 /**
@@ -25,6 +26,7 @@ export class InboxSyncService implements OnDestroy {
   private readonly state = inject(InboxStateService);
 
   private readonly newEmailSub: Subscription;
+  private readonly reconnectedSub: Subscription;
 
   constructor() {
     this.newEmailSub = this.vaultSandbox.newEmail$.subscribe((event) => {
@@ -32,6 +34,10 @@ export class InboxSyncService implements OnDestroy {
       this.handleNewEmail(event).catch((error) => {
         console.error('[InboxSyncService] Error handling SSE email event:', error);
       });
+    });
+
+    this.reconnectedSub = this.vaultSandbox.reconnected$.subscribe(() => {
+      void this.syncAllInboxesAfterReconnect();
     });
 
     // Auto-subscribe if there are existing inboxes
@@ -64,6 +70,8 @@ export class InboxSyncService implements OnDestroy {
 
   /**
    * Synchronizes and decrypts emails for a given inbox.
+   * Computes local hash and compares with server to detect changes.
+   * Handles both new emails and deletions.
    */
   async loadEmailsForInbox(inboxHash: string): Promise<void> {
     const inbox = this.state.getInboxSnapshot(inboxHash);
@@ -74,16 +82,27 @@ export class InboxSyncService implements OnDestroy {
     }
 
     try {
+      // Compute local hash from current email IDs
+      const localEmailIds = inbox.emails.map((e) => e.id);
+      const localHash = await computeEmailsHash(localEmailIds);
+
+      // Get server hash
       const syncStatus = await firstValueFrom(this.api.getInboxSyncStatus(inbox.emailAddress));
 
-      if (inbox.emailsHash && inbox.emailsHash === syncStatus.emailsHash) {
+      // If hashes match, inbox is in sync
+      if (localHash === syncStatus.emailsHash) {
         return;
       }
 
-      const result = await firstValueFrom(this.api.listEmails(inbox.emailAddress));
-      const existingEmailIds = new Set(inbox.emails.map((e) => e.id));
-      const newEmails = result.filter((email) => !existingEmailIds.has(email.id));
+      // Fetch full email list from server
+      const serverEmails = await firstValueFrom(this.api.listEmails(inbox.emailAddress));
+      const serverEmailIds = new Set(serverEmails.map((e) => e.id));
+      const localEmailIdSet = new Set(localEmailIds);
 
+      // Find new emails (on server but not local)
+      const newEmails = serverEmails.filter((email) => !localEmailIdSet.has(email.id));
+
+      // Decrypt new email metadata
       const decryptedNewEmails = await Promise.all<EmailItemModel>(
         newEmails.map(async (email) => {
           try {
@@ -106,11 +125,14 @@ export class InboxSyncService implements OnDestroy {
         }),
       );
 
-      const updatedEmails = decryptedNewEmails.length > 0 ? [...decryptedNewEmails, ...inbox.emails] : inbox.emails;
+      // Remove deleted emails (local but not on server)
+      const remainingEmails = inbox.emails.filter((e) => serverEmailIds.has(e.id));
+
+      // Update local state: prepend new emails, keep remaining
+      const updatedEmails = [...decryptedNewEmails, ...remainingEmails];
       const updatedInbox: InboxModel = {
         ...inbox,
         emails: updatedEmails,
-        emailsHash: syncStatus.emailsHash,
       };
 
       this.state.updateInbox(updatedInbox);
@@ -140,7 +162,26 @@ export class InboxSyncService implements OnDestroy {
    */
   ngOnDestroy(): void {
     this.newEmailSub.unsubscribe();
+    this.reconnectedSub.unsubscribe();
     this.vaultSandbox.disconnectEvents();
+  }
+
+  /**
+   * Syncs all inboxes after SSE reconnection to catch emails missed during disconnection.
+   */
+  private async syncAllInboxesAfterReconnect(): Promise<void> {
+    const inboxHashes = this.state.getInboxHashes();
+    if (inboxHashes.length === 0) {
+      return;
+    }
+
+    await Promise.all(
+      inboxHashes.map((hash) =>
+        this.loadEmailsForInbox(hash).catch((error) => {
+          console.error(`[InboxSyncService] Error syncing inbox ${hash} after reconnect:`, error);
+        }),
+      ),
+    );
   }
 
   /**

@@ -471,7 +471,6 @@ describe('storage.helpers', () => {
         expect(models[0].serverSigPk).toBe('serverKey');
         expect(models[0].secretKey).toEqual(new Uint8Array([1, 2, 3]));
         expect(models[0].emails).toEqual([]);
-        expect(models[0].emailsHash).toBeUndefined();
       });
 
       it('handles empty inboxes array', () => {

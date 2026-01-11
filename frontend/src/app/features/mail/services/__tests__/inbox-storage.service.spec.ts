@@ -127,6 +127,5 @@ describe('InboxStorageService', () => {
     expect(inbox.serverSigPk).toBe(importData.serverSigPk);
     expect(inbox.secretKey).toBeInstanceOf(Uint8Array);
     expect(inbox.emails).toEqual([]);
-    expect(inbox.emailsHash).toBeUndefined();
   });
 });

@@ -276,4 +276,48 @@ describe('SettingsDialog', () => {
       ]);
     });
   });
+
+  describe('allowClearAllInboxes', () => {
+    let serverInfoServiceStub: ServerInfoServiceStub;
+
+    beforeEach(() => {
+      serverInfoServiceStub = TestBed.inject(ServerInfoService) as unknown as ServerInfoServiceStub;
+    });
+
+    it('returns true when server allows clear all inboxes', () => {
+      serverInfoServiceStub.setServerInfo({
+        serverSigPk: 'stub',
+        algs: { kem: 'ml-kem', sig: 'ml-dsa', aead: 'aes-gcm', kdf: 'hkdf' },
+        context: 'stub',
+        maxTtl: 86400,
+        defaultTtl: 3600,
+        sseConsole: false,
+        allowClearAllInboxes: true,
+        allowedDomains: [],
+      });
+
+      expect(component.allowClearAllInboxes()).toBe(true);
+    });
+
+    it('returns false when server disallows clear all inboxes', () => {
+      serverInfoServiceStub.setServerInfo({
+        serverSigPk: 'stub',
+        algs: { kem: 'ml-kem', sig: 'ml-dsa', aead: 'aes-gcm', kdf: 'hkdf' },
+        context: 'stub',
+        maxTtl: 86400,
+        defaultTtl: 3600,
+        sseConsole: false,
+        allowClearAllInboxes: false,
+        allowedDomains: [],
+      });
+
+      expect(component.allowClearAllInboxes()).toBe(false);
+    });
+
+    it('defaults to true when server info is null', () => {
+      serverInfoServiceStub.setServerInfo(null);
+
+      expect(component.allowClearAllInboxes()).toBe(true);
+    });
+  });
 });

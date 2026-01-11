@@ -132,6 +132,7 @@ describe('MailboxSidebar', () => {
           maxTtl: 86400,
           defaultTtl: 3600,
           sseConsole: false,
+          allowClearAllInboxes: true,
           allowedDomains: ['custom.com', 'other.com'],
         }).asReadonly(),
       );
@@ -583,6 +584,7 @@ describe('MailboxSidebar', () => {
           maxTtl: 86400,
           defaultTtl: 3600,
           sseConsole: false,
+          allowClearAllInboxes: true,
           allowedDomains: [],
         }).asReadonly(),
       );
@@ -602,6 +604,7 @@ describe('MailboxSidebar', () => {
           maxTtl: 86400,
           defaultTtl: 3600,
           sseConsole: false,
+          allowClearAllInboxes: true,
           allowedDomains: ['example.com'],
         }).asReadonly(),
       );

@@ -1,4 +1,10 @@
-import { Injectable, Logger, BadRequestException, InternalServerErrorException } from '@nestjs/common';
+import {
+  Injectable,
+  Logger,
+  BadRequestException,
+  ForbiddenException,
+  InternalServerErrorException,
+} from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { InboxStorageService } from './storage/inbox-storage.service';
 import { CryptoService } from '../crypto/crypto.service';
@@ -33,6 +39,7 @@ export class InboxService {
   private readonly defaultTtl: number;
   private readonly maxTtl: number;
   private readonly sseConsole: boolean;
+  private readonly allowClearAllInboxes: boolean;
   private readonly allowedDomain: string;
   private readonly aliasRandomBytes: number;
 
@@ -49,6 +56,7 @@ export class InboxService {
     this.defaultTtl = this.configService.get<number>('vsb.local.inboxDefaultTtl', DEFAULT_LOCAL_INBOX_TTL);
     this.maxTtl = this.configService.get<number>('vsb.local.inboxMaxTtl', DEFAULT_LOCAL_INBOX_MAX_TTL);
     this.sseConsole = this.configService.get<boolean>('vsb.sseConsole.enabled', false);
+    this.allowClearAllInboxes = this.configService.get<boolean>('vsb.local.allowClearAllInboxes', true);
     const configuredRandomBytes = this.configService.get<number>(
       'vsb.local.inboxAliasRandomBytes',
       DEFAULT_LOCAL_INBOX_ALIAS_RANDOM_BYTES,
@@ -188,6 +196,10 @@ export class InboxService {
    * Remove every inbox
    */
   clearAllInboxes(): number {
+    if (!this.allowClearAllInboxes) {
+      throw new ForbiddenException('Clear all inboxes is disabled (VSB_LOCAL_ALLOW_CLEAR_ALL_INBOXES=false)');
+    }
+
     const removed = this.storageService.clearAllInboxes();
     if (removed > 0) {
       this.metricsService.increment(METRIC_PATHS.INBOX_DELETED_TOTAL, removed);
@@ -279,6 +291,7 @@ export class InboxService {
       maxTtl: this.maxTtl,
       defaultTtl: this.defaultTtl,
       sseConsole: this.sseConsole,
+      allowClearAllInboxes: this.allowClearAllInboxes,
       allowedDomains: this.getAllowedDomains(),
     };
   }

@@ -167,9 +167,6 @@ export interface InboxModel {
 
   /** Array of emails in this inbox */
   emails: EmailItemModel[];
-
-  /** Optional hash of the emails list for change detection */
-  emailsHash?: string;
 }
 
 /**
@@ -246,6 +243,9 @@ export interface ServerInfo {
 
   /** If sse consolee is enabled at the server */
   sseConsole: boolean;
+
+  /** Whether the clear all inboxes endpoint is enabled on the server */
+  allowClearAllInboxes: boolean;
 
   /** Optional list of allowed email domains */
   allowedDomains?: string[];

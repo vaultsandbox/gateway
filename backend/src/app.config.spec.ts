@@ -574,6 +574,7 @@ describe('app.config', () => {
         cleanupInterval: 300,
         inboxAliasRandomBytes: 4,
         hardModeRejectCode: 421,
+        allowClearAllInboxes: true,
       });
     });
 
@@ -592,7 +593,15 @@ describe('app.config', () => {
         cleanupInterval: 600,
         inboxAliasRandomBytes: 4,
         hardModeRejectCode: 550,
+        allowClearAllInboxes: true,
       });
+    });
+
+    it('should respect VSB_LOCAL_ALLOW_CLEAR_ALL_INBOXES=false', () => {
+      setMinimalEnv();
+      process.env.VSB_LOCAL_ALLOW_CLEAR_ALL_INBOXES = 'false';
+      const config = require('./app.config').default();
+      expect(config.local.allowClearAllInboxes).toBe(false);
     });
 
     it('should load API key from environment (precedence 1)', () => {

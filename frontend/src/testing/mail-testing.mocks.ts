@@ -30,7 +30,9 @@ export class VaultSandboxStub implements Partial<VaultSandbox> {
   private readonly apiKeySignal = signal<string | null>(null);
   readonly apiKey = this.apiKeySignal.asReadonly();
   private readonly subject = new Subject<NewEmailEvent>();
+  private readonly reconnectedSubject = new Subject<void>();
   readonly newEmail$ = this.subject.asObservable();
+  readonly reconnected$ = this.reconnectedSubject.asObservable();
 
   setApiKey(key: string): void {
     this.apiKeySignal.set(key);
@@ -51,8 +53,13 @@ export class VaultSandboxStub implements Partial<VaultSandbox> {
   disconnectEvents(): void {
     return;
   }
+
   emit(event: NewEmailEvent): void {
     this.subject.next(event);
+  }
+
+  emitReconnected(): void {
+    this.reconnectedSubject.next();
   }
 }
 
@@ -382,6 +389,7 @@ export class ServerInfoServiceStub implements Partial<ServerInfoService> {
     maxTtl: 86400,
     defaultTtl: 3600,
     sseConsole: false,
+    allowClearAllInboxes: true,
     allowedDomains: [],
   });
 
@@ -391,6 +399,11 @@ export class ServerInfoServiceStub implements Partial<ServerInfoService> {
 
   async getServerInfo(): Promise<ServerInfo | null> {
     return this.serverInfoSignal();
+  }
+
+  // Test helper method
+  setServerInfo(info: ServerInfo | null): void {
+    this.serverInfoSignal.set(info);
   }
 }
 
@@ -420,6 +433,7 @@ export class VaultSandboxApiStub implements Partial<VaultSandboxApi> {
       maxTtl: 86400,
       defaultTtl: 3600,
       sseConsole: false,
+      allowClearAllInboxes: true,
       allowedDomains: [],
     });
   }

@@ -24,12 +24,14 @@ export class VaultSandbox {
 
   private readonly apiKeySignal = signal<string | null>(this.getStoredApiKey());
   private readonly newEmailSubject = new Subject<NewEmailEvent>();
+  private readonly reconnectedSubject = new Subject<void>();
   private eventSource: EventSource | null = null;
   private reconnectTimer: ReturnType<typeof setTimeout> | null = null;
   private trackedInboxIds: string[] = [];
 
   readonly apiKey = this.apiKeySignal.asReadonly();
   readonly newEmail$ = this.newEmailSubject.asObservable();
+  readonly reconnected$ = this.reconnectedSubject.asObservable();
 
   /**
    * Reads the persisted API key from `localStorage`.
@@ -159,7 +161,7 @@ export class VaultSandbox {
   /**
    * Schedules a reconnection attempt if the SSE stream dropped.
    */
-  /* istanbul ignore next 12 - reconnection timer logic, tested via integration */
+  /* istanbul ignore next 13 - reconnection timer logic, tested via integration */
   private scheduleReconnect(): void {
     if (this.reconnectTimer || this.trackedInboxIds.length === 0) {
       return;
@@ -169,6 +171,7 @@ export class VaultSandbox {
       this.reconnectTimer = null;
       if (this.trackedInboxIds.length > 0) {
         this.connectToEvents(this.trackedInboxIds);
+        this.reconnectedSubject.next();
       }
     }, 2000);
   }

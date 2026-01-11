@@ -7,7 +7,7 @@
 # - Certificate management
 services:
   gateway:
-    image: vaultsandbox/gateway:0.6.0
+    image: vaultsandbox/gateway:0.6.1
     container_name: vaultsandbox-gateway
     restart: unless-stopped
 
@@ -39,7 +39,7 @@ volumes:
 #
 # services:
 #   gateway:
-#     image: vaultsandbox/gateway:0.6.0
+#     image: vaultsandbox/gateway:0.6.1
 #     container_name: vaultsandbox-gateway
 #     restart: unless-stopped
 #

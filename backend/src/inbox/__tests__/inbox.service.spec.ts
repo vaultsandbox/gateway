@@ -1,6 +1,6 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { ConfigService } from '@nestjs/config';
-import { BadRequestException, InternalServerErrorException } from '@nestjs/common';
+import { BadRequestException, ForbiddenException, InternalServerErrorException } from '@nestjs/common';
 import { InboxService } from '../inbox.service';
 import { InboxStorageService } from '../storage/inbox-storage.service';
 import { MetricsService } from '../../metrics/metrics.service';
@@ -92,6 +92,7 @@ describe('InboxService', () => {
                 'vsb.local.inboxDefaultTtl': 3600,
                 'vsb.local.inboxMaxTtl': 604800,
                 'vsb.sseConsole.enabled': false,
+                'vsb.local.allowClearAllInboxes': true,
                 'vsb.local.inboxAliasRandomBytes': 4,
                 'vsb.smtp.allowedRecipientDomains': ['vaultsandbox.test', 'example.com'],
               };
@@ -650,8 +651,116 @@ describe('InboxService', () => {
         maxTtl: 604800,
         defaultTtl: 3600,
         sseConsole: false,
+        allowClearAllInboxes: true,
         allowedDomains: ['vaultsandbox.test', 'example.com'],
       });
+    });
+
+    it('should include allowClearAllInboxes as false when disabled', async () => {
+      const module: TestingModule = await Test.createTestingModule({
+        providers: [
+          InboxService,
+          {
+            provide: InboxStorageService,
+            useValue: {
+              createInbox: jest.fn(),
+              getInbox: jest.fn(),
+              getInboxByHash: jest.fn(),
+              listInboxHashes: jest.fn(),
+              deleteInbox: jest.fn(),
+              deleteEmail: jest.fn(),
+              clearAllInboxes: jest.fn(),
+              addEmail: jest.fn(),
+              getEmails: jest.fn(),
+              getEmail: jest.fn(),
+              markEmailAsRead: jest.fn(),
+              inboxExists: jest.fn(),
+              getInboxCount: jest.fn(),
+            },
+          },
+          {
+            provide: CryptoService,
+            useValue: {
+              getServerSigningPublicKey: jest.fn().mockReturnValue('serverSigPk123'),
+            },
+          },
+          {
+            provide: ConfigService,
+            useValue: {
+              get: jest.fn((key: string, defaultValue: unknown) => {
+                if (key === 'vsb.local.allowClearAllInboxes') return false;
+                if (key === 'vsb.smtp.allowedRecipientDomains') return ['vaultsandbox.test'];
+                return defaultValue;
+              }),
+            },
+          },
+          {
+            provide: MetricsService,
+            useValue: {
+              increment: jest.fn(),
+              set: jest.fn(),
+            },
+          },
+        ],
+      }).compile();
+
+      const testService = module.get<InboxService>(InboxService);
+      const info = testService.getServerInfo();
+      expect(info.allowClearAllInboxes).toBe(false);
+    });
+  });
+
+  describe('clearAllInboxes with allowClearAllInboxes=false', () => {
+    it('should throw ForbiddenException when allowClearAllInboxes is false', async () => {
+      const module: TestingModule = await Test.createTestingModule({
+        providers: [
+          InboxService,
+          {
+            provide: InboxStorageService,
+            useValue: {
+              createInbox: jest.fn(),
+              getInbox: jest.fn(),
+              getInboxByHash: jest.fn(),
+              listInboxHashes: jest.fn(),
+              deleteInbox: jest.fn(),
+              deleteEmail: jest.fn(),
+              clearAllInboxes: jest.fn(),
+              addEmail: jest.fn(),
+              getEmails: jest.fn(),
+              getEmail: jest.fn(),
+              markEmailAsRead: jest.fn(),
+              inboxExists: jest.fn(),
+              getInboxCount: jest.fn(),
+            },
+          },
+          {
+            provide: CryptoService,
+            useValue: {
+              getServerSigningPublicKey: jest.fn().mockReturnValue('serverSigPk123'),
+            },
+          },
+          {
+            provide: ConfigService,
+            useValue: {
+              get: jest.fn((key: string, defaultValue: unknown) => {
+                if (key === 'vsb.local.allowClearAllInboxes') return false;
+                if (key === 'vsb.smtp.allowedRecipientDomains') return ['vaultsandbox.test'];
+                return defaultValue;
+              }),
+            },
+          },
+          {
+            provide: MetricsService,
+            useValue: {
+              increment: jest.fn(),
+              set: jest.fn(),
+            },
+          },
+        ],
+      }).compile();
+
+      const testService = module.get<InboxService>(InboxService);
+      expect(() => testService.clearAllInboxes()).toThrow(ForbiddenException);
     });
   });
 });

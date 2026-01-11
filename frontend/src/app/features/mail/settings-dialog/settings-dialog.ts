@@ -1,4 +1,4 @@
-import { Component, Output, EventEmitter, OnInit, inject } from '@angular/core';
+import { Component, Output, EventEmitter, OnInit, inject, computed } from '@angular/core';
 import { BaseDialog } from '../../../shared/components/base-dialog';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
@@ -50,6 +50,9 @@ export class SettingsDialog extends BaseDialog implements OnInit {
     { label: '24-hour (15:30)', value: '24h' },
     { label: '12-hour (3:30 PM)', value: '12h' },
   ];
+
+  /** Whether the clear all inboxes button should be shown (from server config). */
+  allowClearAllInboxes = computed(() => this.serverInfoService.serverInfo()?.allowClearAllInboxes ?? true);
 
   ngOnInit(): void {
     void this.loadSettings();

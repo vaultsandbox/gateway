@@ -82,7 +82,6 @@ export class InboxStorageService {
       serverSigPk: importData.serverSigPk,
       secretKey: base64urlDecode(importData.secretKey),
       emails: [],
-      emailsHash: undefined,
     };
   }
 }

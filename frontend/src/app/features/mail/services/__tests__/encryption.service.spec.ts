@@ -23,6 +23,7 @@ describe('EncryptionService', () => {
       maxTtl: 86400,
       defaultTtl: 3600,
       sseConsole: false,
+      allowClearAllInboxes: true,
       allowedDomains: [],
     });
 

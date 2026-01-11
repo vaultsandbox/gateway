@@ -144,6 +144,12 @@ export class ServerInfoResponseDto {
   sseConsole: boolean;
 
   @ApiProperty({
+    description: 'If the clear all inboxes endpoint is enabled',
+    example: true,
+  })
+  allowClearAllInboxes: boolean;
+
+  @ApiProperty({
     description: 'List of domains allowed for inbox creation',
     example: ['vaultsandbox.test', 'example.com'],
     type: [String],
