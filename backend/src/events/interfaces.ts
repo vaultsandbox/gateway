@@ -2,11 +2,17 @@ import { SerializedEncryptedPayload } from '../crypto/serialization';
 
 /**
  * @interface NewEmailEvent
- * @description Represents an event for a new email with end-to-end encrypted metadata.
- * The metadata (from, to, subject, receivedAt) is encrypted client-side to maintain
- * zero-knowledge architecture - the server cannot read these fields.
+ * @description Represents an event for a new email. Supports both encrypted and plain modes.
  *
- * Uses SerializedEncryptedPayload (Base64URL strings) for SSE transmission.
+ * For encrypted inboxes:
+ * - encryptedMetadata is present (SerializedEncryptedPayload)
+ * - metadata is undefined
+ *
+ * For plain inboxes:
+ * - metadata is present (Base64-encoded JSON string)
+ * - encryptedMetadata is undefined
+ *
+ * Clients can use the presence of encryptedMetadata to determine the mode.
  */
 export interface NewEmailEvent {
   /**
@@ -18,11 +24,15 @@ export interface NewEmailEvent {
    */
   emailId: string;
   /**
-   * @property {SerializedEncryptedPayload} encryptedMetadata - End-to-end encrypted blob containing
-   * email metadata (id, from, to, subject, receivedAt). Encrypted with AES-256-GCM
-   * using the recipient's public key. Can only be decrypted by the client with the
-   * corresponding private key. Uses AAD 'vaultsandbox:metadata' for authentication.
+   * @property {SerializedEncryptedPayload} [encryptedMetadata] - End-to-end encrypted blob containing
+   * email metadata (id, from, to, subject, receivedAt). Present only for encrypted inboxes.
+   * Encrypted with AES-256-GCM using the recipient's public key.
    * Serialized to Base64URL strings for SSE transmission.
    */
-  encryptedMetadata: SerializedEncryptedPayload;
+  encryptedMetadata?: SerializedEncryptedPayload;
+  /**
+   * @property {string} [metadata] - Base64-encoded JSON string containing email metadata
+   * (id, from, to, subject, receivedAt). Present only for plain inboxes.
+   */
+  metadata?: string;
 }

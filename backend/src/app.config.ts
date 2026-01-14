@@ -44,7 +44,9 @@ import {
   parseStringWithDefault,
   parseAllowedDomains,
   parseDisabledCommands,
+  parseEncryptionPolicy,
 } from './config/config.parsers';
+import { EncryptionPolicy } from './config/config.constants';
 import { isValidDomain, validateTlsConfig } from './config/config.validators';
 import { buildTlsConfig, generateNodeId, generateSharedSecret } from './config/config.utils';
 
@@ -438,13 +440,14 @@ function buildCertificateConfig() {
 /**
  * Build Crypto Configuration
  *
- * Configures quantum-safe signing keys for ML-DSA-65.
+ * Configures quantum-safe signing keys for ML-DSA-65 and encryption policy.
  * If both key paths are provided, keys will be loaded from files.
  * Otherwise, ephemeral keys will be generated on startup.
  *
  * Optional environment variables:
  * - VSB_SERVER_SIGNATURE_SECRET_KEY_PATH: Path to secret key file (raw binary, 4032 bytes)
  * - VSB_SERVER_SIGNATURE_PUBLIC_KEY_PATH: Path to public key file (raw binary, 1952 bytes)
+ * - VSB_ENCRYPTION_ENABLED: Encryption policy ('enabled', 'disabled', 'always', 'never')
  */
 function buildCryptoConfig() {
   const sigSkPath = process.env.VSB_SERVER_SIGNATURE_SECRET_KEY_PATH;
@@ -457,9 +460,18 @@ function buildCryptoConfig() {
     );
   }
 
+  const encryptionPolicy = parseEncryptionPolicy(process.env.VSB_ENCRYPTION_ENABLED);
+
+  /* v8 ignore next 4 - warning log for non-encrypted modes not tested */
+  if (encryptionPolicy === EncryptionPolicy.DISABLED || encryptionPolicy === EncryptionPolicy.NEVER) {
+    const mode = encryptionPolicy === EncryptionPolicy.NEVER ? 'disabled (locked)' : 'disabled by default';
+    logger.warn(`Encryption is ${mode}. Emails may be stored in plaintext.`);
+  }
+
   return {
     sigSkPath: sigSkPath || undefined,
     sigPkPath: sigPkPath || undefined,
+    encryptionPolicy,
   };
 }
 
@@ -607,6 +619,37 @@ function buildSseConsoleConfig() {
 }
 
 /**
+ * Build Email Auth Configuration
+ *
+ * Configures optional email authentication checks (SPF, DKIM, DMARC, Reverse DNS).
+ * These checks can be disabled globally via environment variables or per-inbox.
+ * When disabled, checks return status: 'skipped' instead of running.
+ *
+ * Optional environment variables:
+ * - VSB_EMAIL_AUTH_ENABLED: Master switch for all auth checks (default: true)
+ * - VSB_EMAIL_AUTH_SPF_ENABLED: SPF verification (default: true)
+ * - VSB_EMAIL_AUTH_DKIM_ENABLED: DKIM verification (default: true)
+ * - VSB_EMAIL_AUTH_DMARC_ENABLED: DMARC verification (default: true)
+ * - VSB_EMAIL_AUTH_REVERSE_DNS_ENABLED: Reverse DNS/PTR verification (default: true)
+ * - VSB_EMAIL_AUTH_INBOX_DEFAULT: Default emailAuth for new inboxes (default: true)
+ *
+ * Precedence:
+ * - If VSB_EMAIL_AUTH_ENABLED=false → ALL checks skipped
+ * - Else → Individual VSB_EMAIL_AUTH_*_ENABLED variables control each check
+ * - Per-inbox emailAuth=false skips all checks for that inbox
+ */
+function buildEmailAuthConfig() {
+  return {
+    enabled: parseOptionalBoolean(process.env.VSB_EMAIL_AUTH_ENABLED, true),
+    spf: parseOptionalBoolean(process.env.VSB_EMAIL_AUTH_SPF_ENABLED, true),
+    dkim: parseOptionalBoolean(process.env.VSB_EMAIL_AUTH_DKIM_ENABLED, true),
+    dmarc: parseOptionalBoolean(process.env.VSB_EMAIL_AUTH_DMARC_ENABLED, true),
+    reverseDns: parseOptionalBoolean(process.env.VSB_EMAIL_AUTH_REVERSE_DNS_ENABLED, true),
+    inboxDefault: parseOptionalBoolean(process.env.VSB_EMAIL_AUTH_INBOX_DEFAULT, true),
+  };
+}
+
+/**
  * Register Config VSB
  */
 export default registerAs('vsb', () => {
@@ -623,5 +666,6 @@ export default registerAs('vsb', () => {
     throttle: buildThrottleConfig(),
     smtpRateLimit: buildSmtpRateLimitConfig(),
     sseConsole: buildSseConsoleConfig(),
+    emailAuth: buildEmailAuthConfig(),
   };
 });

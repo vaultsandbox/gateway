@@ -8,7 +8,7 @@ import {
 import { ConfigService } from '@nestjs/config';
 import { InboxStorageService } from './storage/inbox-storage.service';
 import { CryptoService } from '../crypto/crypto.service';
-import { Inbox, EncryptedEmail } from './interfaces';
+import { Inbox, StoredEmail, isEncryptedEmail } from './interfaces';
 import { randomBytes, createHash } from 'crypto';
 import { MetricsService } from '../metrics/metrics.service';
 import { METRIC_PATHS } from '../metrics/metrics.constants';
@@ -18,9 +18,55 @@ import {
   DEFAULT_LOCAL_INBOX_TTL,
   MAX_INBOX_ALIAS_RANDOM_BYTES,
   MIN_INBOX_ALIAS_RANDOM_BYTES,
+  EncryptionPolicy,
 } from '../config/config.constants';
 import { ServerInfoResponseDto } from './dto/response.dto';
 import { serializeEncryptedPayload, SerializedEncryptedPayload } from '../crypto/serialization';
+
+// Response types for email endpoints - discriminated unions for encrypted vs plain emails
+interface EncryptedEmailListItem {
+  id: string;
+  isRead: boolean;
+  encryptedMetadata: SerializedEncryptedPayload;
+  encryptedParsed?: SerializedEncryptedPayload;
+}
+
+interface PlainEmailListItem {
+  id: string;
+  isRead: boolean;
+  metadata: string; // Base64
+  parsed?: string; // Base64
+}
+
+export type EmailListItemResponse = EncryptedEmailListItem | PlainEmailListItem;
+
+interface EncryptedEmailDetail {
+  id: string;
+  isRead: boolean;
+  encryptedMetadata: SerializedEncryptedPayload;
+  encryptedParsed: SerializedEncryptedPayload;
+}
+
+interface PlainEmailDetail {
+  id: string;
+  isRead: boolean;
+  metadata: string; // Base64
+  parsed: string; // Base64
+}
+
+export type EmailDetailResponse = EncryptedEmailDetail | PlainEmailDetail;
+
+interface EncryptedRawEmail {
+  id: string;
+  encryptedRaw: SerializedEncryptedPayload;
+}
+
+interface PlainRawEmail {
+  id: string;
+  raw: string; // Base64
+}
+
+export type RawEmailResponse = EncryptedRawEmail | PlainRawEmail;
 
 // Expected length for ML-KEM-768 public key is 1184 bytes
 const MIN_EXPECTED_KEM_PK_BYTES = 1100;
@@ -42,6 +88,7 @@ export class InboxService {
   private readonly allowClearAllInboxes: boolean;
   private readonly allowedDomain: string;
   private readonly aliasRandomBytes: number;
+  private readonly emailAuthInboxDefault: boolean;
 
   /**
    * Constructor
@@ -57,6 +104,7 @@ export class InboxService {
     this.maxTtl = this.configService.get<number>('vsb.local.inboxMaxTtl', DEFAULT_LOCAL_INBOX_MAX_TTL);
     this.sseConsole = this.configService.get<boolean>('vsb.sseConsole.enabled', false);
     this.allowClearAllInboxes = this.configService.get<boolean>('vsb.local.allowClearAllInboxes', true);
+    this.emailAuthInboxDefault = this.configService.get<boolean>('vsb.emailAuth.inboxDefault', true);
     const configuredRandomBytes = this.configService.get<number>(
       'vsb.local.inboxAliasRandomBytes',
       DEFAULT_LOCAL_INBOX_ALIAS_RANDOM_BYTES,
@@ -74,35 +122,59 @@ export class InboxService {
     this.allowedDomain = domains[0];
 
     this.logger.log(
-      `InboxService initialized: defaultTTL=${this.defaultTtl}s, maxTTL=${this.maxTtl}s, domain=${this.allowedDomain}, aliasRandomBytes=${this.aliasRandomBytes}`,
+      `InboxService initialized: defaultTTL=${this.defaultTtl}s, maxTTL=${this.maxTtl}s, domain=${this.allowedDomain}, aliasRandomBytes=${this.aliasRandomBytes}, emailAuthDefault=${this.emailAuthInboxDefault}`,
     );
   }
 
   /**
    * Create a new inbox with specified or random email address
    *
-   * @param clientKemPk - Base64URL-encoded ML-KEM-768 public key
+   * @param clientKemPk - Base64URL-encoded ML-KEM-768 public key (required for encrypted inboxes)
    * @param ttl - Optional time-to-live in seconds
    * @param emailAddress - Optional email address or domain:
    *   - If null/undefined: Generate random email with first allowed domain
    *   - If domain only (e.g., "mydomain.com"): Generate random email with that domain
    *   - If full email (e.g., "alias@mydomain.com"): Use that email if available,
    *     otherwise generate random email with the same domain
+   * @param encryption - Optional encryption preference ('encrypted' | 'plain')
+   * @param emailAuth - Optional email authentication preference (default: config value)
    */
-  createInbox(clientKemPk: string, ttl?: number, emailAddress?: string): { inbox: Inbox; serverSigPk: string } {
+  createInbox(
+    clientKemPk?: string,
+    ttl?: number,
+    emailAddress?: string,
+    encryption?: 'encrypted' | 'plain',
+    emailAuth?: boolean,
+  ): { inbox: Inbox; serverSigPk?: string } {
+    // 1. Determine effective encryption state using server policy and inbox preference
+    const policy = this.configService.get<EncryptionPolicy>('vsb.crypto.encryptionPolicy', EncryptionPolicy.ENABLED);
+    const encrypted = this.resolveEncryptionState(policy, encryption);
+
+    // 2. Validate clientKemPk requirement
+    if (encrypted && !clientKemPk) {
+      throw new BadRequestException('clientKemPk is required when encryption is enabled');
+    }
+
+    // 3. Validate client KEM public key format if provided
+    if (clientKemPk) {
+      if (!this.isValidBase64Url(clientKemPk)) {
+        throw new BadRequestException('Invalid clientKemPk format (must be Base64URL)');
+      }
+
+      // Base64URL encoding: (1184 * 4) / 3 ≈ 1579 characters
+      const decodedLength = this.estimateBase64UrlLength(clientKemPk);
+      if (decodedLength < MIN_EXPECTED_KEM_PK_BYTES || decodedLength > MAX_EXPECTED_KEM_PK_BYTES) {
+        throw new BadRequestException(`Invalid clientKemPk length (expected ~1184 bytes for ML-KEM-768)`);
+      }
+
+      // Log warning if clientKemPk provided but will be ignored (server never mode or plain requested)
+      if (!encrypted) {
+        this.logger.warn(`clientKemPk provided but encryption is disabled; key will be ignored`);
+      }
+    }
+
     // Validate and normalize TTL
     const effectiveTtl = this.validateTtl(ttl);
-
-    // Validate client KEM public key format (basic check)
-    if (!this.isValidBase64Url(clientKemPk)) {
-      throw new BadRequestException('Invalid clientKemPk format (must be Base64URL)');
-    }
-
-    // Base64URL encoding: (1184 * 4) / 3 ≈ 1579 characters
-    const decodedLength = this.estimateBase64UrlLength(clientKemPk);
-    if (decodedLength < MIN_EXPECTED_KEM_PK_BYTES || decodedLength > MAX_EXPECTED_KEM_PK_BYTES) {
-      throw new BadRequestException(`Invalid clientKemPk length (expected ~1184 bytes for ML-KEM-768)`);
-    }
 
     // Determine the email address to use (may strip +tag portion)
     let finalEmailAddress = this.resolveEmailAddress(emailAddress);
@@ -126,27 +198,60 @@ export class InboxService {
     // Calculate expiration time
     const expiresAt = new Date(Date.now() + effectiveTtl * 1000);
 
-    const inboxHash = this.deriveInboxHash(clientKemPk);
+    // Derive inbox hash from appropriate source
+    const inboxHash = this.deriveInboxHash(
+      encrypted ? clientKemPk : undefined,
+      encrypted ? undefined : finalEmailAddress,
+    );
 
-    // Create inbox
-    const inbox = this.storageService.createInbox(finalEmailAddress, clientKemPk, expiresAt, inboxHash);
+    // Determine effective emailAuth value (use provided value or default from config)
+    const effectiveEmailAuth = emailAuth ?? this.emailAuthInboxDefault;
 
-    // Get server signing public key
-    const serverSigPk = this.cryptoService.getServerSigningPublicKey();
+    // Create inbox with encryption and emailAuth flags
+    const inbox = this.storageService.createInbox(
+      finalEmailAddress,
+      encrypted ? clientKemPk : undefined,
+      expiresAt,
+      inboxHash,
+      encrypted,
+      effectiveEmailAuth,
+    );
+
+    // Get server signing public key (only for encrypted inboxes)
+    const serverSigPk = encrypted ? this.cryptoService.getServerSigningPublicKey() : undefined;
 
     // Log inbox creation (with note if +tag was stripped)
     const requestedEmail = emailAddress?.trim().toLowerCase();
     if (requestedEmail && requestedEmail !== finalEmailAddress && requestedEmail.includes('+')) {
       this.logger.log(
-        `Inbox created email=${inbox.emailAddress} hash=${inbox.inboxHash} (requested: ${requestedEmail}, auto-aliasing enabled)`,
+        `Inbox created email=${inbox.emailAddress} hash=${inbox.inboxHash} encrypted=${encrypted} emailAuth=${effectiveEmailAuth} (requested: ${requestedEmail}, auto-aliasing enabled)`,
       );
     } else {
-      this.logger.log(`Inbox created email=${inbox.emailAddress} hash=${inbox.inboxHash}`);
+      this.logger.log(
+        `Inbox created email=${inbox.emailAddress} hash=${inbox.inboxHash} encrypted=${encrypted} emailAuth=${effectiveEmailAuth}`,
+      );
     }
 
     this.metricsService.increment(METRIC_PATHS.INBOX_CREATED_TOTAL);
     this.updateActiveInboxMetric();
     return { inbox, serverSigPk };
+  }
+
+  /**
+   * Resolve effective encryption state from server policy and inbox preference.
+   * Locked policies (ALWAYS/NEVER) ignore inbox preference.
+   */
+  private resolveEncryptionState(policy: EncryptionPolicy, inboxPreference?: 'encrypted' | 'plain'): boolean {
+    switch (policy) {
+      case EncryptionPolicy.ALWAYS:
+        return true;
+      case EncryptionPolicy.NEVER:
+        return false;
+      case EncryptionPolicy.ENABLED:
+        return inboxPreference !== 'plain';
+      case EncryptionPolicy.DISABLED:
+        return inboxPreference === 'encrypted';
+    }
   }
 
   /**
@@ -211,66 +316,84 @@ export class InboxService {
   /**
    * Add encrypted email to inbox
    */
-  addEmail(emailAddress: string, email: EncryptedEmail): void {
+  addEmail(emailAddress: string, email: StoredEmail): void {
     this.storageService.addEmail(emailAddress, email);
+  }
+
+  // Serialize a single email for list response (handles both encrypted and plain)
+  private serializeEmailListItem(email: StoredEmail, includeContent: boolean): EmailListItemResponse {
+    if (isEncryptedEmail(email)) {
+      return {
+        id: email.id,
+        isRead: email.isRead,
+        encryptedMetadata: serializeEncryptedPayload(email.encryptedMetadata),
+        ...(includeContent && {
+          encryptedParsed: serializeEncryptedPayload(email.encryptedParsed),
+        }),
+      };
+    } else {
+      return {
+        id: email.id,
+        isRead: email.isRead,
+        metadata: Buffer.from(email.metadata).toString('base64'),
+        ...(includeContent && {
+          parsed: Buffer.from(email.parsed).toString('base64'),
+        }),
+      };
+    }
   }
 
   /**
    * Get all emails for an inbox (metadata only, or with content if includeContent=true)
-   * Serializes binary payloads to Base64URL for API response
+   * Serializes binary payloads to Base64/Base64URL for API response
    */
-  getEmails(
-    emailAddress: string,
-    includeContent = false,
-  ): Array<{
-    id: string;
-    encryptedMetadata: SerializedEncryptedPayload;
-    isRead: boolean;
-    encryptedParsed?: SerializedEncryptedPayload;
-  }> {
+  getEmails(emailAddress: string, includeContent = false): EmailListItemResponse[] {
     const emails = this.storageService.getEmails(emailAddress);
-    return emails.map((email) => ({
-      id: email.id,
-      encryptedMetadata: serializeEncryptedPayload(email.encryptedMetadata),
-      isRead: email.isRead,
-      ...(includeContent && {
-        encryptedParsed: serializeEncryptedPayload(email.encryptedParsed),
-      }),
-    }));
+    return emails.map((email) => this.serializeEmailListItem(email, includeContent));
   }
 
   /**
    * Get a specific email (parsed data only, without raw content)
-   * Serializes binary payloads to Base64URL for API response
+   * Serializes binary payloads to Base64/Base64URL for API response
    */
-  getEmail(
-    emailAddress: string,
-    emailId: string,
-  ): {
-    id: string;
-    encryptedMetadata: SerializedEncryptedPayload;
-    encryptedParsed: SerializedEncryptedPayload;
-    isRead: boolean;
-  } {
+  getEmail(emailAddress: string, emailId: string): EmailDetailResponse {
     const email = this.storageService.getEmail(emailAddress, emailId);
-    return {
-      id: email.id,
-      encryptedMetadata: serializeEncryptedPayload(email.encryptedMetadata),
-      encryptedParsed: serializeEncryptedPayload(email.encryptedParsed),
-      isRead: email.isRead,
-    };
+
+    if (isEncryptedEmail(email)) {
+      return {
+        id: email.id,
+        isRead: email.isRead,
+        encryptedMetadata: serializeEncryptedPayload(email.encryptedMetadata),
+        encryptedParsed: serializeEncryptedPayload(email.encryptedParsed),
+      };
+    } else {
+      return {
+        id: email.id,
+        isRead: email.isRead,
+        metadata: Buffer.from(email.metadata).toString('base64'),
+        parsed: Buffer.from(email.parsed).toString('base64'),
+      };
+    }
   }
 
   /**
    * Get raw email content only
-   * Serializes binary payload to Base64URL for API response
+   * Serializes binary payload to Base64/Base64URL for API response
    */
-  getRawEmail(emailAddress: string, emailId: string): { id: string; encryptedRaw: SerializedEncryptedPayload } {
+  getRawEmail(emailAddress: string, emailId: string): RawEmailResponse {
     const email = this.storageService.getEmail(emailAddress, emailId);
-    return {
-      id: email.id,
-      encryptedRaw: serializeEncryptedPayload(email.encryptedRaw),
-    };
+
+    if (isEncryptedEmail(email)) {
+      return {
+        id: email.id,
+        encryptedRaw: serializeEncryptedPayload(email.encryptedRaw),
+      };
+    } else {
+      return {
+        id: email.id,
+        raw: Buffer.from(email.raw).toString('base64'),
+      };
+    }
   }
 
   /**
@@ -284,6 +407,11 @@ export class InboxService {
    * Get server cryptographic information
    */
   getServerInfo(): ServerInfoResponseDto {
+    const encryptionPolicy = this.configService.get<EncryptionPolicy>(
+      'vsb.crypto.encryptionPolicy',
+      EncryptionPolicy.ALWAYS,
+    );
+
     return {
       serverSigPk: this.cryptoService.getServerSigningPublicKey(),
       algs: ALGORITHMS,
@@ -293,6 +421,7 @@ export class InboxService {
       sseConsole: this.sseConsole,
       allowClearAllInboxes: this.allowClearAllInboxes,
       allowedDomains: this.getAllowedDomains(),
+      encryptionPolicy,
     };
   }
 
@@ -437,10 +566,19 @@ export class InboxService {
   }
 
   /**
-   * Derive a stable inbox hash from the ML-KEM public key (base64url encoded)
+   * Derive a stable inbox hash.
+   * - Encrypted inboxes: SHA-256 of clientKemPk (existing behavior)
+   * - Plain inboxes: SHA-256 of "plain:" + email (prefixed to avoid collision)
    */
-  private deriveInboxHash(clientKemPk: string): string {
-    return createHash('sha256').update(Buffer.from(clientKemPk, 'base64url')).digest('base64url');
+  private deriveInboxHash(clientKemPk?: string, emailAddress?: string): string {
+    if (clientKemPk) {
+      return createHash('sha256').update(Buffer.from(clientKemPk, 'base64url')).digest('base64url');
+    }
+    if (emailAddress) {
+      return createHash('sha256').update(`plain:${emailAddress.toLowerCase()}`).digest('base64url');
+    }
+    /* v8 ignore next 2 - defensive: createInbox always provides one of clientKemPk or emailAddress */
+    throw new Error('Either clientKemPk or emailAddress must be provided for hash derivation');
   }
 
   /**

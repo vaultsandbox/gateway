@@ -1,6 +1,7 @@
 import { promises as dns } from 'node:dns';
 import type { LookupAddress } from 'node:dns';
 import { Injectable, Logger } from '@nestjs/common';
+import { ConfigService } from '@nestjs/config';
 import { spf } from 'mailauth/lib/spf';
 import { dmarc } from 'mailauth/lib/dmarc';
 import { dkimVerify } from 'mailauth/lib/dkim/verify';
@@ -13,6 +14,15 @@ import type {
   MailauthDmarcResult,
 } from './interfaces/mailauth-types.interface';
 import { DNS_TIMEOUTS } from './constants/validation.constants';
+import type { Inbox } from '../inbox/interfaces';
+
+interface EmailAuthConfig {
+  enabled: boolean;
+  spf: boolean;
+  dkim: boolean;
+  dmarc: boolean;
+  reverseDns: boolean;
+}
 
 /**
  * Service responsible for email authentication and validation
@@ -26,6 +36,58 @@ import { DNS_TIMEOUTS } from './constants/validation.constants';
 @Injectable()
 export class EmailValidationService {
   private readonly logger = new Logger(EmailValidationService.name);
+  private readonly emailAuthConfig: EmailAuthConfig;
+
+  /* v8 ignore next - false positive on constructor parameter property */
+  constructor(private readonly configService: ConfigService) {
+    this.emailAuthConfig = {
+      enabled: this.configService.get<boolean>('vsb.emailAuth.enabled', true),
+      spf: this.configService.get<boolean>('vsb.emailAuth.spf', true),
+      dkim: this.configService.get<boolean>('vsb.emailAuth.dkim', true),
+      dmarc: this.configService.get<boolean>('vsb.emailAuth.dmarc', true),
+      reverseDns: this.configService.get<boolean>('vsb.emailAuth.reverseDns', true),
+    };
+  }
+
+  /**
+   * Check if SPF validation is enabled based on global config and inbox settings
+   */
+  private isSpfEnabled(inbox?: Inbox): boolean {
+    /* v8 ignore next - global config toggle, tested via integration */
+    if (!this.emailAuthConfig.enabled) return false;
+    if (inbox && !inbox.emailAuth) return false;
+    return this.emailAuthConfig.spf;
+  }
+
+  /**
+   * Check if DKIM validation is enabled based on global config and inbox settings
+   */
+  private isDkimEnabled(inbox?: Inbox): boolean {
+    /* v8 ignore next - global config toggle, tested via integration */
+    if (!this.emailAuthConfig.enabled) return false;
+    if (inbox && !inbox.emailAuth) return false;
+    return this.emailAuthConfig.dkim;
+  }
+
+  /**
+   * Check if DMARC validation is enabled based on global config and inbox settings
+   */
+  private isDmarcEnabled(inbox?: Inbox): boolean {
+    /* v8 ignore next - global config toggle, tested via integration */
+    if (!this.emailAuthConfig.enabled) return false;
+    if (inbox && !inbox.emailAuth) return false;
+    return this.emailAuthConfig.dmarc;
+  }
+
+  /**
+   * Check if Reverse DNS validation is enabled based on global config and inbox settings
+   */
+  private isReverseDnsEnabled(inbox?: Inbox): boolean {
+    /* v8 ignore next - global config toggle, tested via integration */
+    if (!this.emailAuthConfig.enabled) return false;
+    if (inbox && !inbox.emailAuth) return false;
+    return this.emailAuthConfig.reverseDns;
+  }
 
   /**
    * Verifies SPF (Sender Policy Framework) record for a sender domain
@@ -38,6 +100,7 @@ export class EmailValidationService {
    * @param remoteIp - The IP address of the sending server
    * @param senderAddress - The complete sender email address
    * @param sessionId - SMTP session ID for logging purposes
+   * @param inbox - Optional inbox for per-inbox email auth settings
    * @returns Promise resolving to SPF validation result
    *
    * @example
@@ -48,7 +111,7 @@ export class EmailValidationService {
    *   'sender@example.com',
    *   'session-123'
    * );
-   * console.log(result.status); // 'pass', 'fail', 'softfail', 'neutral', 'none', 'temperror', 'permerror'
+   * console.log(result.status); // 'pass', 'fail', 'softfail', 'neutral', 'none', 'temperror', 'permerror', 'skipped'
    * ```
    */
   async verifySpf(
@@ -56,7 +119,18 @@ export class EmailValidationService {
     remoteIp: string | undefined,
     senderAddress: string,
     sessionId: string,
+    inbox?: Inbox,
   ): Promise<SpfResult> {
+    // Check if SPF validation is enabled
+    if (!this.isSpfEnabled(inbox)) {
+      this.logger.log(`SPF check (session=${sessionId}): SKIPPED - SPF validation disabled`);
+      return {
+        status: 'skipped',
+        domain,
+        ip: remoteIp,
+        info: 'SPF check disabled',
+      };
+    }
     const timeoutMs = DNS_TIMEOUTS.SPF_TIMEOUT_MS;
     const defaultResult: SpfResult = {
       status: 'none',
@@ -71,7 +145,7 @@ export class EmailValidationService {
 
     try {
       // eslint-disable-next-line @typescript-eslint/no-unsafe-call
-      const spfPromise = spf({ ip: remoteIp, domain, sender: senderAddress }) as Promise<unknown>;
+      const spfPromise = spf({ ip: remoteIp, sender: senderAddress }) as Promise<unknown>;
       const rawResult: unknown = await this.resolveWithTimeout(
         spfPromise,
         timeoutMs,
@@ -118,6 +192,7 @@ export class EmailValidationService {
    *
    * @param rawData - The complete raw email message including headers
    * @param sessionId - Session ID for logging purposes
+   * @param inbox - Optional inbox for per-inbox email auth settings
    * @returns Promise resolving to array of DKIM validation results (one per signature)
    *
    * @example
@@ -128,7 +203,18 @@ export class EmailValidationService {
    * });
    * ```
    */
-  async verifyDkim(rawData: Buffer, sessionId: string): Promise<DkimResult[]> {
+  async verifyDkim(rawData: Buffer, sessionId: string, inbox?: Inbox): Promise<DkimResult[]> {
+    // Check if DKIM validation is enabled
+    if (!this.isDkimEnabled(inbox)) {
+      this.logger.log(`DKIM check (session=${sessionId}): SKIPPED - DKIM validation disabled`);
+      return [
+        {
+          status: 'skipped',
+          info: 'DKIM check disabled',
+        },
+      ];
+    }
+
     const results: DkimResult[] = [];
     const timeoutMs = DNS_TIMEOUTS.DKIM_TIMEOUT_MS;
 
@@ -195,6 +281,7 @@ export class EmailValidationService {
    * @param spfResult - SPF validation result from verifySpf()
    * @param dkimResults - DKIM validation results from verifyDkim()
    * @param sessionId - Session ID for logging purposes
+   * @param inbox - Optional inbox for per-inbox email auth settings
    * @returns Promise resolving to DMARC validation result
    *
    * @example
@@ -213,7 +300,17 @@ export class EmailValidationService {
     spfResult: SpfResult | undefined,
     dkimResults: DkimResult[] | undefined,
     sessionId: string,
+    inbox?: Inbox,
   ): Promise<DmarcResult> {
+    // Check if DMARC validation is enabled
+    if (!this.isDmarcEnabled(inbox)) {
+      this.logger.log(`DMARC check (session=${sessionId}): SKIPPED - DMARC validation disabled`);
+      return {
+        status: 'skipped',
+        info: 'DMARC check disabled',
+      };
+    }
+
     let headerFrom = headers['from'];
     const timeoutMs = DNS_TIMEOUTS.DMARC_TIMEOUT_MS;
 
@@ -235,8 +332,7 @@ export class EmailValidationService {
     const spfDomains = spfResult && spfResult.status === 'pass' && spfResult.domain ? [spfResult.domain] : [];
     const dkimDomains = (dkimResults ?? [])
       .filter((result) => result.status === 'pass' && !!result.domain)
-      .map((result) => result.domain!)
-      .map((domain) => domain.toLowerCase());
+      .map((result) => ({ domain: result.domain!.toLowerCase() }));
 
     try {
       // eslint-disable-next-line @typescript-eslint/no-unsafe-call
@@ -324,6 +420,7 @@ export class EmailValidationService {
    *
    * @param remoteIp - The IP address to validate
    * @param sessionId - Session ID for logging purposes
+   * @param inbox - Optional inbox for per-inbox email auth settings
    * @returns Promise resolving to reverse DNS validation result
    *
    * @example
@@ -332,7 +429,17 @@ export class EmailValidationService {
    * console.log(`PTR: ${result.status}, Hostname: ${result.hostname}`);
    * ```
    */
-  async verifyReverseDns(remoteIp: string | undefined, sessionId: string): Promise<ReverseDnsResult> {
+  async verifyReverseDns(remoteIp: string | undefined, sessionId: string, inbox?: Inbox): Promise<ReverseDnsResult> {
+    // Check if Reverse DNS validation is enabled
+    if (!this.isReverseDnsEnabled(inbox)) {
+      this.logger.log(`Reverse DNS check (session=${sessionId}): SKIPPED - Reverse DNS validation disabled`);
+      return {
+        status: 'skipped',
+        ip: remoteIp,
+        info: 'Reverse DNS check disabled',
+      };
+    }
+
     if (!remoteIp) {
       return {
         status: 'none',

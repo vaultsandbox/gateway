@@ -29,6 +29,7 @@ class TestableServerInfoServiceStub implements Partial<ServerInfoService> {
     sseConsole: false,
     allowClearAllInboxes: true,
     allowedDomains: [],
+    encryptionPolicy: 'always',
   });
 
   get serverInfo(): Signal<ServerInfo | null> {
@@ -124,6 +125,7 @@ describe('Mail', () => {
         sseConsole: true,
         allowClearAllInboxes: true,
         allowedDomains: [],
+        encryptionPolicy: 'always',
       });
 
       const menuItems = component.topLeftMenuitems();
@@ -141,6 +143,7 @@ describe('Mail', () => {
         sseConsole: false,
         allowClearAllInboxes: true,
         allowedDomains: [],
+        encryptionPolicy: 'always',
       });
 
       const menuItems = component.topLeftMenuitems();
@@ -193,6 +196,7 @@ describe('Mail', () => {
         sseConsole: true,
         allowClearAllInboxes: true,
         allowedDomains: [],
+        encryptionPolicy: 'always',
       });
 
       const menuItems = component.topLeftMenuitems();
@@ -293,6 +297,7 @@ describe('Mail', () => {
         emailAddress: 'test@example.com',
         expiresAt: new Date().toISOString(),
         inboxHash: 'inbox-hash-123',
+        encrypted: true,
         serverSigPk: 'sig-pk',
         secretKey: new Uint8Array(),
         emails: [],
@@ -338,6 +343,7 @@ describe('Mail', () => {
         emailAddress: 'test@example.com',
         expiresAt: new Date().toISOString(),
         inboxHash: 'inbox-hash-123',
+        encrypted: true,
         serverSigPk: 'sig-pk',
         secretKey: new Uint8Array(),
         emails: [],
@@ -356,6 +362,7 @@ describe('Mail', () => {
         emailAddress: 'test@example.com',
         expiresAt: new Date().toISOString(),
         inboxHash: 'inbox-hash-123',
+        encrypted: true,
         serverSigPk: 'sig-pk',
         secretKey: new Uint8Array(),
         emails: [],
@@ -655,6 +662,7 @@ describe('Mail', () => {
         emailAddress: 'test@example.com',
         expiresAt: new Date().toISOString(),
         inboxHash: 'inbox-hash-123',
+        encrypted: true,
         serverSigPk: 'sig-pk',
         secretKey: new Uint8Array(),
         emails: [

@@ -5,12 +5,16 @@ import { environment } from '../../../environments/environment';
 import { EncryptedPayload } from '../interfaces/encrypted-payload';
 
 /**
- * Event payload delivered when a new encrypted email arrives via SSE.
+ * Event payload delivered when a new email arrives via SSE.
+ * Supports both encrypted and plain formats - use field presence to discriminate.
  */
 export interface NewEmailEvent {
   inboxId: string;
   emailId: string;
-  encryptedMetadata: EncryptedPayload; // End-to-end encrypted metadata payload
+  /** Encrypted metadata payload (encrypted inbox) */
+  encryptedMetadata?: EncryptedPayload;
+  /** Base64-encoded metadata JSON (plain inbox) */
+  metadata?: string;
 }
 
 /**

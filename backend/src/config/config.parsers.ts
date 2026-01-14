@@ -1,7 +1,7 @@
 import { readFileSync, existsSync } from 'fs';
 import { resolve } from 'path';
 import * as process from 'process';
-import { BOOLEAN_TRUE_VALUES } from './config.constants';
+import { BOOLEAN_TRUE_VALUES, EncryptionPolicy, DEFAULT_ENCRYPTION_POLICY } from './config.constants';
 import { isValidDomain } from './config.validators';
 
 export function parseOptionalBoolean(value: string | undefined, defaultValue = false): boolean {
@@ -157,4 +157,33 @@ export function parseDisabledCommands(defaultCommands: string[] = []): string[] 
     .split(',')
     .map((cmd) => cmd.trim().toUpperCase())
     .filter((cmd) => cmd.length > 0);
+}
+
+/**
+ * Parse VSB_ENCRYPTION_ENABLED env var into EncryptionPolicy enum.
+ * Accepts: 'enabled', 'disabled', 'always', 'never' (case-insensitive)
+ *
+ * @param value - The environment variable value
+ * @returns Parsed EncryptionPolicy
+ */
+export function parseEncryptionPolicy(value: string | undefined): EncryptionPolicy {
+  const normalized = value?.toLowerCase().trim();
+
+  switch (normalized) {
+    case 'enabled':
+      return EncryptionPolicy.ENABLED;
+    case 'disabled':
+      return EncryptionPolicy.DISABLED;
+    case 'always':
+      return EncryptionPolicy.ALWAYS;
+    case 'never':
+      return EncryptionPolicy.NEVER;
+    case undefined:
+    case '':
+      return DEFAULT_ENCRYPTION_POLICY;
+    /* v8 ignore next 3 - defensive: invalid env value falls back to default */
+    default:
+      console.warn(`Invalid VSB_ENCRYPTION_ENABLED value "${value}", using default "${DEFAULT_ENCRYPTION_POLICY}"`);
+      return DEFAULT_ENCRYPTION_POLICY;
+  }
 }

@@ -16,6 +16,7 @@ describe('InboxStorageService', () => {
     emailAddress: 'user@example.com',
     expiresAt: new Date().toISOString(),
     inboxHash: 'hash-123',
+    encrypted: true,
     serverSigPk: 'server-sig',
     secretKey: new Uint8Array([1, 2, 3, 4]),
     emails: [],
@@ -79,6 +80,7 @@ describe('InboxStorageService', () => {
       emailAddress: 'user@example.com',
       expiresAt: new Date().toISOString(),
       inboxHash: 'hash-123',
+      encrypted: true,
       serverSigPk: base64urlEncode(new Uint8Array(MLDSA_PUBLIC_KEY_SIZE)),
       secretKey: base64urlEncode(new Uint8Array(MLKEM_SECRET_KEY_SIZE)),
       exportedAt: new Date().toISOString(),
@@ -114,6 +116,7 @@ describe('InboxStorageService', () => {
       emailAddress: 'imported@example.com',
       expiresAt: new Date().toISOString(),
       inboxHash: 'import-hash',
+      encrypted: true,
       serverSigPk: base64urlEncode(new Uint8Array(MLDSA_PUBLIC_KEY_SIZE)),
       secretKey: base64urlEncode(new Uint8Array(MLKEM_SECRET_KEY_SIZE)),
       exportedAt: new Date().toISOString(),
@@ -124,6 +127,7 @@ describe('InboxStorageService', () => {
     expect(inbox.emailAddress).toBe(importData.emailAddress);
     expect(inbox.expiresAt).toBe(importData.expiresAt);
     expect(inbox.inboxHash).toBe(importData.inboxHash);
+    expect(inbox.encrypted).toBe(true);
     expect(inbox.serverSigPk).toBe(importData.serverSigPk);
     expect(inbox.secretKey).toBeInstanceOf(Uint8Array);
     expect(inbox.emails).toEqual([]);

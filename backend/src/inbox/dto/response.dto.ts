@@ -1,4 +1,4 @@
-import { ApiProperty } from '@nestjs/swagger';
+import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 
 /**
  * DTO for encrypted payload structure used in email encryption
@@ -155,6 +155,14 @@ export class ServerInfoResponseDto {
     type: [String],
   })
   allowedDomains: string[];
+
+  @ApiProperty({
+    description:
+      'Server encryption policy. "always"/"never" are locked (per-inbox override ignored). "enabled"/"disabled" allow per-inbox override.',
+    enum: ['always', 'enabled', 'disabled', 'never'],
+    example: 'always',
+  })
+  encryptionPolicy: 'always' | 'enabled' | 'disabled' | 'never';
 }
 
 /**
@@ -175,16 +183,29 @@ export class CreateInboxResponseDto {
 
   @ApiProperty({
     description:
-      'Base64URL-encoded SHA-256 hash of the client KEM public key, used for SSE subscriptions and API references',
+      'Unique inbox identifier (Base64URL SHA-256 hash). Derived from clientKemPk when encrypted, or email address when plain.',
     example: 'base64url-encoded-inbox-hash',
   })
   inboxHash: string;
 
   @ApiProperty({
-    description: 'Base64URL-encoded server signing public key for verifying server signatures',
+    description: 'Whether encryption is enabled for this inbox',
+    example: true,
+  })
+  encrypted: boolean;
+
+  @ApiProperty({
+    description: 'Whether email authentication (SPF, DKIM, DMARC, PTR) is enabled for this inbox',
+    example: true,
+  })
+  emailAuth: boolean;
+
+  @ApiPropertyOptional({
+    description:
+      'Base64URL-encoded server signing public key for verifying server signatures. Only present when encrypted is true.',
     example: 'base64url-encoded-server-public-key',
   })
-  serverSigPk: string;
+  serverSigPk?: string;
 }
 
 /**

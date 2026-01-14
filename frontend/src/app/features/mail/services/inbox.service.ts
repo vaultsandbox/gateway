@@ -87,20 +87,41 @@ export class InboxService implements OnDestroy {
    * Creates a new inbox using generated keys and subscribes to events for it.
    * @param emailAddress Optional desired email address.
    * @param ttlSeconds Optional time-to-live override for the inbox.
+   * @param encryption Optional encryption preference: 'encrypted' | 'plain'. Omit to use server default.
+   * @param emailAuth Optional email auth preference: true/false. Omit to use server default.
    */
-  async createInbox(emailAddress?: string, ttlSeconds?: number): Promise<{ created: boolean; email: string }> {
+  async createInbox(
+    emailAddress?: string,
+    ttlSeconds?: number,
+    encryption?: 'encrypted' | 'plain',
+    emailAuth?: boolean,
+  ): Promise<{ created: boolean; email: string }> {
     try {
-      const keypair = this.encryption.generateKeypair();
       const ttl = ttlSeconds ?? (await this.settingsManager.getTtlSetting()).ttlSeconds;
 
-      const result = await firstValueFrom(this.api.createInbox(keypair.publicKeyB64, ttl, emailAddress));
+      // Only generate keypair if encryption is requested or if no preference is specified
+      // (server default might be encrypted)
+      const shouldGenerateKeypair = encryption !== 'plain';
+      /* istanbul ignore next */
+      const keypair = shouldGenerateKeypair ? this.encryption.generateKeypair() : null;
+
+      const result = await firstValueFrom(
+        this.api.createInbox({
+          clientKemPk: keypair?.publicKeyB64,
+          ttl,
+          emailAddress,
+          encryption,
+          emailAuth,
+        }),
+      );
 
       const inbox: InboxModel = {
         emailAddress: result.emailAddress,
         expiresAt: result.expiresAt,
         inboxHash: result.inboxHash,
+        encrypted: result.encrypted,
         serverSigPk: result.serverSigPk,
-        secretKey: keypair.secretKey,
+        secretKey: keypair?.secretKey,
         emails: [],
       };
 

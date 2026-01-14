@@ -82,8 +82,8 @@ export interface ParsedEmailContent {
       aligned: boolean;
     };
     reverseDns?: {
+      result: 'pass' | 'fail' | 'none' | 'skipped';
       hostname: string;
-      verified: boolean;
       ip: string;
     };
   };
@@ -159,11 +159,14 @@ export interface InboxModel {
   /** Unique hash identifier for the inbox */
   inboxHash: string;
 
-  /** Server's public signing key for verifying encrypted messages */
-  serverSigPk: string;
+  /** Whether this inbox uses encryption */
+  encrypted: boolean;
 
-  /** Client's secret key for decrypting messages */
-  secretKey: Uint8Array;
+  /** Server's public signing key for verifying encrypted messages (only for encrypted inboxes) */
+  serverSigPk?: string;
+
+  /** Client's secret key for decrypting messages (only for encrypted inboxes) */
+  secretKey?: Uint8Array;
 
   /** Array of emails in this inbox */
   emails: EmailItemModel[];
@@ -195,11 +198,14 @@ export interface ExportedInboxData {
   /** Unique hash identifier for the inbox. Non-empty. */
   inboxHash: string;
 
-  /** Server's ML-DSA-65 public key (base64url encoded, 1952 bytes decoded) */
-  serverSigPk: string;
+  /** Whether this inbox uses encryption */
+  encrypted: boolean;
 
-  /** ML-KEM-768 secret key (base64url encoded, 2400 bytes decoded) */
-  secretKey: string;
+  /** Server's ML-DSA-65 public key (base64url encoded, 1952 bytes decoded). Only for encrypted inboxes. */
+  serverSigPk?: string;
+
+  /** ML-KEM-768 secret key (base64url encoded, 2400 bytes decoded). Only for encrypted inboxes. */
+  secretKey?: string;
 
   /** ISO timestamp when the inbox was exported (ISO 8601 with Z suffix) */
   exportedAt: string;
@@ -221,6 +227,15 @@ export interface ImportResult {
   /** Email address of the imported inbox (if successful) */
   emailAddress?: string;
 }
+
+/**
+ * Encryption policy values that control inbox encryption behavior.
+ * - 'always': All inboxes are encrypted, no override allowed
+ * - 'enabled': Default encrypted, can request plain
+ * - 'disabled': Default plain, can request encrypted
+ * - 'never': All inboxes are plain, no override allowed
+ */
+export type EncryptionPolicy = 'always' | 'enabled' | 'disabled' | 'never';
 
 /**
  * Server configuration and cryptographic algorithm information.
@@ -249,6 +264,9 @@ export interface ServerInfo {
 
   /** Optional list of allowed email domains */
   allowedDomains?: string[];
+
+  /** Encryption policy controlling inbox encryption behavior */
+  encryptionPolicy: EncryptionPolicy;
 }
 
 /**
@@ -264,47 +282,68 @@ export interface CreateInboxResponse {
   /** Unique hash identifier for the inbox */
   inboxHash: string;
 
-  /** Server's public signing key */
-  serverSigPk: string;
+  /** Whether this inbox is encrypted */
+  encrypted: boolean;
+
+  /** Server's public signing key (only present when encrypted=true) */
+  serverSigPk?: string;
+
+  /** Whether email authentication (SPF/DKIM/DMARC/PTR) is enabled for this inbox */
+  emailAuth: boolean;
 }
 
 /**
  * Response structure for email list items from the server.
  * Contains minimal information for displaying emails in a list.
+ * Supports both encrypted and plain formats - use field presence to discriminate.
  */
 export interface EmailListItemResponse {
   /** Unique email identifier */
   id: string;
 
-  /** Encrypted metadata containing basic email information */
-  encryptedMetadata: EncryptedPayload;
-
   /** Whether the email has been marked as read */
   isRead?: boolean;
+
+  /** Encrypted metadata containing basic email information (encrypted inbox) */
+  encryptedMetadata?: EncryptedPayload;
+
+  /** Base64-encoded metadata JSON (plain inbox) */
+  metadata?: string;
 }
 
 /**
  * Response structure for full email details from the server.
  * Contains encrypted content that needs to be decrypted client-side.
+ * Supports both encrypted and plain formats - use field presence to discriminate.
  */
 export interface EmailDetailResponse {
-  /** Encrypted parsed email content with structured data */
-  encryptedParsed?: EncryptedPayload;
-
-  /** Encrypted raw email body */
-  encryptedBody?: EncryptedPayload;
-
-  /** Encrypted email metadata */
-  encryptedMetadata?: EncryptedPayload;
-
   /** Whether the email has been marked as read */
   isRead?: boolean;
+
+  /** Encrypted parsed email content with structured data (encrypted inbox) */
+  encryptedParsed?: EncryptedPayload;
+
+  /** Encrypted raw email body (encrypted inbox) */
+  encryptedBody?: EncryptedPayload;
+
+  /** Encrypted email metadata (encrypted inbox) */
+  encryptedMetadata?: EncryptedPayload;
+
+  /** Base64-encoded parsed content JSON (plain inbox) */
+  parsed?: string;
+
+  /** Base64-encoded metadata JSON (plain inbox) */
+  metadata?: string;
 }
 
 /**
  * Response structure for raw email content from the server.
+ * Supports both encrypted and plain formats - use field presence to discriminate.
  */
 export interface RawEmailResponse {
-  /** Encrypted raw email data */
-  encryptedRaw: EncryptedPayload;
+  /** Encrypted raw email data (encrypted inbox) */
+  encryptedRaw?: EncryptedPayload;
+
+  /** Base64-encoded raw email (plain inbox) */
+  raw?: string;
 }

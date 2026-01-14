@@ -194,6 +194,7 @@ export class MailManagerStub implements Partial<MailManager> {
       emailAddress: 'test@example.com',
       expiresAt: now,
       inboxHash: 'stub-hash',
+      encrypted: true,
       serverSigPk: 'stub-server-sig',
       secretKey: '',
       exportedAt: now,
@@ -243,6 +244,7 @@ export class InboxServiceStub implements Partial<InboxService> {
       emailAddress: 'stub@example.com',
       expiresAt: new Date().toISOString(),
       inboxHash: 'stub-hash',
+      encrypted: true,
       serverSigPk: 'stub-server-sig',
       secretKey: new Uint8Array(),
       emails: [],
@@ -278,6 +280,7 @@ export class InboxServiceStub implements Partial<InboxService> {
       emailAddress: 'stub@example.com',
       expiresAt: now,
       inboxHash: 'stub-hash',
+      encrypted: true,
       serverSigPk: 'stub-server-sig',
       secretKey: '',
       exportedAt: now,
@@ -391,6 +394,7 @@ export class ServerInfoServiceStub implements Partial<ServerInfoService> {
     sseConsole: false,
     allowClearAllInboxes: true,
     allowedDomains: [],
+    encryptionPolicy: 'always',
   });
 
   get serverInfo() {
@@ -435,16 +439,25 @@ export class VaultSandboxApiStub implements Partial<VaultSandboxApi> {
       sseConsole: false,
       allowClearAllInboxes: true,
       allowedDomains: [],
+      encryptionPolicy: 'always' as const,
     });
   }
 
-  createInbox(domain: string, ttlSeconds?: number, emailAddress?: string) {
-    consumeArgs(domain, ttlSeconds);
+  createInbox(options: {
+    clientKemPk?: string;
+    ttl?: number;
+    emailAddress?: string;
+    encryption?: 'encrypted' | 'plain';
+    emailAuth?: boolean;
+  }) {
+    consumeArgs(options);
     return of({
-      emailAddress: emailAddress ?? 'stub@example.com',
+      emailAddress: options.emailAddress ?? 'stub@example.com',
       expiresAt: new Date().toISOString(),
       inboxHash: 'stub-hash',
-      serverSigPk: 'stub',
+      encrypted: options.encryption !== 'plain',
+      serverSigPk: options.encryption !== 'plain' ? 'stub' : undefined,
+      emailAuth: options.emailAuth ?? true,
     });
   }
 

@@ -92,8 +92,8 @@ export interface AuthenticationResults {
    * Reverse DNS (PTR record) validation result
    */
   reverseDns?: {
+    result: string;
     hostname: string;
-    verified: boolean;
     ip: string;
   };
 }

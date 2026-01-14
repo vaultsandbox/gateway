@@ -21,6 +21,7 @@ class ConfigurableServerInfoServiceStub {
     sseConsole: false,
     allowClearAllInboxes: true,
     allowedDomains: ['example.com', 'test.com'],
+    encryptionPolicy: 'always',
   });
 
   get serverInfo() {
@@ -53,6 +54,7 @@ describe('CustomInboxDialog', () => {
     sseConsole: false,
     allowClearAllInboxes: true,
     allowedDomains: ['example.com', 'test.com'],
+    encryptionPolicy: 'always',
     ...overrides,
   });
 
@@ -586,6 +588,57 @@ describe('CustomInboxDialog', () => {
         { label: 'Hours', value: 'hours' },
         { label: 'Days', value: 'days' },
       ]);
+    });
+  });
+
+  describe('emailAuthEnabled', () => {
+    beforeEach(() => {
+      serverInfoService.setServerInfo(createServerInfo({ maxTtl: 86400 }));
+      component.selectedDomain.set('example.com');
+      component.ttlValue.set(12);
+      component.ttlUnit.set('hours');
+    });
+
+    it('is initialized to true by default', () => {
+      expect(component.emailAuthEnabled()).toBe(true);
+    });
+
+    it('passes undefined emailAuth when enabled (server default)', async () => {
+      let capturedEmailAuth: boolean | undefined;
+      spyOn(mailManager, 'createInbox').and.callFake(
+        (_email?: string, _ttl?: number, _encryption?: 'encrypted' | 'plain', emailAuth?: boolean) => {
+          capturedEmailAuth = emailAuth;
+          return Promise.resolve({ created: true, email: 'test@example.com' });
+        },
+      );
+      component.emailAuthEnabled.set(true);
+
+      await component.handleCreate();
+
+      expect(capturedEmailAuth).toBeUndefined();
+    });
+
+    it('passes false emailAuth when disabled', async () => {
+      let capturedEmailAuth: boolean | undefined;
+      spyOn(mailManager, 'createInbox').and.callFake(
+        (_email?: string, _ttl?: number, _encryption?: 'encrypted' | 'plain', emailAuth?: boolean) => {
+          capturedEmailAuth = emailAuth;
+          return Promise.resolve({ created: true, email: 'test@example.com' });
+        },
+      );
+      component.emailAuthEnabled.set(false);
+
+      await component.handleCreate();
+
+      expect(capturedEmailAuth).toBe(false);
+    });
+
+    it('resets to true when dialog closes', async () => {
+      component.emailAuthEnabled.set(false);
+
+      await (component as unknown as { closeDialog: () => Promise<void> }).closeDialog();
+
+      expect(component.emailAuthEnabled()).toBe(true);
     });
   });
 });

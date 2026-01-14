@@ -5,6 +5,21 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.7.0] - 2026-01-12
+
+### Added
+
+- **Optional Encryption**: Inboxes can now be created without encryption for simplified testing workflows; encrypted inboxes remain the default (frontend + backend)
+- **Optional Email Authentication**: Email authentication checks (SPF, DKIM, DMARC, ReverseDNS) are now individually configurable at the gateway level and can be disabled per inbox for simplified testing (frontend + backend)
+
+### Changed
+
+- **License**: Changed from AGPL-3.0/MIT dual-license to Apache-2.0
+- SPF and reverse DNS checks moved to DATA phase to support per-inbox emailAuth configuration
+- Added support for localhost, vaultsandbox, and private IPs (127.x, 10.x, 172.16-31.x, 192.168.x) in domain validation for local development
+
+[0.7.0]: https://github.com/vaultsandbox/gateway/releases/tag/v0.7.0
+
 ## [0.6.1] - 2026-01-11
 
 ### Added

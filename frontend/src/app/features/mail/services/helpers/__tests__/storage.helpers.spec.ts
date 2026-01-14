@@ -186,12 +186,24 @@ describe('storage.helpers', () => {
         emailAddress: 'test@example.com',
         expiresAt: '2024-12-31T23:59:59.000Z',
         inboxHash: 'hash123',
+        encrypted: true,
         serverSigPk: 'serverKey',
         secretKey: 'secretKey',
       };
 
-      it('returns true for valid record', () => {
+      it('returns true for valid encrypted record', () => {
         expect(InboxStorageValidator.isStoredInboxRecord(validRecord)).toBeTrue();
+      });
+
+      it('returns true for valid plain record', () => {
+        const plainRecord: StoredInboxRecord = {
+          version: 1,
+          emailAddress: 'test@example.com',
+          expiresAt: '2024-12-31T23:59:59.000Z',
+          inboxHash: 'hash123',
+          encrypted: false,
+        };
+        expect(InboxStorageValidator.isStoredInboxRecord(plainRecord)).toBeTrue();
       });
 
       it('returns false for null', () => {
@@ -232,13 +244,19 @@ describe('storage.helpers', () => {
         expect(InboxStorageValidator.isStoredInboxRecord(rest)).toBeFalse();
       });
 
-      it('returns false for missing serverSigPk', () => {
+      it('returns false for missing encrypted field', () => {
+        // eslint-disable-next-line @typescript-eslint/no-unused-vars
+        const { encrypted, ...rest } = validRecord;
+        expect(InboxStorageValidator.isStoredInboxRecord(rest)).toBeFalse();
+      });
+
+      it('returns false for encrypted inbox missing serverSigPk', () => {
         // eslint-disable-next-line @typescript-eslint/no-unused-vars
         const { serverSigPk, ...rest } = validRecord;
         expect(InboxStorageValidator.isStoredInboxRecord(rest)).toBeFalse();
       });
 
-      it('returns false for missing secretKey', () => {
+      it('returns false for encrypted inbox missing secretKey', () => {
         // eslint-disable-next-line @typescript-eslint/no-unused-vars
         const { secretKey, ...rest } = validRecord;
         expect(InboxStorageValidator.isStoredInboxRecord(rest)).toBeFalse();
@@ -251,6 +269,7 @@ describe('storage.helpers', () => {
         emailAddress: 'test@example.com',
         expiresAt: '2024-12-31T23:59:59.000Z',
         inboxHash: 'hash123',
+        encrypted: true,
         serverSigPk: 'serverKey',
         secretKey: 'secretKey',
       };
@@ -297,6 +316,7 @@ describe('storage.helpers', () => {
         emailAddress: 'test@example.com',
         expiresAt: '2024-12-31T23:59:59.000Z',
         inboxHash: 'hash123',
+        encrypted: true,
         serverSigPk: base64urlEncode(new Uint8Array(MLDSA_PUBLIC_KEY_SIZE)),
         secretKey: base64urlEncode(new Uint8Array(MLKEM_SECRET_KEY_SIZE)),
         exportedAt: '2024-01-01T00:00:00.000Z',
@@ -405,6 +425,7 @@ describe('storage.helpers', () => {
       emailAddress: 'test@example.com',
       expiresAt: '2024-12-31T23:59:59.000Z',
       inboxHash: 'hash123',
+      encrypted: true,
       serverSigPk: 'serverKey',
       secretKey: new Uint8Array([1, 2, 3, 4, 5]),
       emails: [],
@@ -442,7 +463,7 @@ describe('storage.helpers', () => {
         const inbox = createInboxModel();
         const records = InboxStorageMapper.toStoredRecords([inbox]);
 
-        const decoded = base64urlDecode(records[0].secretKey);
+        const decoded = base64urlDecode(records[0].secretKey!);
         expect(decoded).toEqual(new Uint8Array([1, 2, 3, 4, 5]));
       });
     });
@@ -456,6 +477,7 @@ describe('storage.helpers', () => {
               emailAddress: 'test@example.com',
               expiresAt: '2024-12-31T23:59:59.000Z',
               inboxHash: 'hash123',
+              encrypted: true,
               serverSigPk: 'serverKey',
               secretKey: base64urlEncode(new Uint8Array([1, 2, 3])),
             },
@@ -468,6 +490,7 @@ describe('storage.helpers', () => {
         expect(models[0].emailAddress).toBe('test@example.com');
         expect(models[0].expiresAt).toBe('2024-12-31T23:59:59.000Z');
         expect(models[0].inboxHash).toBe('hash123');
+        expect(models[0].encrypted).toBe(true);
         expect(models[0].serverSigPk).toBe('serverKey');
         expect(models[0].secretKey).toEqual(new Uint8Array([1, 2, 3]));
         expect(models[0].emails).toEqual([]);
@@ -486,6 +509,7 @@ describe('storage.helpers', () => {
               emailAddress: 'test1@example.com',
               expiresAt: '2024-12-31T23:59:59.000Z',
               inboxHash: 'hash1',
+              encrypted: true,
               serverSigPk: 'serverKey1',
               secretKey: base64urlEncode(new Uint8Array([1])),
             },
@@ -494,6 +518,7 @@ describe('storage.helpers', () => {
               emailAddress: 'test2@example.com',
               expiresAt: '2024-12-31T23:59:59.000Z',
               inboxHash: 'hash2',
+              encrypted: true,
               serverSigPk: 'serverKey2',
               secretKey: base64urlEncode(new Uint8Array([2])),
             },
@@ -537,7 +562,7 @@ describe('storage.helpers', () => {
         const inbox = createInboxModel();
 
         const exported = InboxStorageMapper.exportInbox(inbox);
-        const decoded = base64urlDecode(exported.secretKey);
+        const decoded = base64urlDecode(exported.secretKey!);
 
         expect(decoded).toEqual(new Uint8Array([1, 2, 3, 4, 5]));
       });

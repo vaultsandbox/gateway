@@ -72,16 +72,23 @@ export class InboxStorageService {
   /**
    * Builds an inbox model from imported data, decoding base64url secret key.
    * Per spec Section 10.2, the public key is derived from secretKey[1152:2400].
+   * Handles both encrypted and plain inboxes.
    * @param importData Validated inbox export payload.
    */
   createInboxModelFromImport(importData: ExportedInboxData): InboxModel {
-    return {
+    const model: InboxModel = {
       emailAddress: importData.emailAddress,
       expiresAt: importData.expiresAt,
       inboxHash: importData.inboxHash,
-      serverSigPk: importData.serverSigPk,
-      secretKey: base64urlDecode(importData.secretKey),
+      encrypted: importData.encrypted,
       emails: [],
     };
+
+    if (importData.encrypted && importData.serverSigPk && importData.secretKey) {
+      model.serverSigPk = importData.serverSigPk;
+      model.secretKey = base64urlDecode(importData.secretKey);
+    }
+
+    return model;
   }
 }

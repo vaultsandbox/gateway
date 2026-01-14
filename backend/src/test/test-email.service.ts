@@ -3,10 +3,12 @@ import { randomUUID } from 'crypto';
 import { InboxService } from '../inbox/inbox.service';
 import { CryptoService } from '../crypto/crypto.service';
 import { EmailStorageService } from '../smtp/storage/email-storage.service';
+import { InboxStorageService } from '../inbox/storage/inbox-storage.service';
 import { EventsService } from '../events/events.service';
 import { CreateTestEmailDto } from './dto/create-test-email.dto';
 import { serializeEncryptedPayload } from '../crypto/serialization';
 import type { EncryptedBodyPayload, AuthenticationResults } from '../smtp/interfaces/encrypted-body.interface';
+import type { PlainStoredEmail } from '../inbox/interfaces';
 
 type ParsedEmailPayload = Omit<EncryptedBodyPayload, 'rawEmail'>;
 
@@ -22,11 +24,12 @@ interface MetadataPayload {
 export class TestEmailService {
   private readonly logger = new Logger(TestEmailService.name);
 
-  /* c8 ignore next 5 */
+  /* c8 ignore next 6 */
   constructor(
     private readonly inboxService: InboxService,
     private readonly cryptoService: CryptoService,
     private readonly emailStorageService: EmailStorageService,
+    private readonly inboxStorageService: InboxStorageService,
     private readonly eventsService: EventsService,
   ) {}
 
@@ -63,7 +66,43 @@ export class TestEmailService {
     const parsedPayload = this.buildParsedPayload(from, recipientEmail, subject, text, html, receivedAt, authResults);
     const rawPayload = this.buildRawEmail(from, recipientEmail, subject, text, html, receivedAt);
 
-    // Encrypt payloads
+    if (inbox.encrypted && inbox.clientKemPk) {
+      // Encrypted inbox: encrypt and store
+      await this.storeEncryptedTestEmail(
+        inbox.clientKemPk,
+        recipientEmail,
+        emailId,
+        metadataPayload,
+        parsedPayload,
+        rawPayload,
+      );
+
+      // Emit SSE event with encrypted metadata
+      this.emitEncryptedSseEvent(inbox.inboxHash, emailId, inbox.clientKemPk, metadataPayload);
+    } else {
+      // Plain inbox: store as binary Uint8Array
+      this.storePlainTestEmail(recipientEmail, emailId, metadataPayload, parsedPayload, rawPayload);
+
+      // Emit SSE event with plain metadata
+      this.emitPlainSseEvent(inbox.inboxHash, emailId, metadataPayload);
+    }
+
+    this.logger.log(`Test email ${emailId} created for ${recipientEmail} (encrypted=${inbox.encrypted})`);
+
+    return { emailId };
+  }
+
+  /**
+   * Store encrypted test email.
+   */
+  private async storeEncryptedTestEmail(
+    clientKemPk: string,
+    recipientEmail: string,
+    emailId: string,
+    metadataPayload: MetadataPayload,
+    parsedPayload: ParsedEmailPayload,
+    rawPayload: string,
+  ): Promise<void> {
     const metadataPlaintext = Buffer.from(JSON.stringify(metadataPayload), 'utf-8');
     const parsedPlaintext = Buffer.from(JSON.stringify(parsedPayload), 'utf-8');
     const rawPlaintext = Buffer.from(rawPayload, 'utf-8');
@@ -72,38 +111,82 @@ export class TestEmailService {
     const parsedAad = Buffer.from('vaultsandbox:parsed', 'utf-8');
     const rawAad = Buffer.from('vaultsandbox:raw', 'utf-8');
 
-    const encryptedMetadata = await this.cryptoService.encryptForClient(
-      inbox.clientKemPk,
-      metadataPlaintext,
-      metadataAad,
-    );
-    const encryptedParsed = await this.cryptoService.encryptForClient(inbox.clientKemPk, parsedPlaintext, parsedAad);
-    const encryptedRaw = await this.cryptoService.encryptForClient(inbox.clientKemPk, rawPlaintext, rawAad);
+    const encryptedMetadata = await this.cryptoService.encryptForClient(clientKemPk, metadataPlaintext, metadataAad);
+    const encryptedParsed = await this.cryptoService.encryptForClient(clientKemPk, parsedPlaintext, parsedAad);
+    const encryptedRaw = await this.cryptoService.encryptForClient(clientKemPk, rawPlaintext, rawAad);
 
-    // Store email
     this.emailStorageService.storeEmail(recipientEmail, emailId, {
       encryptedMetadata,
       encryptedParsed,
       encryptedRaw,
     });
+  }
 
-    this.logger.log(`Test email ${emailId} created for ${recipientEmail}`);
+  /**
+   * Store plain test email.
+   */
+  private storePlainTestEmail(
+    recipientEmail: string,
+    emailId: string,
+    metadataPayload: MetadataPayload,
+    parsedPayload: ParsedEmailPayload,
+    rawPayload: string,
+  ): void {
+    const plainEmail: PlainStoredEmail = {
+      id: emailId,
+      isRead: false,
+      metadata: new Uint8Array(Buffer.from(JSON.stringify(metadataPayload))),
+      parsed: new Uint8Array(Buffer.from(JSON.stringify(parsedPayload))),
+      raw: new Uint8Array(Buffer.from(rawPayload)), // rawPayload is already base64
+    };
 
-    // Emit SSE event
-    /* c8 ignore start */
+    this.inboxStorageService.addEmail(recipientEmail, plainEmail);
+  }
+
+  /**
+   * Emit SSE event for encrypted test email.
+   */
+  private emitEncryptedSseEvent(
+    inboxHash: string,
+    emailId: string,
+    clientKemPk: string,
+    metadataPayload: MetadataPayload,
+  ): void {
+    try {
+      const metadataPlaintext = Buffer.from(JSON.stringify(metadataPayload), 'utf-8');
+      const metadataAad = Buffer.from('vaultsandbox:metadata', 'utf-8');
+      // Note: This is a synchronous call for SSE, we fire-and-forget
+      void this.cryptoService
+        .encryptForClient(clientKemPk, metadataPlaintext, metadataAad)
+        .then((encryptedMetadata) => {
+          this.eventsService.emitNewEmailEvent({
+            inboxId: inboxHash,
+            emailId,
+            encryptedMetadata: serializeEncryptedPayload(encryptedMetadata),
+          });
+        });
+      /* v8 ignore start - defensive: cryptoService.encryptForClient doesn't throw synchronously*/
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      this.logger.error(`Failed to emit SSE event for test email ${emailId}: ${message}`);
+    }
+    /* v8 ignore stop */
+  }
+
+  /**
+   * Emit SSE event for plain test email.
+   */
+  private emitPlainSseEvent(inboxHash: string, emailId: string, metadataPayload: MetadataPayload): void {
     try {
       this.eventsService.emitNewEmailEvent({
-        inboxId: inbox.inboxHash,
+        inboxId: inboxHash,
         emailId,
-        encryptedMetadata: serializeEncryptedPayload(encryptedMetadata),
+        metadata: Buffer.from(JSON.stringify(metadataPayload)).toString('base64'),
       });
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error);
       this.logger.error(`Failed to emit SSE event for test email ${emailId}: ${message}`);
     }
-    /* c8 ignore stop */
-
-    return { emailId };
   }
 
   /**
@@ -115,7 +198,7 @@ export class TestEmailService {
     const spfResult = dto.auth?.spf ?? 'pass';
     const dkimResult = dto.auth?.dkim ?? 'pass';
     const dmarcResult = dto.auth?.dmarc ?? 'pass';
-    const reverseDnsVerified = dto.auth?.reverseDns ?? true;
+    const reverseDnsResult = dto.auth?.reverseDns ?? 'pass';
 
     return {
       spf: {
@@ -138,8 +221,8 @@ export class TestEmailService {
         aligned: true,
       },
       reverseDns: {
-        hostname: 'test.vaultsandbox.local',
-        verified: reverseDnsVerified,
+        result: reverseDnsResult,
+        hostname: reverseDnsResult === 'pass' ? 'test.vaultsandbox.local' : '',
         ip: '127.0.0.1',
       },
     };

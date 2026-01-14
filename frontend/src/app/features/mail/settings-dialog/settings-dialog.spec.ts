@@ -294,6 +294,7 @@ describe('SettingsDialog', () => {
         sseConsole: false,
         allowClearAllInboxes: true,
         allowedDomains: [],
+        encryptionPolicy: 'always',
       });
 
       expect(component.allowClearAllInboxes()).toBe(true);
@@ -309,6 +310,7 @@ describe('SettingsDialog', () => {
         sseConsole: false,
         allowClearAllInboxes: false,
         allowedDomains: [],
+        encryptionPolicy: 'always',
       });
 
       expect(component.allowClearAllInboxes()).toBe(false);

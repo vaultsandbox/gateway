@@ -210,8 +210,8 @@ export function expectAuthResults(authResults: AuthResults) {
   if (authResults.reverseDns) {
     expect(authResults.reverseDns).toEqual(
       expect.objectContaining({
+        result: expect.any(String),
         hostname: expect.any(String),
-        verified: expect.any(Boolean),
         ip: expect.any(String),
       }),
     );
@@ -227,7 +227,7 @@ export function expectAuthResultValues(
     spf?: string;
     dkim?: string;
     dmarc?: string;
-    reverseDnsVerified?: boolean;
+    reverseDns?: string;
   },
 ) {
   if (expected.spf !== undefined) {
@@ -244,8 +244,8 @@ export function expectAuthResultValues(
     expect(authResults.dmarc?.result).toBe(expected.dmarc);
   }
 
-  if (expected.reverseDnsVerified !== undefined) {
-    expect(authResults.reverseDns?.verified).toBe(expected.reverseDnsVerified);
+  if (expected.reverseDns !== undefined) {
+    expect(authResults.reverseDns?.result).toBe(expected.reverseDns);
   }
 }
 

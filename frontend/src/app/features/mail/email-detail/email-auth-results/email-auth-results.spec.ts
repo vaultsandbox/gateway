@@ -54,6 +54,12 @@ describe('EmailAuthResultsComponent', () => {
       );
     });
 
+    it('returns gray classes for "skipped"', () => {
+      expect(component.getResultClass('skipped')).toBe(
+        'bg-surface-300 text-surface-600 dark:bg-surface-600 dark:text-surface-300',
+      );
+    });
+
     it('returns surface classes for "none"', () => {
       expect(component.getResultClass('none')).toBe(
         'bg-surface-200 text-surface-700 dark:bg-surface-700 dark:text-surface-300',

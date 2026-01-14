@@ -1,6 +1,6 @@
 import { Injectable, Logger, NotFoundException, ConflictException } from '@nestjs/common';
 import { createHash } from 'crypto';
-import { Inbox, EncryptedEmail } from '../interfaces';
+import { Inbox, StoredEmail } from '../interfaces';
 
 // Interface for EmailStorageService to avoid circular dependency
 interface IEmailStorageService {
@@ -27,18 +27,27 @@ export class InboxStorageService {
   /**
    * Create a new inbox
    */
-  createInbox(emailAddress: string, clientKemPk: string, expiresAt: Date, inboxHash: string): Inbox {
+  createInbox(
+    emailAddress: string,
+    clientKemPk: string | undefined,
+    expiresAt: Date,
+    inboxHash: string,
+    encrypted: boolean,
+    emailAuth: boolean,
+  ): Inbox {
     // Normalize email to lowercase for case-insensitive lookups
     const normalizedEmail = emailAddress.toLowerCase();
 
-    // Check for duplicate inboxHash (prevents KEM key reuse across inboxes)
+    // Check for duplicate inboxHash (prevents KEM key reuse for encrypted, email reuse for plain)
     if (this.inboxHashToEmail.has(inboxHash)) {
       const existingEmail = this.inboxHashToEmail.get(inboxHash);
       this.logger.warn(
         `Duplicate inboxHash detected: ${inboxHash} (existing inbox: ${existingEmail}, attempted: ${normalizedEmail})`,
       );
       throw new ConflictException(
-        `An inbox with the same client KEM public key already exists. Please use a unique KEM key pair for each inbox.`,
+        encrypted
+          ? 'An inbox with the same client KEM public key already exists. Use a unique key pair.'
+          : 'An inbox with this email address already exists.',
       );
     }
 
@@ -46,6 +55,8 @@ export class InboxStorageService {
       emailAddress: normalizedEmail,
       clientKemPk,
       inboxHash,
+      encrypted,
+      emailAuth,
       createdAt: new Date(),
       expiresAt,
       emails: new Map(),
@@ -55,7 +66,9 @@ export class InboxStorageService {
     this.inboxes.set(normalizedEmail, inbox);
     this.inboxHashToEmail.set(inboxHash, normalizedEmail);
     this._updateEmailsHash(inbox); // Initialize emailsHash for empty inbox
-    this.logger.log(`Inbox created: ${normalizedEmail}, expires at ${expiresAt.toISOString()}`);
+    this.logger.log(
+      `Inbox created: ${normalizedEmail} (encrypted=${encrypted}, emailAuth=${emailAuth}), expires at ${expiresAt.toISOString()}`,
+    );
     return inbox;
   }
 
@@ -155,9 +168,9 @@ export class InboxStorageService {
   }
 
   /**
-   * Add encrypted email to inbox
+   * Add email to inbox (supports both encrypted and plain emails)
    */
-  addEmail(emailAddress: string, email: EncryptedEmail): void {
+  addEmail(emailAddress: string, email: StoredEmail): void {
     // Normalize email to lowercase for case-insensitive lookups
     const normalizedEmail = emailAddress.toLowerCase();
     const inbox = this.inboxes.get(normalizedEmail);
@@ -173,7 +186,7 @@ export class InboxStorageService {
   /**
    * Get all emails for an inbox (newest first)
    */
-  getEmails(emailAddress: string): EncryptedEmail[] {
+  getEmails(emailAddress: string): StoredEmail[] {
     // Normalize email to lowercase for case-insensitive lookups
     const normalizedEmail = emailAddress.toLowerCase();
     const inbox = this.inboxes.get(normalizedEmail);
@@ -188,7 +201,7 @@ export class InboxStorageService {
   /**
    * Get a specific email
    */
-  getEmail(emailAddress: string, emailId: string): EncryptedEmail {
+  getEmail(emailAddress: string, emailId: string): StoredEmail {
     // Normalize email to lowercase for case-insensitive lookups
     const normalizedEmail = emailAddress.toLowerCase();
     const inbox = this.inboxes.get(normalizedEmail);

@@ -56,6 +56,7 @@ describe('EmailDetail', () => {
     emailAddress: 'test@example.com',
     expiresAt: new Date().toISOString(),
     inboxHash: 'inbox-hash-123',
+    encrypted: true,
     serverSigPk: 'stub-sig',
     secretKey: new Uint8Array(),
     emails: [],

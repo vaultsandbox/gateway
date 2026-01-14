@@ -1,19 +1,19 @@
 export interface SpfResult {
-  status: 'pass' | 'fail' | 'softfail' | 'neutral' | 'none' | 'temperror' | 'permerror';
+  status: 'pass' | 'fail' | 'softfail' | 'neutral' | 'none' | 'temperror' | 'permerror' | 'skipped';
   domain?: string;
   ip?: string;
   info?: string;
 }
 
 export interface DkimResult {
-  status: 'pass' | 'fail' | 'none';
+  status: 'pass' | 'fail' | 'none' | 'skipped';
   domain?: string;
   selector?: string;
   info?: string;
 }
 
 export interface DmarcResult {
-  status: 'pass' | 'fail' | 'none';
+  status: 'pass' | 'fail' | 'none' | 'skipped';
   policy?: 'none' | 'quarantine' | 'reject';
   aligned?: boolean;
   domain?: string;
@@ -21,7 +21,7 @@ export interface DmarcResult {
 }
 
 export interface ReverseDnsResult {
-  status: 'pass' | 'fail' | 'none';
+  status: 'pass' | 'fail' | 'none' | 'skipped';
   ip?: string;
   hostname?: string;
   info?: string;

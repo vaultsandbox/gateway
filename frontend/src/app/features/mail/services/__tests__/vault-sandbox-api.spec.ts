@@ -51,6 +51,7 @@ describe('VaultSandboxApi', () => {
         sseConsole: false,
         allowClearAllInboxes: true,
         allowedDomains: ['example.com'],
+        encryptionPolicy: 'always' as const,
       };
 
       service.getServerInfo().subscribe((response) => {
@@ -68,11 +69,13 @@ describe('VaultSandboxApi', () => {
       emailAddress: 'test@example.com',
       expiresAt: '2024-01-01T00:00:00Z',
       inboxHash: 'test-hash',
+      encrypted: true,
       serverSigPk: 'test-pk',
+      emailAuth: true,
     };
 
     it('should make POST request with only clientKemPk', () => {
-      service.createInbox('test-kem-pk').subscribe((response) => {
+      service.createInbox({ clientKemPk: 'test-kem-pk' }).subscribe((response) => {
         expect(response).toEqual(mockResponse);
       });
 
@@ -83,7 +86,7 @@ describe('VaultSandboxApi', () => {
     });
 
     it('should include ttl when provided', () => {
-      service.createInbox('test-kem-pk', 7200).subscribe((response) => {
+      service.createInbox({ clientKemPk: 'test-kem-pk', ttl: 7200 }).subscribe((response) => {
         expect(response).toEqual(mockResponse);
       });
 
@@ -94,7 +97,7 @@ describe('VaultSandboxApi', () => {
     });
 
     it('should include emailAddress when provided', () => {
-      service.createInbox('test-kem-pk', undefined, 'custom@example.com').subscribe((response) => {
+      service.createInbox({ clientKemPk: 'test-kem-pk', emailAddress: 'custom@example.com' }).subscribe((response) => {
         expect(response).toEqual(mockResponse);
       });
 
@@ -105,9 +108,11 @@ describe('VaultSandboxApi', () => {
     });
 
     it('should include both ttl and emailAddress when provided', () => {
-      service.createInbox('test-kem-pk', 3600, 'custom@example.com').subscribe((response) => {
-        expect(response).toEqual(mockResponse);
-      });
+      service
+        .createInbox({ clientKemPk: 'test-kem-pk', ttl: 3600, emailAddress: 'custom@example.com' })
+        .subscribe((response) => {
+          expect(response).toEqual(mockResponse);
+        });
 
       const req = httpMock.expectOne(`${baseUrl}/inboxes`);
       expect(req.request.method).toBe('POST');
@@ -119,8 +124,8 @@ describe('VaultSandboxApi', () => {
       req.flush(mockResponse);
     });
 
-    it('should not include ttl when explicitly set to 0', () => {
-      service.createInbox('test-kem-pk', 0).subscribe((response) => {
+    it('should include ttl when explicitly set to 0', () => {
+      service.createInbox({ clientKemPk: 'test-kem-pk', ttl: 0 }).subscribe((response) => {
         expect(response).toEqual(mockResponse);
       });
 
@@ -129,14 +134,34 @@ describe('VaultSandboxApi', () => {
       req.flush(mockResponse);
     });
 
-    it('should not include emailAddress when empty string', () => {
-      service.createInbox('test-kem-pk', undefined, '').subscribe((response) => {
+    it('should include encryption preference when provided', () => {
+      service.createInbox({ ttl: 3600, encryption: 'plain' }).subscribe((response) => {
+        expect(response).toEqual({ ...mockResponse, encrypted: false, serverSigPk: undefined });
+      });
+
+      const req = httpMock.expectOne(`${baseUrl}/inboxes`);
+      expect(req.request.body).toEqual({ ttl: 3600, encryption: 'plain' });
+      req.flush({ ...mockResponse, encrypted: false, serverSigPk: undefined });
+    });
+
+    it('should include emailAuth when provided as true', () => {
+      service.createInbox({ clientKemPk: 'test-kem-pk', emailAuth: true }).subscribe((response) => {
         expect(response).toEqual(mockResponse);
       });
 
       const req = httpMock.expectOne(`${baseUrl}/inboxes`);
-      expect(req.request.body).toEqual({ clientKemPk: 'test-kem-pk' });
+      expect(req.request.body).toEqual({ clientKemPk: 'test-kem-pk', emailAuth: true });
       req.flush(mockResponse);
+    });
+
+    it('should include emailAuth when provided as false', () => {
+      service.createInbox({ clientKemPk: 'test-kem-pk', emailAuth: false }).subscribe((response) => {
+        expect(response).toEqual({ ...mockResponse, emailAuth: false });
+      });
+
+      const req = httpMock.expectOne(`${baseUrl}/inboxes`);
+      expect(req.request.body).toEqual({ clientKemPk: 'test-kem-pk', emailAuth: false });
+      req.flush({ ...mockResponse, emailAuth: false });
     });
   });
 

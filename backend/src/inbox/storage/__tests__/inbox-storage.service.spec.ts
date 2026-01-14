@@ -1,7 +1,7 @@
 import { ConflictException, NotFoundException } from '@nestjs/common';
 import { InboxStorageService } from '../inbox-storage.service';
 import { silenceNestLogger } from '../../../../test/helpers/silence-logger';
-import { EncryptedEmail } from '../../interfaces';
+import { EncryptedStoredEmail } from '../../interfaces';
 
 describe('InboxStorageService', () => {
   let service: InboxStorageService;
@@ -13,7 +13,7 @@ describe('InboxStorageService', () => {
     service = new InboxStorageService();
   });
 
-  function createMockEmail(id: string, isRead = false): EncryptedEmail {
+  function createMockEmail(id: string, isRead = false): EncryptedStoredEmail {
     return {
       id,
       encryptedMetadata: { ciphertext: 'meta', nonce: 'n', kemCiphertext: 'k' },

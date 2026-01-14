@@ -1,4 +1,5 @@
 import type { SecureVersion } from 'tls';
+import { EncryptionPolicy } from './config.constants';
 
 /**
  * Configuration type definition for type-safe access
@@ -79,6 +80,7 @@ export interface VsbConfiguration {
   crypto: {
     sigSkPath?: string;
     sigPkPath?: string;
+    encryptionPolicy: EncryptionPolicy;
   };
   throttle: {
     ttl: number;

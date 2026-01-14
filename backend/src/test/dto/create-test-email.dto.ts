@@ -1,14 +1,16 @@
-import { IsString, IsOptional, IsBoolean, IsIn, ValidateNested, MaxLength, IsEmail } from 'class-validator';
+import { IsString, IsOptional, IsIn, ValidateNested, MaxLength } from 'class-validator';
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import { Type } from 'class-transformer';
 
 const SPF_RESULTS = ['pass', 'fail', 'softfail', 'neutral', 'none', 'temperror', 'permerror'] as const;
 const DKIM_RESULTS = ['pass', 'fail', 'none'] as const;
 const DMARC_RESULTS = ['pass', 'fail', 'none'] as const;
+const REVERSE_DNS_RESULTS = ['pass', 'fail', 'none'] as const;
 
 export type SpfResult = (typeof SPF_RESULTS)[number];
 export type DkimResult = (typeof DKIM_RESULTS)[number];
 export type DmarcResult = (typeof DMARC_RESULTS)[number];
+export type ReverseDnsResult = (typeof REVERSE_DNS_RESULTS)[number];
 
 export class AuthOptionsDto {
   @ApiPropertyOptional({
@@ -40,11 +42,12 @@ export class AuthOptionsDto {
 
   @ApiPropertyOptional({
     description: 'Reverse DNS verification result',
-    default: true,
+    enum: REVERSE_DNS_RESULTS,
+    default: 'pass',
   })
   @IsOptional()
-  @IsBoolean()
-  reverseDns?: boolean;
+  @IsIn(REVERSE_DNS_RESULTS)
+  reverseDns?: ReverseDnsResult;
 }
 
 export class CreateTestEmailDto {
@@ -53,7 +56,6 @@ export class CreateTestEmailDto {
     example: 'inbox@vaultsandbox.test',
   })
   @IsString()
-  @IsEmail()
   @MaxLength(254)
   to: string;
 
@@ -64,7 +66,6 @@ export class CreateTestEmailDto {
   })
   @IsOptional()
   @IsString()
-  @IsEmail()
   @MaxLength(254)
   from?: string;
 

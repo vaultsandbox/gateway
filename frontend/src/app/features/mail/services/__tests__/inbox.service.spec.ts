@@ -45,6 +45,7 @@ describe('InboxService', () => {
     emailAddress: 'user@example.com',
     expiresAt: new Date().toISOString(),
     inboxHash: 'hash-123',
+    encrypted: true,
     serverSigPk: base64urlEncode(new Uint8Array(MLDSA_PUBLIC_KEY_SIZE)),
     secretKey: base64urlEncode(new Uint8Array(MLKEM_SECRET_KEY_SIZE)),
     exportedAt: new Date().toISOString(),

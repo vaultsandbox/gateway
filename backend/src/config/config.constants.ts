@@ -1,5 +1,22 @@
 export const BOOLEAN_TRUE_VALUES = ['true', '1', 'yes', 'on'];
 
+/**
+ * Server-level encryption policy.
+ * Parsed once at config load; used throughout the codebase.
+ */
+export enum EncryptionPolicy {
+  /** Encryption enabled by default; per-inbox override allowed */
+  ENABLED = 'enabled',
+  /** Encryption disabled by default; per-inbox override allowed */
+  DISABLED = 'disabled',
+  /** Encryption always on; per-inbox override NOT allowed */
+  ALWAYS = 'always',
+  /** Encryption always off; per-inbox override NOT allowed */
+  NEVER = 'never',
+}
+
+export const DEFAULT_ENCRYPTION_POLICY = EncryptionPolicy.ALWAYS;
+
 // Configuration defaults
 export const DEFAULT_DATA_PATH = '/app/data';
 export const DEFAULT_MAX_CONNECTIONS = 25;

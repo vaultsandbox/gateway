@@ -33,6 +33,7 @@ describe('MailboxSidebar', () => {
     emailAddress: 'test@example.com',
     expiresAt: new Date().toISOString(),
     inboxHash: 'test-inbox-hash',
+    encrypted: true,
     serverSigPk: 'stub-server-sig',
     secretKey: new Uint8Array(),
     emails: [],
@@ -134,6 +135,7 @@ describe('MailboxSidebar', () => {
           sseConsole: false,
           allowClearAllInboxes: true,
           allowedDomains: ['custom.com', 'other.com'],
+          encryptionPolicy: 'always' as const,
         }).asReadonly(),
       );
 
@@ -586,6 +588,7 @@ describe('MailboxSidebar', () => {
           sseConsole: false,
           allowClearAllInboxes: true,
           allowedDomains: [],
+          encryptionPolicy: 'always' as const,
         }).asReadonly(),
       );
 
@@ -606,6 +609,7 @@ describe('MailboxSidebar', () => {
           sseConsole: false,
           allowClearAllInboxes: true,
           allowedDomains: ['example.com'],
+          encryptionPolicy: 'always' as const,
         }).asReadonly(),
       );
 

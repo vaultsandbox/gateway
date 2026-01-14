@@ -6,7 +6,7 @@
  *
  * ## Responsibilities
  * - SMTP authentication handling (accept all for receive-only server)
- * - Sender address validation with SPF and reverse DNS checks
+ * - Sender address validation (format validation)
  * - Recipient address validation against allowed domains
  * - Email data processing with dual-mode support:
  *   - **Local Mode**: Encrypt and store emails in memory
@@ -20,8 +20,8 @@
  *
  * ## Security Features
  * - Open relay prevention via allowed domains list
- * - Non-blocking SPF/DKIM/DMARC validation (logged but not enforced)
- * - Per-session validation result caching
+ * - Non-blocking SPF/DKIM/DMARC/PTR validation (logged but not enforced)
+ * - Per-inbox email auth settings support
  *
  * @module smtp-handler
  */
@@ -45,7 +45,7 @@ import type {
 import type { SmtpConfig } from './interfaces/smtp-config.interface';
 import type { EncryptedBodyPayload, AttachmentData } from './interfaces/encrypted-body.interface';
 import type { LocalParsedMail, ParsedMailAttachment } from './interfaces/parsed-email.interface';
-import type { Inbox } from '../inbox/interfaces';
+import type { Inbox, PlainStoredEmail } from '../inbox/interfaces';
 import type { EncryptedPayload } from '../crypto/interfaces';
 import { serializeEncryptedPayload } from '../crypto/serialization';
 import { InboxService } from '../inbox/inbox.service';
@@ -106,8 +106,6 @@ export interface TlsInfo {
 export class SmtpHandlerService {
   private readonly logger = new Logger(SmtpHandlerService.name);
   private readonly config: SmtpConfig;
-  private readonly spfResultCache = new Map<string, TimestampedCacheEntry<SpfResult>>();
-  private readonly reverseDnsResultCache = new Map<string, TimestampedCacheEntry<ReverseDnsResult>>();
   private readonly tlsInfoCache = new Map<string, TimestampedCacheEntry<TlsInfo>>();
   private readonly gatewayMode: 'local' | 'backend';
   private readonly sessionCacheMaxAge = 5 * 60 * 1000; // 5 minutes
@@ -172,17 +170,16 @@ export class SmtpHandlerService {
    * Validates the sender email address in the MAIL FROM command.
    *
    * Performs basic structural validation to ensure the address looks like
-   * a valid email address. Also performs SPF validation by checking if the
-   * sending server's IP is authorized to send mail for the sender's domain.
-   * SPF validation is non-blocking - results are logged but do not reject mail.
+   * a valid email address. Email authentication (SPF, DKIM, DMARC, PTR) is
+   * performed later in the DATA phase when the recipient inbox is known.
    *
    * @param address - The sender address to validate
-   * @param session - Current SMTP session containing remote IP address
-   * @returns SPF validation result (for logging purposes)
+   * @param session - Current SMTP session (unused, kept for interface compatibility)
    * @throws {Error} If the address is not email-like
    * @throws {Error} If hard mode is active (no inboxes exist)
    */
-  async validateSender(address: SMTPServerAddress, session: SMTPServerSession): Promise<SpfResult> {
+  // eslint-disable-next-line @typescript-eslint/require-await, @typescript-eslint/no-unused-vars
+  async validateSender(address: SMTPServerAddress, session: SMTPServerSession): Promise<void> {
     // Hard mode check: reject if no inboxes exist
     if (this.gatewayMode === 'local' && this.inboxStorageService) {
       const hardModeRejectCode = this.configService.get<number>('vsb.local.hardModeRejectCode', 0);
@@ -204,43 +201,22 @@ export class SmtpHandlerService {
     if (!isEmailLike(address.address)) {
       throw new Error(`Invalid MAIL FROM address: ${address.address}`);
     }
-
-    const domain = extractDomain(address.address);
-    const remoteIp = normalizeIp(session.remoteAddress);
-
-    const [spfResult, reverseDnsResult] = await Promise.all([
-      this.emailValidationService.verifySpf(domain, remoteIp, address.address, session.id),
-      this.emailValidationService.verifyReverseDns(remoteIp, session.id),
-    ]);
-
-    const timestamp = Date.now();
-    this.spfResultCache.set(session.id, { value: spfResult, timestamp });
-    this.reverseDnsResultCache.set(session.id, { value: reverseDnsResult, timestamp });
-
-    // Log sender validation outcome to SSE console
-    this.sseConsoleService.logSenderValidation(address.address, remoteIp, spfResult?.status, reverseDnsResult?.status);
-
-    return spfResult;
   }
 
   /**
    * Cleans up session-specific caches when a connection closes.
    *
    * This method is called by the SMTP server's onClose handler to immediately
-   * release memory associated with SPF and reverse DNS validation results.
+   * release memory associated with TLS info cache entries.
    * Prevents memory leaks from clients that disconnect before DATA phase.
    *
    * @param sessionId - The SMTP session ID to clean up
    */
   cleanupSession(sessionId: string): void {
-    const hadSpf = this.spfResultCache.delete(sessionId);
-    const hadReverseDns = this.reverseDnsResultCache.delete(sessionId);
     const hadTls = this.tlsInfoCache.delete(sessionId);
 
-    if (hadSpf || hadReverseDns || hadTls) {
-      this.logger.debug(
-        `Cleaned up session cache for ${sessionId} (SPF: ${hadSpf}, ReverseDNS: ${hadReverseDns}, TLS: ${hadTls})`,
-      );
+    if (hadTls) {
+      this.logger.debug(`Cleaned up session cache for ${sessionId} (TLS: ${hadTls})`);
     }
   }
 
@@ -271,25 +247,7 @@ export class SmtpHandlerService {
   @Cron(CronExpression.EVERY_MINUTE)
   private cleanupStaleSessions(): void {
     const now = Date.now();
-    let cleanedSpf = 0;
-    let cleanedReverseDns = 0;
     let cleanedTls = 0;
-
-    // Cleanup stale SPF cache entries
-    for (const [sessionId, entry] of this.spfResultCache.entries()) {
-      if (now - entry.timestamp > this.sessionCacheMaxAge) {
-        this.spfResultCache.delete(sessionId);
-        cleanedSpf++;
-      }
-    }
-
-    // Cleanup stale reverse DNS cache entries
-    for (const [sessionId, entry] of this.reverseDnsResultCache.entries()) {
-      if (now - entry.timestamp > this.sessionCacheMaxAge) {
-        this.reverseDnsResultCache.delete(sessionId);
-        cleanedReverseDns++;
-      }
-    }
 
     // Cleanup stale TLS info cache entries
     for (const [sessionId, entry] of this.tlsInfoCache.entries()) {
@@ -299,11 +257,9 @@ export class SmtpHandlerService {
       }
     }
 
-    const totalCleaned = cleanedSpf + cleanedReverseDns + cleanedTls;
-    if (totalCleaned > 0) {
+    if (cleanedTls > 0) {
       this.logger.warn(
-        `Cleaned up ${totalCleaned} stale session cache entries ` +
-          `(SPF: ${cleanedSpf}, ReverseDNS: ${cleanedReverseDns}, TLS: ${cleanedTls}). ` +
+        `Cleaned up ${cleanedTls} stale TLS session cache entries. ` +
           `This may indicate sessions not properly closing.`,
       );
     }
@@ -460,7 +416,9 @@ export class SmtpHandlerService {
     const displayFrom = parsedMail?.from?.text || envelopeFrom;
 
     const recipientContexts = this.resolveRecipientInboxes(to, inboxService);
-    const validationResults = await this.performEmailValidation(rawData, session, parsedHeaders);
+    // Use first recipient's inbox for email auth settings (multi-recipient emails use first inbox's settings)
+    const primaryInbox = recipientContexts[0]?.inbox;
+    const validationResults = await this.performEmailValidation(rawData, session, parsedHeaders, primaryInbox);
     const parsedPayload = this.buildParsedPayload(
       parsedMail,
       displayFrom,
@@ -481,26 +439,42 @@ export class SmtpHandlerService {
         receivedAt,
       );
 
-      const encryptedPayloads = await this.encryptEmailData(
-        cryptoService,
-        recipientContext.inbox,
-        metadataPayload,
-        parsedPayload,
-        rawPayload,
-      );
-
-      this.storeEmail(recipientContext.baseEmail, emailId, encryptedPayloads);
-
       /* v8 ignore next 4 - branch for alias logging, tests use base email addresses */
       const aliasInfo =
         recipientContext.recipientAddress !== recipientContext.baseEmail
           ? ` (alias of ${recipientContext.baseEmail})`
           : '';
-      this.logger.log(
-        `Email ${emailId} encrypted and stored for ${recipientContext.recipientAddress}${aliasInfo} (session=${session.id}) from '${displayFrom ?? 'unknown'}' (${stream.byteLength} bytes)`,
-      );
 
-      this.notifyClient(recipientContext.inbox, emailId, encryptedPayloads.encryptedMetadata);
+      if (recipientContext.inbox.encrypted) {
+        // Encrypted inbox: encrypt and store
+        const encryptedPayloads = await this.encryptEmailData(
+          cryptoService,
+          recipientContext.inbox,
+          metadataPayload,
+          parsedPayload,
+          rawPayload,
+        );
+
+        this.storeEncryptedEmail(recipientContext.baseEmail, emailId, encryptedPayloads);
+
+        this.logger.log(
+          `Email ${emailId} encrypted and stored for ${recipientContext.recipientAddress}${aliasInfo} (session=${session.id}) from '${displayFrom ?? 'unknown'}' (${stream.byteLength} bytes)`,
+        );
+
+        this.notifyClient(recipientContext.inbox, emailId, encryptedPayloads.encryptedMetadata);
+      } else {
+        // Plain inbox: store as binary Uint8Array (no encryption)
+        const plainEmail = this.buildPlainEmail(emailId, metadataPayload, parsedPayload, rawPayload);
+
+        this.storePlainEmail(recipientContext.baseEmail, plainEmail);
+
+        /* v8 ignore next 3 */
+        this.logger.log(
+          `Email ${emailId} stored (plain) for ${recipientContext.recipientAddress}${aliasInfo} (session=${session.id}) from '${displayFrom ?? 'unknown'}' (${stream.byteLength} bytes)`,
+        );
+
+        this.notifyClientPlain(recipientContext.inbox, emailId, metadataPayload);
+      }
     }
 
     const { spfResult, dkimResults, dmarcResult, reverseDnsResult } = validationResults;
@@ -562,24 +536,36 @@ export class SmtpHandlerService {
 
   /**
    * Performs SPF, DKIM, DMARC, and reverse DNS validation aggregation.
+   *
+   * @param rawData - Raw email data
+   * @param session - SMTP session
+   * @param parsedHeaders - Parsed email headers
+   * @param inbox - Optional inbox for per-inbox email auth settings (uses first recipient's inbox)
    */
   private async performEmailValidation(
     rawData: Buffer,
     session: SMTPServerSession,
     parsedHeaders: Record<string, string>,
+    inbox?: Inbox,
   ): Promise<EmailValidationResults> {
-    const spfResult = this.spfResultCache.get(session.id)?.value;
-    this.spfResultCache.delete(session.id);
+    // Extract sender info for SPF validation
+    const senderAddress = session.envelope.mailFrom ? this.extractSmtpAddress(session.envelope.mailFrom) : undefined;
+    const domain = senderAddress ? extractDomain(senderAddress) : undefined;
+    const remoteIp = normalizeIp(session.remoteAddress);
 
-    const reverseDnsResult = this.reverseDnsResultCache.get(session.id)?.value;
-    this.reverseDnsResultCache.delete(session.id);
+    // Run all email auth checks in parallel, passing inbox for per-inbox settings
+    const [spfResult, reverseDnsResult, dkimResults] = await Promise.all([
+      this.emailValidationService.verifySpf(domain, remoteIp, senderAddress || '', session.id, inbox),
+      this.emailValidationService.verifyReverseDns(remoteIp, session.id, inbox),
+      this.emailValidationService.verifyDkim(rawData, session.id, inbox),
+    ]);
 
-    const dkimResults = await this.emailValidationService.verifyDkim(rawData, session.id);
     const dmarcResult = await this.emailValidationService.verifyDmarc(
       parsedHeaders,
       spfResult,
       dkimResults,
       session.id,
+      inbox,
     );
 
     this.emailValidationService.logValidationResults(session.id, spfResult, dkimResults, dmarcResult, reverseDnsResult);
@@ -675,8 +661,8 @@ export class SmtpHandlerService {
           : undefined,
         reverseDns: reverseDnsResult
           ? {
+              result: reverseDnsResult.status,
               hostname: reverseDnsResult.hostname || '',
-              verified: reverseDnsResult.status === 'pass',
               ip: normalizeIp(session.remoteAddress) || 'unknown',
             }
           : undefined,
@@ -715,6 +701,9 @@ export class SmtpHandlerService {
     parsedPayload: ParsedEmailPayload,
     rawPayload: string,
   ): Promise<EncryptedEmailPayloads> {
+    // clientKemPk is guaranteed to exist for encrypted inboxes (validated at inbox creation)
+    const clientKemPk = inbox.clientKemPk!;
+
     const metadataPlaintext = Buffer.from(JSON.stringify(metadataPayload), 'utf-8');
     const parsedPlaintext = Buffer.from(JSON.stringify(parsedPayload), 'utf-8');
     const rawPlaintext = Buffer.from(rawPayload, 'utf-8');
@@ -723,9 +712,9 @@ export class SmtpHandlerService {
     const parsedAad = Buffer.from('vaultsandbox:parsed', 'utf-8');
     const rawAad = Buffer.from('vaultsandbox:raw', 'utf-8');
 
-    const encryptedMetadata = await cryptoService.encryptForClient(inbox.clientKemPk, metadataPlaintext, metadataAad);
-    const encryptedParsed = await cryptoService.encryptForClient(inbox.clientKemPk, parsedPlaintext, parsedAad);
-    const encryptedRaw = await cryptoService.encryptForClient(inbox.clientKemPk, rawPlaintext, rawAad);
+    const encryptedMetadata = await cryptoService.encryptForClient(clientKemPk, metadataPlaintext, metadataAad);
+    const encryptedParsed = await cryptoService.encryptForClient(clientKemPk, parsedPlaintext, parsedAad);
+    const encryptedRaw = await cryptoService.encryptForClient(clientKemPk, rawPlaintext, rawAad);
 
     return {
       encryptedMetadata,
@@ -738,13 +727,38 @@ export class SmtpHandlerService {
    * Persists encrypted email payloads into the inbox storage with memory management.
    * Uses EmailStorageService which provides automatic FIFO eviction when memory limits are reached.
    */
-  private storeEmail(baseEmail: string, emailId: string, encryptedPayloads: EncryptedEmailPayloads): void {
+  private storeEncryptedEmail(baseEmail: string, emailId: string, encryptedPayloads: EncryptedEmailPayloads): void {
     // EmailStorageService is always available in local mode (same lifecycle as InboxService)
     this.emailStorageService!.storeEmail(baseEmail, emailId, encryptedPayloads);
   }
 
   /**
-   * Emits SSE events for new emails. Non-critical failures are logged only.
+   * Builds a plain email for storage (Uint8Array format for memory efficiency).
+   */
+  private buildPlainEmail(
+    emailId: string,
+    metadataPayload: MetadataPayload,
+    parsedPayload: ParsedEmailPayload,
+    rawPayload: string,
+  ): PlainStoredEmail {
+    return {
+      id: emailId,
+      isRead: false,
+      metadata: new Uint8Array(Buffer.from(JSON.stringify(metadataPayload))),
+      parsed: new Uint8Array(Buffer.from(JSON.stringify(parsedPayload))),
+      raw: new Uint8Array(Buffer.from(rawPayload, 'base64')), // decode base64 to actual bytes
+    };
+  }
+
+  /**
+   * Persists plain email into the inbox storage.
+   */
+  private storePlainEmail(baseEmail: string, email: PlainStoredEmail): void {
+    this.inboxStorageService!.addEmail(baseEmail, email);
+  }
+
+  /**
+   * Emits SSE events for new encrypted emails. Non-critical failures are logged only.
    * Serializes binary payload to Base64URL for SSE transmission.
    */
   private notifyClient(inbox: Inbox, emailId: string, encryptedMetadata: EncryptedPayload): void {
@@ -764,6 +778,31 @@ export class SmtpHandlerService {
       const message = error instanceof Error ? error.message : String(error);
       this.logger.error(`Failed to emit SSE event for email ${emailId}: ${message}`);
     }
+  }
+
+  /**
+   * Emits SSE events for new plain emails. Non-critical failures are logged only.
+   * Serializes metadata to Base64 for SSE transmission.
+   */
+  private notifyClientPlain(inbox: Inbox, emailId: string, metadata: MetadataPayload): void {
+    /* v8 ignore next 4 - eventsService is always available in production */
+    if (!this.eventsService) {
+      this.logger.warn('EventsService unavailable; SSE clients will not be notified');
+      return;
+    }
+
+    try {
+      this.eventsService.emitNewEmailEvent({
+        inboxId: inbox.inboxHash,
+        emailId,
+        metadata: Buffer.from(JSON.stringify(metadata)).toString('base64'),
+      });
+      /* v8 ignore start - defensive error handling */
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      this.logger.error(`Failed to emit SSE event for email ${emailId}: ${message}`);
+    }
+    /* v8 ignore stop */
   }
 
   /**

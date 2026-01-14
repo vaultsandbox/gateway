@@ -6,17 +6,28 @@ import { ButtonModule } from 'primeng/button';
 import { InputTextModule } from 'primeng/inputtext';
 import { SelectModule } from 'primeng/select';
 import { MessageModule } from 'primeng/message';
+import { ToggleSwitchModule } from 'primeng/toggleswitch';
 import { ServerInfoService } from '../services/server-info.service';
 import { MailManager } from '../services/mail-manager';
 import { VsToast } from '../../../shared/services/vs-toast';
 import { SettingsManager, TtlUnit } from '../services/settings-manager';
 import { TOAST_DURATION_MS } from '../../../shared/constants/app.constants';
 import { toSeconds, fromSeconds, secondsToHours, hoursToSeconds } from '../../../shared/utils/time.utils';
+import { EncryptionPolicy } from '../interfaces';
 
 @Component({
   selector: 'app-custom-inbox-dialog',
   standalone: true,
-  imports: [CommonModule, FormsModule, DialogModule, ButtonModule, InputTextModule, SelectModule, MessageModule],
+  imports: [
+    CommonModule,
+    FormsModule,
+    DialogModule,
+    ButtonModule,
+    InputTextModule,
+    SelectModule,
+    MessageModule,
+    ToggleSwitchModule,
+  ],
   templateUrl: './custom-inbox-dialog.html',
   styleUrl: './custom-inbox-dialog.scss',
 })
@@ -40,6 +51,8 @@ export class CustomInboxDialog {
   ttlUnit = signal<TtlUnit>('hours');
   creating = signal<boolean>(false);
   validationError = signal<string | null>(null);
+  encryptionEnabled = signal<boolean>(true);
+  emailAuthEnabled = signal<boolean>(true);
 
   // TTL unit options for dropdown
   ttlUnitOptions = [
@@ -59,6 +72,22 @@ export class CustomInboxDialog {
   defaultTtlHours = computed(() => secondsToHours(this.serverInfo()?.defaultTtl ?? hoursToSeconds(1)));
   /** Maximum inbox TTL in hours, derived from server config. */
   maxTtlHours = computed(() => secondsToHours(this.serverInfo()?.maxTtl ?? hoursToSeconds(24)));
+
+  // Encryption policy computed values
+  /** Current encryption policy from server. */
+  /* istanbul ignore next */
+  encryptionPolicy = computed<EncryptionPolicy>(() => this.serverInfo()?.encryptionPolicy ?? 'always');
+  /** Whether the user can override the default encryption setting. */
+  canOverrideEncryption = computed(() => {
+    const policy = this.encryptionPolicy();
+    return policy === 'enabled' || policy === 'disabled';
+  });
+  /** Default encryption state based on server policy. */
+  defaultEncrypted = computed(() => {
+    const policy = this.encryptionPolicy();
+    /* istanbul ignore next */
+    return policy === 'always' || policy === 'enabled';
+  });
 
   // TTL conversion helper
   /**
@@ -129,6 +158,11 @@ export class CustomInboxDialog {
       }
     });
 
+    // Initialize encryption setting from server policy
+    effect(() => {
+      this.encryptionEnabled.set(this.defaultEncrypted());
+    });
+
     // Initialize TTL with configured setting
     this.loadTtlFromSettings();
   }
@@ -173,8 +207,17 @@ export class CustomInboxDialog {
       // - If alias provided: send full email → specific email (or random if taken)
       const emailAddress = alias ? `${alias}@${domain}` : domain;
 
+      // Determine encryption preference
+      // Only pass explicit preference if user can override and choice differs from default
+      /* istanbul ignore next */
+      const encryption = this.canOverrideEncryption() ? (this.encryptionEnabled() ? 'encrypted' : 'plain') : undefined;
+
+      // Determine email auth preference
+      // Pass explicit value only when user disables it (false), otherwise omit to use server default
+      const emailAuth = this.emailAuthEnabled() ? undefined : false;
+
       // Create inbox
-      const response = await this.mailManager.createInbox(emailAddress, ttlSeconds);
+      const response = await this.mailManager.createInbox(emailAddress, ttlSeconds, encryption, emailAuth);
 
       if (response.created) {
         // Save this TTL and domain as the new defaults (sticky settings)
@@ -244,6 +287,12 @@ export class CustomInboxDialog {
 
     // Reset TTL to configured setting
     await this.loadTtlFromSettings();
+
+    // Reset encryption to server default
+    this.encryptionEnabled.set(this.defaultEncrypted());
+
+    // Reset email auth to enabled (server default)
+    this.emailAuthEnabled.set(true);
 
     this.validationError.set(null);
 

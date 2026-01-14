@@ -25,6 +25,7 @@ describe('EncryptionService', () => {
       sseConsole: false,
       allowClearAllInboxes: true,
       allowedDomains: [],
+      encryptionPolicy: 'always',
     });
 
     get serverInfo() {

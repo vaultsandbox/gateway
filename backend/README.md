@@ -223,7 +223,7 @@ The gateway consists of several NestJS modules:
 
 ### Gateway Modes
 
-- **Local Mode** (default): Stores emails in-memory with configurable TTL (7 days default). Perfect for QA/testing.
+- **Local Mode** (default): Stores emails in-memory with configurable TTL (7 days default). Perfect for QA/testing. Supports both encrypted and plain inboxes, with optional email authentication per inbox.
 - **Backend Mode**: Encrypts emails and forwards to backend service for compliance/retention.(🚧 In Progress)
 
 ### Security Features
@@ -395,4 +395,4 @@ Use a named volume mounted to `/app/data` to persist:
 
 ## License
 
-This project is licensed under the AGPL-3.0-or-later License. See the [LICENSE](./LICENSE) file for details.
+This project is licensed under the Apache License 2.0. See the [LICENSE](./LICENSE) file for details.

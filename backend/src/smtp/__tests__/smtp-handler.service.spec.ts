@@ -105,10 +105,14 @@ const mockInboxService = {
   storeEmail: jest.fn().mockResolvedValue(undefined),
   getInboxByEmail: jest.fn().mockReturnValue({
     id: 'inbox-1',
-    email: 'recipient@example.com',
-    publicKey: Buffer.from('public-key'),
-    clientKemPk: Buffer.from('client-kem-public-key'),
+    emailAddress: 'recipient@example.com',
+    clientKemPk: 'base64url-encoded-client-kem-public-key',
     inboxHash: 'inbox-hash-123',
+    encrypted: true,
+    createdAt: new Date(),
+    expiresAt: new Date(Date.now() + 3600000),
+    emails: new Map(),
+    emailsHash: 'emails-hash',
   }),
   addEmail: jest.fn(),
 } as unknown as InboxService;
@@ -153,10 +157,14 @@ describe('SmtpHandlerService', () => {
     // Restore mock implementations cleared by clearAllMocks
     (mockInboxService.getInboxByEmail as jest.Mock).mockReturnValue({
       id: 'inbox-1',
-      email: 'recipient@example.com',
-      publicKey: Buffer.from('public-key'),
-      clientKemPk: Buffer.from('client-kem-public-key'),
+      emailAddress: 'recipient@example.com',
+      clientKemPk: 'base64url-encoded-client-kem-public-key',
       inboxHash: 'inbox-hash-123',
+      encrypted: true,
+      createdAt: new Date(),
+      expiresAt: new Date(Date.now() + 3600000),
+      emails: new Map(),
+      emailsHash: 'emails-hash',
     });
     (mockInboxStorageService.getInboxCount as jest.Mock).mockReturnValue(1);
   });
@@ -253,7 +261,7 @@ describe('SmtpHandlerService', () => {
       expect(() => handler.cleanupSession('non-existent-session')).not.toThrow();
     });
 
-    it('should clean up caches after sender validation', async () => {
+    it('should clean up caches after TLS info is set', () => {
       const handler = new SmtpHandlerService(
         createMockConfigService(defaultConfig),
         mockEmailValidationService,
@@ -268,8 +276,8 @@ describe('SmtpHandlerService', () => {
         mockEmailStorageService,
       );
 
-      // First validate sender to populate caches
-      await handler.validateSender({ address: 'test@example.com', args: {} }, baseSession);
+      // Set TLS info to populate cache
+      handler.setTlsInfo(baseSession.id, { version: 'TLSv1.3', cipher: 'TLS_AES_256_GCM_SHA384', bits: 256 });
 
       // Cleanup should remove cached entries
       expect(() => handler.cleanupSession(baseSession.id)).not.toThrow();
@@ -459,10 +467,10 @@ describe('SmtpHandlerService', () => {
         mockEmailStorageService,
       );
 
-      const result = await handler.validateSender({ address: 'sender@example.com', args: {} }, baseSession);
-      expect(result).toBeDefined();
-      expect(mockEmailValidationService.verifySpf).toHaveBeenCalled();
-      expect(mockEmailValidationService.verifyReverseDns).toHaveBeenCalled();
+      // validateSender now only validates format, email auth happens in DATA phase
+      await expect(
+        handler.validateSender({ address: 'sender@example.com', args: {} }, baseSession),
+      ).resolves.toBeUndefined();
     });
   });
 
@@ -522,7 +530,7 @@ describe('SmtpHandlerService', () => {
   });
 
   describe('cleanupStaleSessions (cron job)', () => {
-    it('should clean up stale session cache entries', async () => {
+    it('should clean up stale session cache entries', () => {
       const handler = new SmtpHandlerService(
         createMockConfigService(defaultConfig),
         mockEmailValidationService,
@@ -537,19 +545,11 @@ describe('SmtpHandlerService', () => {
         mockEmailStorageService,
       );
 
-      // Validate sender to populate caches
-      await handler.validateSender({ address: 'test@example.com', args: {} }, baseSession);
-
-      // Also set TLS info
-      handler.setTlsInfo(baseSession.id, { version: 'TLSv1.3', cipher: 'TLS_AES_256_GCM_SHA384', bits: 256 });
-
       // Access the private method via type casting
       const handlerAny = handler as any;
 
-      // Manually set old timestamps to simulate stale entries
+      // Manually set old timestamps to simulate stale TLS entries
       const oldTimestamp = Date.now() - 10 * 60 * 1000; // 10 minutes ago
-      handlerAny.spfResultCache.set('stale-session', { value: { status: 'pass' }, timestamp: oldTimestamp });
-      handlerAny.reverseDnsResultCache.set('stale-session', { value: { status: 'pass' }, timestamp: oldTimestamp });
       handlerAny.tlsInfoCache.set('stale-session', {
         value: { version: 'TLSv1.3', cipher: 'test' },
         timestamp: oldTimestamp,
@@ -559,8 +559,6 @@ describe('SmtpHandlerService', () => {
       handlerAny.cleanupStaleSessions();
 
       // Stale entries should be removed
-      expect(handlerAny.spfResultCache.has('stale-session')).toBe(false);
-      expect(handlerAny.reverseDnsResultCache.has('stale-session')).toBe(false);
       expect(handlerAny.tlsInfoCache.has('stale-session')).toBe(false);
     });
 
@@ -581,10 +579,8 @@ describe('SmtpHandlerService', () => {
 
       const handlerAny = handler as any;
 
-      // Add fresh entries
+      // Add fresh TLS entries
       const freshTimestamp = Date.now();
-      handlerAny.spfResultCache.set('fresh-session', { value: { status: 'pass' }, timestamp: freshTimestamp });
-      handlerAny.reverseDnsResultCache.set('fresh-session', { value: { status: 'pass' }, timestamp: freshTimestamp });
       handlerAny.tlsInfoCache.set('fresh-session', {
         value: { version: 'TLSv1.3', cipher: 'test' },
         timestamp: freshTimestamp,
@@ -594,8 +590,6 @@ describe('SmtpHandlerService', () => {
       handlerAny.cleanupStaleSessions();
 
       // Fresh entries should remain
-      expect(handlerAny.spfResultCache.has('fresh-session')).toBe(true);
-      expect(handlerAny.reverseDnsResultCache.has('fresh-session')).toBe(true);
       expect(handlerAny.tlsInfoCache.has('fresh-session')).toBe(true);
     });
   });
@@ -837,9 +831,7 @@ describe('SmtpHandlerService', () => {
         mockEmailStorageService,
       );
 
-      // Must call validateSender first to populate the SPF cache
-      await handler.validateSender({ address: 'sender@example.com', args: {} }, baseSession);
-
+      // SPF/reverseDns checks now happen in handleData phase
       const payload = 'Subject: Test\r\n\r\nBody';
       const stream = createStream();
       (stream as unknown as { byteLength: number }).byteLength = Buffer.byteLength(payload);
@@ -881,8 +873,7 @@ describe('SmtpHandlerService', () => {
         mockEmailStorageService,
       );
 
-      // Must call validateSender first to populate the SPF cache
-      await handler.validateSender({ address: 'sender@example.com', args: {} }, baseSession);
+      // SPF/reverseDns checks now happen in handleData phase
 
       const payload = 'Subject: Test\r\n\r\nBody';
       const stream = createStream();
@@ -1736,6 +1727,207 @@ describe('SmtpHandlerService', () => {
         expect.any(String),
         expect.any(String),
       );
+    });
+  });
+
+  describe('plain inbox email handling', () => {
+    const mockPlainInbox = {
+      id: 'plain-inbox-1',
+      emailAddress: 'recipient@example.com',
+      clientKemPk: undefined, // No KEM key for plain inbox
+      inboxHash: 'plain-inbox-hash-123',
+      encrypted: false, // Plain inbox
+      createdAt: new Date(),
+      expiresAt: new Date(Date.now() + 3600000),
+      emails: new Map(),
+      emailsHash: 'emails-hash',
+    };
+
+    it('should store plain emails without encryption', async () => {
+      const mockInboxServicePlain = {
+        ...mockInboxService,
+        getInboxByEmail: jest.fn().mockReturnValue(mockPlainInbox),
+      } as unknown as InboxService;
+
+      const mockInboxStorageServicePlain = {
+        ...mockInboxStorageService,
+        addEmail: jest.fn(),
+      };
+
+      const handler = new SmtpHandlerService(
+        createMockConfigService(defaultConfig),
+        mockEmailValidationService,
+        mockEmailProcessingService,
+        mockMetricsService,
+        mockSseConsoleService,
+        mockInboxServicePlain,
+        mockInboxStorageServicePlain,
+        mockCryptoService,
+        undefined,
+        undefined,
+        mockEmailStorageService,
+      );
+
+      const payload = 'Subject: Test Plain\r\nMessage-ID: <plain@local>\r\n\r\nPlain body';
+      const stream = createStream();
+      (stream as unknown as { byteLength: number }).byteLength = Buffer.byteLength(payload);
+
+      const promise = handler.handleData(stream, baseSession);
+      stream.end(payload);
+      await promise;
+
+      // Should use inboxStorageService.addEmail for plain emails
+      expect(mockInboxStorageServicePlain.addEmail).toHaveBeenCalledWith(
+        'recipient@example.com',
+        expect.objectContaining({
+          id: expect.any(String),
+          isRead: false,
+          metadata: expect.any(Uint8Array),
+          parsed: expect.any(Uint8Array),
+          raw: expect.any(Uint8Array),
+        }),
+      );
+
+      // Should NOT use encrypted email storage
+      expect(mockEmailStorageService.storeEmail).not.toHaveBeenCalled();
+
+      // Should NOT call encryptForClient for plain inbox
+      expect(mockCryptoService.encryptForClient).not.toHaveBeenCalled();
+    });
+
+    it('should emit SSE events with plain metadata', async () => {
+      const mockInboxServicePlain = {
+        ...mockInboxService,
+        getInboxByEmail: jest.fn().mockReturnValue(mockPlainInbox),
+      } as unknown as InboxService;
+
+      const mockInboxStorageServicePlain = {
+        ...mockInboxStorageService,
+        addEmail: jest.fn(),
+      };
+
+      const eventsServiceMock = {
+        emitNewEmailEvent: jest.fn(),
+      } as unknown as EventsService;
+
+      const handler = new SmtpHandlerService(
+        createMockConfigService(defaultConfig),
+        mockEmailValidationService,
+        mockEmailProcessingService,
+        mockMetricsService,
+        mockSseConsoleService,
+        mockInboxServicePlain,
+        mockInboxStorageServicePlain,
+        mockCryptoService,
+        undefined,
+        eventsServiceMock,
+        mockEmailStorageService,
+      );
+
+      const payload = 'Subject: Test Plain SSE\r\n\r\nBody';
+      const stream = createStream();
+      (stream as unknown as { byteLength: number }).byteLength = Buffer.byteLength(payload);
+
+      const promise = handler.handleData(stream, baseSession);
+      stream.end(payload);
+      await promise;
+
+      // Should emit SSE event with plain metadata (base64 encoded, not encrypted)
+      expect(eventsServiceMock.emitNewEmailEvent).toHaveBeenCalledWith(
+        expect.objectContaining({
+          inboxId: 'plain-inbox-hash-123',
+          emailId: expect.any(String),
+          metadata: expect.any(String), // Base64 encoded plain metadata
+        }),
+      );
+
+      // Should NOT have encryptedMetadata property
+      const callArgs = (eventsServiceMock.emitNewEmailEvent as jest.Mock).mock.calls[0][0];
+      expect(callArgs.encryptedMetadata).toBeUndefined();
+    });
+
+    it('should handle SSE errors for plain emails gracefully', async () => {
+      const mockInboxServicePlain = {
+        ...mockInboxService,
+        getInboxByEmail: jest.fn().mockReturnValue(mockPlainInbox),
+      } as unknown as InboxService;
+
+      const mockInboxStorageServicePlain = {
+        ...mockInboxStorageService,
+        addEmail: jest.fn(),
+      };
+
+      const eventsServiceMock = {
+        emitNewEmailEvent: jest.fn().mockImplementation(() => {
+          throw new Error('SSE emission failed for plain email');
+        }),
+      } as unknown as EventsService;
+
+      const handler = new SmtpHandlerService(
+        createMockConfigService(defaultConfig),
+        mockEmailValidationService,
+        mockEmailProcessingService,
+        mockMetricsService,
+        mockSseConsoleService,
+        mockInboxServicePlain,
+        mockInboxStorageServicePlain,
+        mockCryptoService,
+        undefined,
+        eventsServiceMock,
+        mockEmailStorageService,
+      );
+
+      const payload = 'Subject: Test\r\n\r\nBody';
+      const stream = createStream();
+      (stream as unknown as { byteLength: number }).byteLength = Buffer.byteLength(payload);
+
+      const promise = handler.handleData(stream, baseSession);
+      stream.end(payload);
+
+      // Should not throw - error is logged but not propagated
+      await expect(promise).resolves.toBeDefined();
+
+      // Email should still be stored
+      expect(mockInboxStorageServicePlain.addEmail).toHaveBeenCalled();
+    });
+
+    it('should handle plain emails without EventsService', async () => {
+      const mockInboxServicePlain = {
+        ...mockInboxService,
+        getInboxByEmail: jest.fn().mockReturnValue(mockPlainInbox),
+      } as unknown as InboxService;
+
+      const mockInboxStorageServicePlain = {
+        ...mockInboxStorageService,
+        addEmail: jest.fn(),
+      };
+
+      const handler = new SmtpHandlerService(
+        createMockConfigService(defaultConfig),
+        mockEmailValidationService,
+        mockEmailProcessingService,
+        mockMetricsService,
+        mockSseConsoleService,
+        mockInboxServicePlain,
+        mockInboxStorageServicePlain,
+        mockCryptoService,
+        undefined,
+        undefined, // No EventsService
+        mockEmailStorageService,
+      );
+
+      const payload = 'Subject: Test\r\n\r\nBody';
+      const stream = createStream();
+      (stream as unknown as { byteLength: number }).byteLength = Buffer.byteLength(payload);
+
+      const promise = handler.handleData(stream, baseSession);
+      stream.end(payload);
+
+      // Should not throw
+      await expect(promise).resolves.toBeDefined();
+
+      // Email should still be stored
+      expect(mockInboxStorageServicePlain.addEmail).toHaveBeenCalled();
     });
   });
 });

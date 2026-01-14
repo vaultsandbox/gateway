@@ -92,6 +92,7 @@ export class InboxStorageValidator {
 
   /**
    * Validates shape of a stored inbox record.
+   * Supports both encrypted and plain inboxes.
    */
   static isStoredInboxRecord(value: unknown): value is StoredInboxRecord {
     if (!value || typeof value !== 'object') {
@@ -99,14 +100,25 @@ export class InboxStorageValidator {
     }
 
     const record = value as Partial<StoredInboxRecord>;
-    return (
-      record.version === EXPORT_VERSION &&
-      typeof record.emailAddress === 'string' &&
-      typeof record.expiresAt === 'string' &&
-      typeof record.inboxHash === 'string' &&
-      typeof record.serverSigPk === 'string' &&
-      typeof record.secretKey === 'string'
-    );
+
+    // Basic required fields
+    if (
+      record.version !== EXPORT_VERSION ||
+      typeof record.emailAddress !== 'string' ||
+      typeof record.expiresAt !== 'string' ||
+      typeof record.inboxHash !== 'string' ||
+      typeof record.encrypted !== 'boolean'
+    ) {
+      return false;
+    }
+
+    // For encrypted inboxes, serverSigPk and secretKey are required
+    if (record.encrypted) {
+      return typeof record.serverSigPk === 'string' && typeof record.secretKey === 'string';
+    }
+
+    // Plain inboxes don't require keys
+    return true;
   }
 
   /**
@@ -128,6 +140,7 @@ export class InboxStorageValidator {
   /**
    * Verifies raw import data matches the exported inbox schema.
    * Implements validation per spec Section 10.1.
+   * Supports both encrypted and plain inboxes.
    */
   static isValidImportData(data: unknown): data is ExportedInboxData {
     if (!data || typeof data !== 'object') {
@@ -141,13 +154,12 @@ export class InboxStorageValidator {
       return false;
     }
 
-    // 2. Validate required string fields exist
+    // 2. Validate required fields exist
     if (
       typeof record.emailAddress !== 'string' ||
       typeof record.expiresAt !== 'string' ||
       typeof record.inboxHash !== 'string' ||
-      typeof record.serverSigPk !== 'string' ||
-      typeof record.secretKey !== 'string' ||
+      typeof record.encrypted !== 'boolean' ||
       typeof record.exportedAt !== 'string'
     ) {
       return false;
@@ -164,14 +176,21 @@ export class InboxStorageValidator {
       return false;
     }
 
-    // 5. Validate secretKey is valid base64url with correct size (2400 bytes)
-    if (!this.isValidBase64urlWithSize(record.secretKey, MLKEM_SECRET_KEY_SIZE)) {
-      return false;
-    }
+    // 5. For encrypted inboxes, validate keys
+    if (record.encrypted) {
+      if (typeof record.secretKey !== 'string' || typeof record.serverSigPk !== 'string') {
+        return false;
+      }
 
-    // 6. Validate serverSigPk is valid base64url with correct size (1952 bytes)
-    if (!this.isValidBase64urlWithSize(record.serverSigPk, MLDSA_PUBLIC_KEY_SIZE)) {
-      return false;
+      // 5a. Validate secretKey is valid base64url with correct size (2400 bytes)
+      if (!this.isValidBase64urlWithSize(record.secretKey, MLKEM_SECRET_KEY_SIZE)) {
+        return false;
+      }
+
+      // 5b. Validate serverSigPk is valid base64url with correct size (1952 bytes)
+      if (!this.isValidBase64urlWithSize(record.serverSigPk, MLDSA_PUBLIC_KEY_SIZE)) {
+        return false;
+      }
     }
 
     return true;
@@ -181,46 +200,71 @@ export class InboxStorageValidator {
 export class InboxStorageMapper {
   /**
    * Converts inbox models to storage-friendly records using base64url encoding.
+   * Handles both encrypted and plain inboxes.
    */
   static toStoredRecords(inboxes: InboxModel[]): StoredInboxRecord[] {
-    return inboxes.map((inbox) => ({
-      version: EXPORT_VERSION as 1,
-      emailAddress: inbox.emailAddress,
-      expiresAt: inbox.expiresAt,
-      inboxHash: inbox.inboxHash,
-      serverSigPk: inbox.serverSigPk,
-      secretKey: base64urlEncode(inbox.secretKey),
-    }));
+    return inboxes.map((inbox) => {
+      const record: StoredInboxRecord = {
+        version: EXPORT_VERSION as 1,
+        emailAddress: inbox.emailAddress,
+        expiresAt: inbox.expiresAt,
+        inboxHash: inbox.inboxHash,
+        encrypted: inbox.encrypted,
+      };
+
+      if (inbox.encrypted && inbox.serverSigPk && inbox.secretKey) {
+        record.serverSigPk = inbox.serverSigPk;
+        record.secretKey = base64urlEncode(inbox.secretKey);
+      }
+
+      return record;
+    });
   }
 
   /**
    * Maps stored payload back into inbox models, decoding base64url.
+   * Handles both encrypted and plain inboxes.
    */
   static toInboxModels(payload: StoredInboxesPayload): InboxModel[] {
-    return payload.inboxes.map((inbox) => ({
-      emailAddress: inbox.emailAddress,
-      expiresAt: inbox.expiresAt,
-      inboxHash: inbox.inboxHash,
-      serverSigPk: inbox.serverSigPk,
-      secretKey: base64urlDecode(inbox.secretKey),
-      emails: [],
-    }));
+    return payload.inboxes.map((inbox) => {
+      const model: InboxModel = {
+        emailAddress: inbox.emailAddress,
+        expiresAt: inbox.expiresAt,
+        inboxHash: inbox.inboxHash,
+        encrypted: inbox.encrypted,
+        emails: [],
+      };
+
+      if (inbox.encrypted && inbox.serverSigPk && inbox.secretKey) {
+        model.serverSigPk = inbox.serverSigPk;
+        model.secretKey = base64urlDecode(inbox.secretKey);
+      }
+
+      return model;
+    });
   }
 
   /**
    * Builds an exported inbox payload including metadata.
    * Uses base64url encoding per VaultSandbox spec Section 2.2.
+   * Handles both encrypted and plain inboxes.
    */
   static exportInbox(inbox: InboxModel): ExportedInboxData {
-    return {
+    const data: ExportedInboxData = {
       version: EXPORT_VERSION as 1,
       emailAddress: inbox.emailAddress,
       expiresAt: inbox.expiresAt,
       inboxHash: inbox.inboxHash,
-      serverSigPk: inbox.serverSigPk,
-      secretKey: base64urlEncode(inbox.secretKey),
+      encrypted: inbox.encrypted,
       exportedAt: new Date().toISOString(),
     };
+
+    if (inbox.encrypted && inbox.serverSigPk && inbox.secretKey) {
+      data.serverSigPk = inbox.serverSigPk;
+      data.secretKey = base64urlEncode(inbox.secretKey);
+    }
+
+    return data;
   }
 
   /**

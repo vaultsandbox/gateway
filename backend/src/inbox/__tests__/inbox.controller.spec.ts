@@ -20,6 +20,8 @@ describe('InboxController', () => {
       emailAddress,
       clientKemPk: 'mockKemPk',
       inboxHash: 'mockHash',
+      encrypted: true,
+      emailAuth: true,
       createdAt: new Date(),
       expiresAt: new Date(Date.now() + 3600000),
       emails: new Map(),
@@ -83,6 +85,7 @@ describe('InboxController', () => {
         defaultTtl: 3600,
         sseConsole: false,
         allowedDomains: ['test.com'],
+        encryptionPolicy: 'always' as const,
       };
       inboxService.getServerInfo.mockReturnValue(mockServerInfo);
 
@@ -112,9 +115,17 @@ describe('InboxController', () => {
         emailAddress: 'test@example.com',
         expiresAt: mockInbox.expiresAt.toISOString(),
         inboxHash: 'mockHash',
+        encrypted: true,
+        emailAuth: true,
         serverSigPk: 'serverSigPk123',
       });
-      expect(inboxService.createInbox).toHaveBeenCalledWith('validKemPk', 3600, 'test@example.com');
+      expect(inboxService.createInbox).toHaveBeenCalledWith(
+        'validKemPk',
+        3600,
+        'test@example.com',
+        undefined,
+        undefined,
+      );
     });
 
     it('should create inbox without optional parameters', () => {
@@ -130,7 +141,7 @@ describe('InboxController', () => {
       const result = controller.createInbox(dto);
 
       expect(result.emailAddress).toBe('generated@example.com');
-      expect(inboxService.createInbox).toHaveBeenCalledWith('validKemPk', undefined, undefined);
+      expect(inboxService.createInbox).toHaveBeenCalledWith('validKemPk', undefined, undefined, undefined, undefined);
     });
   });
 

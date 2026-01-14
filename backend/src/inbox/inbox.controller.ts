@@ -99,19 +99,25 @@ export class InboxController {
   @ApiResponse({ status: 401, description: 'Unauthorized, API key is missing or invalid.' })
   /* v8 ignore next - decorator metadata evaluation */
   createInbox(@Body() createInboxDto: CreateInboxDto): CreateInboxResponseDto {
-    this.logger.debug(`POST /api/inboxes`);
+    this.logger.debug(
+      `POST /api/inboxes (encryption=${createInboxDto.encryption || 'default'}, emailAuth=${createInboxDto.emailAuth ?? 'default'})`,
+    );
 
     const { inbox, serverSigPk } = this.inboxService.createInbox(
       createInboxDto.clientKemPk,
       createInboxDto.ttl,
       createInboxDto.emailAddress,
+      createInboxDto.encryption,
+      createInboxDto.emailAuth,
     );
 
     return {
       emailAddress: inbox.emailAddress,
       expiresAt: inbox.expiresAt.toISOString(),
       inboxHash: inbox.inboxHash,
-      serverSigPk,
+      encrypted: inbox.encrypted,
+      emailAuth: inbox.emailAuth,
+      ...(serverSigPk && { serverSigPk }),
     };
   }
 
@@ -137,7 +143,7 @@ export class InboxController {
   listEmails(
     @Param('emailAddress') emailAddress: string,
     @Query('includeContent', new ParseBoolPipe({ optional: true })) includeContent?: boolean,
-  ): EmailListItemDto[] {
+  ) {
     this.logger.debug(`GET /api/inboxes/.../emails${includeContent ? '?includeContent=true' : ''}`);
 
     // Check if inbox exists
@@ -192,7 +198,7 @@ export class InboxController {
   @ApiResponse({ status: 401, description: 'Unauthorized, API key is missing or invalid.' })
   @ApiResponse({ status: 404, description: 'Email or inbox not found.' })
   /* v8 ignore next - decorator metadata evaluation */
-  getEmail(@Param('emailAddress') emailAddress: string, @Param('emailId') emailId: string): EmailResponseDto {
+  getEmail(@Param('emailAddress') emailAddress: string, @Param('emailId') emailId: string) {
     this.logger.debug(`GET /api/inboxes/.../emails/${emailId}`);
 
     return this.inboxService.getEmail(emailAddress, emailId);
@@ -213,7 +219,7 @@ export class InboxController {
   @ApiResponse({ status: 401, description: 'Unauthorized, API key is missing or invalid.' })
   @ApiResponse({ status: 404, description: 'Email or inbox not found.' })
   /* v8 ignore next - decorator metadata evaluation */
-  getRawEmail(@Param('emailAddress') emailAddress: string, @Param('emailId') emailId: string): RawEmailResponseDto {
+  getRawEmail(@Param('emailAddress') emailAddress: string, @Param('emailId') emailId: string) {
     this.logger.debug(`GET /api/inboxes/.../emails/${emailId}/raw`);
 
     return this.inboxService.getRawEmail(emailAddress, emailId);

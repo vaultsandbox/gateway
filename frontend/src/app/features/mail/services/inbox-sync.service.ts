@@ -102,23 +102,33 @@ export class InboxSyncService implements OnDestroy {
       // Find new emails (on server but not local)
       const newEmails = serverEmails.filter((email) => !localEmailIdSet.has(email.id));
 
-      // Decrypt new email metadata
+      // Process new email metadata (decrypt for encrypted inboxes, decode for plain)
       const decryptedNewEmails = await Promise.all<EmailItemModel>(
         newEmails.map(async (email) => {
           try {
-            const decryptedMetadata = await this.encryption.decryptMetadata(email.encryptedMetadata, inbox.secretKey);
+            let decryptedMetadata: Record<string, unknown>;
+
+            if (inbox.encrypted && inbox.secretKey && email.encryptedMetadata) {
+              // Encrypted inbox: decrypt metadata
+              decryptedMetadata = await this.encryption.decryptMetadata(email.encryptedMetadata, inbox.secretKey);
+            } else if ('metadata' in email && typeof email.metadata === 'string') {
+              // Plain inbox: decode base64 metadata
+              decryptedMetadata = JSON.parse(atob(email.metadata as string)) as Record<string, unknown>;
+            } else {
+              throw new Error('Unable to process email metadata');
+            }
 
             return {
               id: email.id,
-              encryptedMetadata: email.encryptedMetadata,
+              encryptedMetadata: email.encryptedMetadata ?? null,
               decryptedMetadata: MetadataNormalizer.normalize(decryptedMetadata, inbox.emailAddress),
               isRead: email.isRead ?? false,
             };
           } catch (error) {
-            console.error('[InboxSyncService] Error decrypting metadata for email:', email.id, error);
+            console.error('[InboxSyncService] Error processing metadata for email:', email.id, error);
             return {
               id: email.id,
-              encryptedMetadata: email.encryptedMetadata,
+              encryptedMetadata: email.encryptedMetadata ?? null,
               isRead: email.isRead ?? false,
             };
           }
@@ -185,7 +195,8 @@ export class InboxSyncService implements OnDestroy {
   }
 
   /**
-   * Handles new email SSE events by decrypting metadata and updating state.
+   * Handles new email SSE events by decrypting/decoding metadata and updating state.
+   * Supports both encrypted and plain inboxes.
    */
   private async handleNewEmail(event: NewEmailEvent): Promise<void> {
     const inbox = this.state.getInboxSnapshot(event.inboxId);
@@ -199,20 +210,28 @@ export class InboxSyncService implements OnDestroy {
 
     let decryptedMetadata: Record<string, unknown> | null = null;
     try {
-      decryptedMetadata = await this.encryption.decryptMetadata(event.encryptedMetadata, inbox.secretKey);
+      if (inbox.encrypted && inbox.secretKey && event.encryptedMetadata) {
+        // Encrypted inbox: decrypt metadata
+        decryptedMetadata = await this.encryption.decryptMetadata(event.encryptedMetadata, inbox.secretKey);
+      } else if ('metadata' in event && typeof event.metadata === 'string') {
+        // Plain inbox: decode base64 metadata
+        decryptedMetadata = JSON.parse(atob(event.metadata as string)) as Record<string, unknown>;
+      } else {
+        throw new Error('Unable to process SSE email metadata');
+      }
     } catch (error) {
-      console.error('[InboxSyncService] Failed to decrypt SSE metadata:', error);
+      console.error('[InboxSyncService] Failed to process SSE metadata:', error);
       decryptedMetadata = {
         from: 'unknown',
         to: inbox.emailAddress,
-        subject: '(decryption failed)',
+        subject: '(processing failed)',
         receivedAt: new Date().toISOString(),
       };
     }
 
     const newEmail: EmailItemModel = {
       id: event.emailId,
-      encryptedMetadata: event.encryptedMetadata,
+      encryptedMetadata: event.encryptedMetadata ?? null,
       decryptedMetadata: MetadataNormalizer.normalize(decryptedMetadata, inbox.emailAddress),
       isRead: false,
     };

@@ -83,6 +83,40 @@
       }
     </div>
 
+    <!-- Encryption Toggle -->
+    @if (canOverrideEncryption()) {
+      <div class="flex flex-col gap-2">
+        <div class="flex items-center gap-3">
+          <p-toggleSwitch [(ngModel)]="encryptionEnabled" [disabled]="creating()" inputId="encryption"></p-toggleSwitch>
+          <label for="encryption" class="font-medium text-sm cursor-pointer">Enable encryption</label>
+        </div>
+        <small class="text-surface-500">
+          @if (encryptionEnabled()) {
+            Emails will be encrypted end-to-end. Only you can read them.
+          } @else {
+            Emails will be stored in plain text on the server.
+          }
+        </small>
+      </div>
+    }
+
+    <!-- Email Auth Toggle -->
+    <div class="flex flex-col gap-2">
+      <div class="flex items-center gap-3">
+        <p-toggleSwitch [(ngModel)]="emailAuthEnabled" [disabled]="creating()" inputId="emailAuth"></p-toggleSwitch>
+        <label for="emailAuth" class="font-medium text-sm cursor-pointer"
+          >Enable email authentication (SPF, DKIM, DMARC)</label
+        >
+      </div>
+      <small class="text-surface-500">
+        @if (emailAuthEnabled()) {
+          Sender verification checks will be performed on incoming emails.
+        } @else {
+          Sender verification checks will be skipped for this inbox.
+        }
+      </small>
+    </div>
+
     <!-- Validation Error -->
     @if (validationError()) {
       <p-message severity="error" [text]="validationError()!"></p-message>

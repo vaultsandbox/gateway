@@ -252,14 +252,9 @@ npm run lint            # ESLint
 - **[Changelog](./CHANGELOG.md)**: Version history and release notes
 - **[Design Philosophy](./docs/PHILOSOPHY.md)**: Our open source philosophy and architecture decisions
 
-## Licensing
+## License
 
-This project uses a dual-licensing model. Please be aware of the licenses for each component:
-
-*   **Backend**: Licensed under the [AGPL-3.0-or-later](./backend/LICENSE). See the [NOTICE](./backend/NOTICE) for copyright information.
-*   **Frontend**: Licensed under the [MIT License](./frontend/LICENSE).
-
-For a summary of the project's licensing, please see the [LICENSE.md](./LICENSE.md) file.
+This project is licensed under the [Apache License 2.0](./LICENSE.md).
 
 ## Code of Conduct
 

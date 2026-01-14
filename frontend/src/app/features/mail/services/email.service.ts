@@ -85,17 +85,28 @@ export class EmailService {
 
       const result = await firstValueFrom(this.api.getEmail(inbox.emailAddress, emailId));
 
-      const encryptedContent = result.encryptedParsed || result.encryptedBody;
-      if (!encryptedContent) {
-        throw new Error('Neither encryptedParsed nor encryptedBody found in API response');
+      let bodyJson: string;
+
+      if (inbox.encrypted && inbox.secretKey) {
+        // Encrypted inbox: decrypt content
+        const encryptedContent = result.encryptedParsed || result.encryptedBody;
+        if (!encryptedContent) {
+          throw new Error('Neither encryptedParsed nor encryptedBody found in API response');
+        }
+        bodyJson = await this.encryption.decryptBody(encryptedContent, inbox.secretKey);
+      } else {
+        // Plain inbox: decode base64 content
+        const plainContent = result.parsed;
+        if (!plainContent) {
+          throw new Error('Parsed content not found in API response for plain inbox');
+        }
+        bodyJson = atob(plainContent);
       }
 
-      const decryptedBodyJson = await this.encryption.decryptBody(encryptedContent, inbox.secretKey);
-
-      email.decryptedBody = decryptedBodyJson;
+      email.decryptedBody = bodyJson;
 
       try {
-        const parsedContent = JSON.parse(decryptedBodyJson) as ParsedEmailContent;
+        const parsedContent = JSON.parse(bodyJson) as ParsedEmailContent;
         email.parsedContent = parsedContent;
       } catch (parseError) {
         console.error('[EmailService] Failed to parse email body JSON', parseError);
@@ -134,8 +145,19 @@ export class EmailService {
 
     try {
       const result = await firstValueFrom(this.api.getRawEmail(inbox.emailAddress, emailId));
-      const decryptedRaw = await this.encryption.decryptBody(result.encryptedRaw, inbox.secretKey);
-      return decryptedRaw;
+
+      let rawContent: string;
+      if (inbox.encrypted && inbox.secretKey && result.encryptedRaw) {
+        // Encrypted inbox: decrypt raw content
+        rawContent = await this.encryption.decryptBody(result.encryptedRaw, inbox.secretKey);
+      } else if ('raw' in result && typeof result.raw === 'string') {
+        // Plain inbox: decode base64 raw content
+        rawContent = atob(result.raw as string);
+      } else {
+        throw new Error('No raw content found in API response');
+      }
+
+      return rawContent;
     } catch (error) {
       if (error instanceof HttpErrorResponse && error.status === 404) {
         console.warn('[EmailService] Inbox not found on server (404), deleting local copy:', inbox.emailAddress);

@@ -31,6 +31,21 @@ VSB_CERT_EMAIL=hello@mydomain.com
 # VSB_INBOX_ALIAS_RANDOM_BYTES=4    # Bytes of randomness for generated inbox aliases (min: 4, max: 32)
 
 # ============================================================================
+# ENCRYPTION CONFIGURATION
+# ============================================================================
+# Controls whether emails are encrypted at rest using post-quantum cryptography (ML-KEM-768 + AES-256-GCM)
+# Values:
+#   'always'   - Encryption always enabled; per-inbox override NOT allowed (DEFAULT)
+#   'enabled'  - Encryption enabled by default; per-inbox override allowed
+#   'disabled' - Encryption disabled by default; per-inbox override allowed
+#   'never'    - Encryption always disabled; per-inbox override NOT allowed
+#
+# When encryption is enabled, clients must provide a ML-KEM-768 public key when creating inboxes.
+# When encryption is disabled, emails are stored in plaintext.
+#
+# VSB_ENCRYPTION_ENABLED=enabled
+
+# ============================================================================
 # SMTP SERVER CONFIGURATION
 # ============================================================================
 # VSB_SMTP_HOST=0.0.0.0              # Bind address (default: 0.0.0.0)
@@ -81,6 +96,24 @@ VSB_CERT_EMAIL=hello@mydomain.com
 # - VSB_CERT_EMAIL (not required - Let's Encrypt allows no-email registration)
 #
 # VSB_VSX_DNS_ENABLED=true           # Enable automatic domain discovery
+
+# ============================================================================
+# EMAIL AUTHENTICATION CONFIGURATION
+# ============================================================================
+# Controls optional email authentication checks (SPF, DKIM, DMARC, Reverse DNS).
+# When disabled, checks return status: 'skipped' instead of running.
+#
+# VSB_EMAIL_AUTH_ENABLED=true              # Master switch for all auth checks (default: true)
+# VSB_EMAIL_AUTH_SPF_ENABLED=true          # SPF verification (default: true)
+# VSB_EMAIL_AUTH_DKIM_ENABLED=true         # DKIM verification (default: true)
+# VSB_EMAIL_AUTH_DMARC_ENABLED=true        # DMARC verification (default: true)
+# VSB_EMAIL_AUTH_REVERSE_DNS_ENABLED=true  # Reverse DNS/PTR verification (default: true)
+# VSB_EMAIL_AUTH_INBOX_DEFAULT=true        # Default emailAuth for new inboxes (default: true)
+#
+# Precedence:
+# - If VSB_EMAIL_AUTH_ENABLED=false → ALL checks skipped globally
+# - Else → Individual VSB_EMAIL_AUTH_*_ENABLED variables control each check
+# - Per-inbox emailAuth=false skips all checks for that inbox (set when creating inbox)
 
 # ============================================================================
 # ADVANCED CONFIGURATION

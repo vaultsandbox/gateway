@@ -40,6 +40,7 @@ describe('EmailService', () => {
     emailAddress: 'test@example.com',
     expiresAt: new Date().toISOString(),
     inboxHash: 'inbox-hash-1',
+    encrypted: true,
     serverSigPk: 'stub-server-sig',
     secretKey: new Uint8Array(32),
     emails: [createEmail()],
@@ -153,6 +154,57 @@ describe('EmailService', () => {
   });
 
   describe('fetchAndDecryptEmail', () => {
+    describe('plain inbox support', () => {
+      const createPlainInbox = (overrides: Partial<InboxModel> = {}): InboxModel => ({
+        emailAddress: 'plain@example.com',
+        expiresAt: new Date().toISOString(),
+        inboxHash: 'plain-inbox-hash',
+        encrypted: false,
+        emails: [createEmail()],
+        ...overrides,
+      });
+
+      it('decodes base64 parsed content for plain inbox', async () => {
+        const email = createEmail();
+        const inbox = createPlainInbox({ emails: [email] });
+        inboxServiceStub.setInboxes([inbox]);
+
+        const parsedContent: ParsedEmailContent = {
+          html: '<p>Plain Test</p>',
+          text: 'Plain Test',
+          textAsHtml: '<p>Plain Test</p>',
+          headers: {},
+          subject: 'Plain Subject',
+          from: 'sender@example.com',
+          to: 'plain@example.com',
+          attachments: [],
+        };
+
+        spyOn(apiStub, 'getEmail').and.returnValue(of({ parsed: btoa(JSON.stringify(parsedContent)) }));
+
+        await service.fetchAndDecryptEmail(inbox.inboxHash, email.id);
+
+        const updatedInboxes = inboxServiceStub.getUpdatedInboxes();
+        expect(updatedInboxes.length).toBeGreaterThan(0);
+
+        const lastUpdate = updatedInboxes[updatedInboxes.length - 1];
+        const updatedEmail = lastUpdate.emails.find((e) => e.id === email.id);
+        expect(updatedEmail?.parsedContent).toEqual(parsedContent);
+      });
+
+      it('throws error when plain inbox API response has no parsed content', async () => {
+        const email = createEmail();
+        const inbox = createPlainInbox({ emails: [email] });
+        inboxServiceStub.setInboxes([inbox]);
+
+        spyOn(apiStub, 'getEmail').and.returnValue(of({ isRead: false }));
+
+        await expectAsync(service.fetchAndDecryptEmail(inbox.inboxHash, email.id)).toBeRejectedWithError(
+          'Parsed content not found in API response for plain inbox',
+        );
+      });
+    });
+
     it('fetches and decrypts email body', async () => {
       const email = createEmail();
       const inbox = createInbox({ emails: [email] });
@@ -302,6 +354,42 @@ describe('EmailService', () => {
   });
 
   describe('fetchAndDecryptRawEmail', () => {
+    describe('plain inbox support', () => {
+      const createPlainInbox = (overrides: Partial<InboxModel> = {}): InboxModel => ({
+        emailAddress: 'plain@example.com',
+        expiresAt: new Date().toISOString(),
+        inboxHash: 'plain-inbox-hash',
+        encrypted: false,
+        emails: [createEmail()],
+        ...overrides,
+      });
+
+      it('decodes base64 raw content for plain inbox', async () => {
+        const email = createEmail();
+        const inbox = createPlainInbox({ emails: [email] });
+        inboxServiceStub.setInboxes([inbox]);
+
+        const rawContent = 'From: sender@example.com\r\nTo: plain@example.com\r\n\r\nPlain Body';
+        spyOn(apiStub, 'getRawEmail').and.returnValue(of({ raw: btoa(rawContent) }));
+
+        const result = await service.fetchAndDecryptRawEmail(inbox.inboxHash, email.id);
+
+        expect(result).toBe(rawContent);
+      });
+
+      it('throws error when plain inbox API response has no raw content', async () => {
+        const email = createEmail();
+        const inbox = createPlainInbox({ emails: [email] });
+        inboxServiceStub.setInboxes([inbox]);
+
+        spyOn(apiStub, 'getRawEmail').and.returnValue(of({}));
+
+        await expectAsync(service.fetchAndDecryptRawEmail(inbox.inboxHash, email.id)).toBeRejectedWithError(
+          'No raw content found in API response',
+        );
+      });
+    });
+
     it('fetches and decrypts raw email content', async () => {
       const email = createEmail();
       const inbox = createInbox({ emails: [email] });

@@ -121,6 +121,9 @@ export const SPF_STATUS = {
 
   /** Permanent error during SPF check (e.g., malformed SPF record) */
   PERMERROR: 'permerror',
+
+  /** SPF check was intentionally skipped (disabled globally or per-inbox) */
+  SKIPPED: 'skipped',
 } as const;
 
 /**
@@ -146,6 +149,9 @@ export const DKIM_STATUS = {
 
   /** Permanent error during DKIM verification */
   PERMERROR: 'permerror',
+
+  /** DKIM check was intentionally skipped (disabled globally or per-inbox) */
+  SKIPPED: 'skipped',
 } as const;
 
 /**
@@ -168,6 +174,9 @@ export const DMARC_STATUS = {
 
   /** Permanent error during DMARC check */
   PERMERROR: 'permerror',
+
+  /** DMARC check was intentionally skipped (disabled globally or per-inbox) */
+  SKIPPED: 'skipped',
 } as const;
 
 /**
@@ -200,6 +209,25 @@ export const ENCODING = {
 
   /** ASCII character encoding */
   ASCII: 'ascii' as const,
+} as const;
+
+/**
+ * Reverse DNS Result Status Values
+ *
+ * Status values for reverse DNS (PTR record) verification.
+ */
+export const REVERSE_DNS_STATUS = {
+  /** Reverse DNS check passed - PTR record resolves to originating IP */
+  PASS: 'pass',
+
+  /** Reverse DNS check failed - PTR record does not resolve correctly */
+  FAIL: 'fail',
+
+  /** No PTR record found */
+  NONE: 'none',
+
+  /** Reverse DNS check was intentionally skipped (disabled globally or per-inbox) */
+  SKIPPED: 'skipped',
 } as const;
 
 /**

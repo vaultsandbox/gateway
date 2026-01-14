@@ -23,6 +23,7 @@ describe('ServerInfoService', () => {
     sseConsole: false,
     allowClearAllInboxes: true,
     allowedDomains: ['example.com'],
+    encryptionPolicy: 'always',
   });
 
   beforeEach(() => {

@@ -7,7 +7,7 @@ import { MetricsService } from '../../metrics/metrics.service';
 import { CryptoService } from '../../crypto/crypto.service';
 import { METRIC_PATHS } from '../../metrics/metrics.constants';
 import { silenceNestLogger } from '../../../test/helpers/silence-logger';
-import { Inbox, EncryptedEmail } from '../interfaces';
+import { Inbox, EncryptedStoredEmail, PlainStoredEmail } from '../interfaces';
 import { EncryptedPayload } from '../../crypto/interfaces';
 
 describe('InboxService', () => {
@@ -34,7 +34,7 @@ describe('InboxService', () => {
     };
   }
 
-  function createMockEmail(id: string, isRead = false): EncryptedEmail {
+  function createMockEmail(id: string, isRead = false): EncryptedStoredEmail {
     return {
       id,
       encryptedMetadata: createMockEncryptedPayload(),
@@ -44,11 +44,25 @@ describe('InboxService', () => {
     };
   }
 
+  function createMockPlainEmail(id: string, isRead = false): PlainStoredEmail {
+    const metadataJson = JSON.stringify({ id, from: 'test@test.com', to: 'recipient@test.com', subject: 'Test' });
+    const parsedJson = JSON.stringify({ text: 'Hello', html: '<p>Hello</p>' });
+    const rawBase64 = Buffer.from('Raw email content').toString('base64');
+    return {
+      id,
+      metadata: new Uint8Array(Buffer.from(metadataJson)),
+      parsed: new Uint8Array(Buffer.from(parsedJson)),
+      raw: new Uint8Array(Buffer.from(rawBase64)),
+      isRead,
+    };
+  }
+
   function createMockInbox(emailAddress: string, clientKemPk = 'kemPk123'): Inbox {
     return {
       emailAddress,
       clientKemPk,
       inboxHash: 'hash123',
+      encrypted: true,
       createdAt: new Date(),
       expiresAt: new Date(Date.now() + 3600000),
       emails: new Map(),
@@ -95,6 +109,7 @@ describe('InboxService', () => {
                 'vsb.local.allowClearAllInboxes': true,
                 'vsb.local.inboxAliasRandomBytes': 4,
                 'vsb.smtp.allowedRecipientDomains': ['vaultsandbox.test', 'example.com'],
+                'vsb.crypto.encryptionPolicy': 'always',
               };
               return configMap[key] ?? defaultValue;
             }),
@@ -308,6 +323,8 @@ describe('InboxService', () => {
         validClientKemPk,
         expect.any(Date),
         expect.any(String),
+        true, // encrypted
+        true, // emailAuth
       );
     });
 
@@ -362,6 +379,8 @@ describe('InboxService', () => {
         validClientKemPk,
         expect.any(Date),
         expect.any(String),
+        true, // encrypted
+        true, // emailAuth
       );
     });
 
@@ -391,6 +410,8 @@ describe('InboxService', () => {
         validClientKemPk,
         expect.any(Date),
         expect.any(String),
+        true, // encrypted
+        true, // emailAuth
       );
     });
 
@@ -426,6 +447,8 @@ describe('InboxService', () => {
         validClientKemPk,
         expect.any(Date),
         expect.any(String),
+        true, // encrypted
+        true, // emailAuth
       );
     });
 
@@ -437,6 +460,8 @@ describe('InboxService', () => {
         validClientKemPk,
         expect.any(Date),
         expect.any(String),
+        true, // encrypted
+        true, // emailAuth
       );
     });
 
@@ -653,6 +678,7 @@ describe('InboxService', () => {
         sseConsole: false,
         allowClearAllInboxes: true,
         allowedDomains: ['vaultsandbox.test', 'example.com'],
+        encryptionPolicy: 'always',
       });
     });
 
@@ -761,6 +787,526 @@ describe('InboxService', () => {
 
       const testService = module.get<InboxService>(InboxService);
       expect(() => testService.clearAllInboxes()).toThrow(ForbiddenException);
+    });
+  });
+
+  describe('Plain Email Handling', () => {
+    describe('getEmails with plain emails', () => {
+      it('should return serialized plain emails as Base64', () => {
+        const email = createMockPlainEmail('plain-email-123');
+        storageService.getEmails.mockReturnValue([email]);
+
+        const result = service.getEmails('test@example.com');
+
+        expect(result).toHaveLength(1);
+        expect(result[0].id).toBe('plain-email-123');
+        expect(result[0].metadata).toBeDefined();
+        expect(typeof result[0].metadata).toBe('string');
+        // Verify it's Base64 encoded
+        expect(Buffer.from(result[0].metadata as string, 'base64').toString()).toContain('from');
+        // Should NOT have encrypted fields
+        expect(result[0].encryptedMetadata).toBeUndefined();
+      });
+
+      it('should include parsed content as Base64 when includeContent is true', () => {
+        const email = createMockPlainEmail('plain-email-456');
+        storageService.getEmails.mockReturnValue([email]);
+
+        const result = service.getEmails('test@example.com', true);
+
+        expect(result).toHaveLength(1);
+        expect(result[0].parsed).toBeDefined();
+        expect(typeof result[0].parsed).toBe('string');
+        // Verify it's Base64 encoded
+        expect(Buffer.from(result[0].parsed as string, 'base64').toString()).toContain('Hello');
+        // Should NOT have encrypted fields
+        expect(result[0].encryptedParsed).toBeUndefined();
+      });
+    });
+
+    describe('getEmail with plain email', () => {
+      it('should return serialized plain email with metadata and parsed as Base64', () => {
+        const email = createMockPlainEmail('plain-email-789', true);
+        storageService.getEmail.mockReturnValue(email);
+
+        const result = service.getEmail('test@example.com', 'plain-email-789');
+
+        expect(result.id).toBe('plain-email-789');
+        expect(result.isRead).toBe(true);
+        expect(result.metadata).toBeDefined();
+        expect(result.parsed).toBeDefined();
+        expect(typeof result.metadata).toBe('string');
+        expect(typeof result.parsed).toBe('string');
+        // Should NOT have encrypted fields
+        expect(result.encryptedMetadata).toBeUndefined();
+        expect(result.encryptedParsed).toBeUndefined();
+      });
+    });
+
+    describe('getRawEmail with plain email', () => {
+      it('should return raw email as Base64 string', () => {
+        const email = createMockPlainEmail('plain-email-raw');
+        storageService.getEmail.mockReturnValue(email);
+
+        const result = service.getRawEmail('test@example.com', 'plain-email-raw');
+
+        expect(result.id).toBe('plain-email-raw');
+        expect(result.raw).toBeDefined();
+        expect(typeof result.raw).toBe('string');
+        // Should NOT have encrypted field
+        expect(result.encryptedRaw).toBeUndefined();
+      });
+    });
+  });
+
+  describe('createInbox encryption policy handling', () => {
+    describe('ALWAYS policy (cannot be bypassed)', () => {
+      it('should throw BadRequestException when no clientKemPk provided', async () => {
+        const module: TestingModule = await Test.createTestingModule({
+          providers: [
+            InboxService,
+            {
+              provide: InboxStorageService,
+              useValue: {
+                createInbox: jest.fn(),
+                getInbox: jest.fn(),
+                getInboxByHash: jest.fn(),
+                listInboxHashes: jest.fn(),
+                deleteInbox: jest.fn(),
+                deleteEmail: jest.fn(),
+                clearAllInboxes: jest.fn(),
+                addEmail: jest.fn(),
+                getEmails: jest.fn(),
+                getEmail: jest.fn(),
+                markEmailAsRead: jest.fn(),
+                inboxExists: jest.fn(),
+                getInboxCount: jest.fn(),
+              },
+            },
+            {
+              provide: CryptoService,
+              useValue: {
+                getServerSigningPublicKey: jest.fn().mockReturnValue('serverSigPk123'),
+              },
+            },
+            {
+              provide: ConfigService,
+              useValue: {
+                get: jest.fn((key: string, defaultValue: unknown) => {
+                  if (key === 'vsb.crypto.encryptionPolicy') return 'always';
+                  if (key === 'vsb.local.inboxDefaultTtl') return 3600;
+                  if (key === 'vsb.local.inboxMaxTtl') return 604800;
+                  if (key === 'vsb.local.inboxAliasRandomBytes') return 4;
+                  if (key === 'vsb.smtp.allowedRecipientDomains') return ['vaultsandbox.test'];
+                  return defaultValue;
+                }),
+              },
+            },
+            {
+              provide: MetricsService,
+              useValue: {
+                increment: jest.fn(),
+                set: jest.fn(),
+              },
+            },
+          ],
+        }).compile();
+
+        const testService = module.get<InboxService>(InboxService);
+
+        // ALWAYS policy requires encryption, so no clientKemPk should throw
+        expect(() => testService.createInbox()).toThrow(BadRequestException);
+      });
+
+      it('should ignore plain preference and enforce encryption', async () => {
+        const module: TestingModule = await Test.createTestingModule({
+          providers: [
+            InboxService,
+            {
+              provide: InboxStorageService,
+              useValue: {
+                createInbox: jest
+                  .fn()
+                  .mockImplementation((emailAddress, _clientKemPk, _expiresAt, inboxHash, encrypted) => ({
+                    emailAddress,
+                    inboxHash,
+                    encrypted,
+                    createdAt: new Date(),
+                    expiresAt: new Date(Date.now() + 3600000),
+                    emails: new Map(),
+                    emailsHash: '',
+                  })),
+                getInbox: jest.fn(),
+                getInboxByHash: jest.fn(),
+                listInboxHashes: jest.fn(),
+                deleteInbox: jest.fn(),
+                deleteEmail: jest.fn(),
+                clearAllInboxes: jest.fn(),
+                addEmail: jest.fn(),
+                getEmails: jest.fn(),
+                getEmail: jest.fn(),
+                markEmailAsRead: jest.fn(),
+                inboxExists: jest.fn(),
+                getInboxCount: jest.fn(),
+              },
+            },
+            {
+              provide: CryptoService,
+              useValue: {
+                getServerSigningPublicKey: jest.fn().mockReturnValue('serverSigPk123'),
+              },
+            },
+            {
+              provide: ConfigService,
+              useValue: {
+                get: jest.fn((key: string, defaultValue: unknown) => {
+                  if (key === 'vsb.crypto.encryptionPolicy') return 'always';
+                  if (key === 'vsb.local.inboxDefaultTtl') return 3600;
+                  if (key === 'vsb.local.inboxMaxTtl') return 604800;
+                  if (key === 'vsb.local.inboxAliasRandomBytes') return 4;
+                  if (key === 'vsb.smtp.allowedRecipientDomains') return ['vaultsandbox.test'];
+                  return defaultValue;
+                }),
+              },
+            },
+            {
+              provide: MetricsService,
+              useValue: {
+                increment: jest.fn(),
+                set: jest.fn(),
+              },
+            },
+          ],
+        }).compile();
+
+        const testService = module.get<InboxService>(InboxService);
+
+        // Even with 'plain' preference, ALWAYS policy should enforce encryption
+        const result = testService.createInbox(validClientKemPk, undefined, undefined, 'plain');
+        expect(result.inbox.encrypted).toBe(true);
+      });
+
+      it('should throw when plain preference provided without clientKemPk', async () => {
+        const module: TestingModule = await Test.createTestingModule({
+          providers: [
+            InboxService,
+            {
+              provide: InboxStorageService,
+              useValue: {
+                createInbox: jest.fn(),
+                getInbox: jest.fn(),
+                getInboxByHash: jest.fn(),
+                listInboxHashes: jest.fn(),
+                deleteInbox: jest.fn(),
+                deleteEmail: jest.fn(),
+                clearAllInboxes: jest.fn(),
+                addEmail: jest.fn(),
+                getEmails: jest.fn(),
+                getEmail: jest.fn(),
+                markEmailAsRead: jest.fn(),
+                inboxExists: jest.fn(),
+                getInboxCount: jest.fn(),
+              },
+            },
+            {
+              provide: CryptoService,
+              useValue: {
+                getServerSigningPublicKey: jest.fn().mockReturnValue('serverSigPk123'),
+              },
+            },
+            {
+              provide: ConfigService,
+              useValue: {
+                get: jest.fn((key: string, defaultValue: unknown) => {
+                  if (key === 'vsb.crypto.encryptionPolicy') return 'always';
+                  if (key === 'vsb.local.inboxDefaultTtl') return 3600;
+                  if (key === 'vsb.local.inboxMaxTtl') return 604800;
+                  if (key === 'vsb.local.inboxAliasRandomBytes') return 4;
+                  if (key === 'vsb.smtp.allowedRecipientDomains') return ['vaultsandbox.test'];
+                  return defaultValue;
+                }),
+              },
+            },
+            {
+              provide: MetricsService,
+              useValue: {
+                increment: jest.fn(),
+                set: jest.fn(),
+              },
+            },
+          ],
+        }).compile();
+
+        const testService = module.get<InboxService>(InboxService);
+
+        // Trying to create plain inbox with ALWAYS policy should throw (encryption enforced, no key)
+        expect(() => testService.createInbox(undefined, undefined, undefined, 'plain')).toThrow(BadRequestException);
+      });
+    });
+
+    it('should throw BadRequestException when encryption is required but no clientKemPk provided', async () => {
+      // Create a service with ENABLED policy (encryption by default)
+      const module: TestingModule = await Test.createTestingModule({
+        providers: [
+          InboxService,
+          {
+            provide: InboxStorageService,
+            useValue: {
+              createInbox: jest.fn(),
+              getInbox: jest.fn(),
+              getInboxByHash: jest.fn(),
+              listInboxHashes: jest.fn(),
+              deleteInbox: jest.fn(),
+              deleteEmail: jest.fn(),
+              clearAllInboxes: jest.fn(),
+              addEmail: jest.fn(),
+              getEmails: jest.fn(),
+              getEmail: jest.fn(),
+              markEmailAsRead: jest.fn(),
+              inboxExists: jest.fn(),
+              getInboxCount: jest.fn(),
+            },
+          },
+          {
+            provide: CryptoService,
+            useValue: {
+              getServerSigningPublicKey: jest.fn().mockReturnValue('serverSigPk123'),
+            },
+          },
+          {
+            provide: ConfigService,
+            useValue: {
+              get: jest.fn((key: string, defaultValue: unknown) => {
+                if (key === 'vsb.crypto.encryptionPolicy') return 'enabled';
+                if (key === 'vsb.local.inboxDefaultTtl') return 3600;
+                if (key === 'vsb.local.inboxMaxTtl') return 604800;
+                if (key === 'vsb.local.inboxAliasRandomBytes') return 4;
+                if (key === 'vsb.smtp.allowedRecipientDomains') return ['vaultsandbox.test'];
+                return defaultValue;
+              }),
+            },
+          },
+          {
+            provide: MetricsService,
+            useValue: {
+              increment: jest.fn(),
+              set: jest.fn(),
+            },
+          },
+        ],
+      }).compile();
+
+      const testService = module.get<InboxService>(InboxService);
+
+      // Try to create inbox without clientKemPk when encryption is default (enabled)
+      expect(() => testService.createInbox()).toThrow(BadRequestException);
+    });
+
+    it('should log warning when clientKemPk provided but encryption disabled', async () => {
+      // Create a service with NEVER policy
+      const module: TestingModule = await Test.createTestingModule({
+        providers: [
+          InboxService,
+          {
+            provide: InboxStorageService,
+            useValue: {
+              createInbox: jest.fn().mockReturnValue({
+                emailAddress: 'test@vaultsandbox.test',
+                inboxHash: 'hash123',
+                encrypted: false,
+                createdAt: new Date(),
+                expiresAt: new Date(Date.now() + 3600000),
+                emails: new Map(),
+                emailsHash: '',
+              }),
+              getInbox: jest.fn(),
+              getInboxByHash: jest.fn(),
+              listInboxHashes: jest.fn(),
+              deleteInbox: jest.fn(),
+              deleteEmail: jest.fn(),
+              clearAllInboxes: jest.fn(),
+              addEmail: jest.fn(),
+              getEmails: jest.fn(),
+              getEmail: jest.fn(),
+              markEmailAsRead: jest.fn(),
+              inboxExists: jest.fn(),
+              getInboxCount: jest.fn(),
+            },
+          },
+          {
+            provide: CryptoService,
+            useValue: {
+              getServerSigningPublicKey: jest.fn().mockReturnValue('serverSigPk123'),
+            },
+          },
+          {
+            provide: ConfigService,
+            useValue: {
+              get: jest.fn((key: string, defaultValue: unknown) => {
+                if (key === 'vsb.crypto.encryptionPolicy') return 'never';
+                if (key === 'vsb.local.inboxDefaultTtl') return 3600;
+                if (key === 'vsb.local.inboxMaxTtl') return 604800;
+                if (key === 'vsb.local.inboxAliasRandomBytes') return 4;
+                if (key === 'vsb.smtp.allowedRecipientDomains') return ['vaultsandbox.test'];
+                return defaultValue;
+              }),
+            },
+          },
+          {
+            provide: MetricsService,
+            useValue: {
+              increment: jest.fn(),
+              set: jest.fn(),
+            },
+          },
+        ],
+      }).compile();
+
+      const testService = module.get<InboxService>(InboxService);
+
+      // Creating inbox with clientKemPk when policy is 'never' should still work but log warning
+      const result = testService.createInbox(validClientKemPk);
+      expect(result.inbox.encrypted).toBe(false);
+    });
+
+    it('should resolve encryption state correctly for DISABLED policy', async () => {
+      const module: TestingModule = await Test.createTestingModule({
+        providers: [
+          InboxService,
+          {
+            provide: InboxStorageService,
+            useValue: {
+              createInbox: jest
+                .fn()
+                .mockImplementation((emailAddress, _clientKemPk, _expiresAt, inboxHash, encrypted) => ({
+                  emailAddress,
+                  inboxHash,
+                  encrypted,
+                  createdAt: new Date(),
+                  expiresAt: new Date(Date.now() + 3600000),
+                  emails: new Map(),
+                  emailsHash: '',
+                })),
+              getInbox: jest.fn(),
+              getInboxByHash: jest.fn(),
+              listInboxHashes: jest.fn(),
+              deleteInbox: jest.fn(),
+              deleteEmail: jest.fn(),
+              clearAllInboxes: jest.fn(),
+              addEmail: jest.fn(),
+              getEmails: jest.fn(),
+              getEmail: jest.fn(),
+              markEmailAsRead: jest.fn(),
+              inboxExists: jest.fn(),
+              getInboxCount: jest.fn(),
+            },
+          },
+          {
+            provide: CryptoService,
+            useValue: {
+              getServerSigningPublicKey: jest.fn().mockReturnValue('serverSigPk123'),
+            },
+          },
+          {
+            provide: ConfigService,
+            useValue: {
+              get: jest.fn((key: string, defaultValue: unknown) => {
+                if (key === 'vsb.crypto.encryptionPolicy') return 'disabled';
+                if (key === 'vsb.local.inboxDefaultTtl') return 3600;
+                if (key === 'vsb.local.inboxMaxTtl') return 604800;
+                if (key === 'vsb.local.inboxAliasRandomBytes') return 4;
+                if (key === 'vsb.smtp.allowedRecipientDomains') return ['vaultsandbox.test'];
+                return defaultValue;
+              }),
+            },
+          },
+          {
+            provide: MetricsService,
+            useValue: {
+              increment: jest.fn(),
+              set: jest.fn(),
+            },
+          },
+        ],
+      }).compile();
+
+      const testService = module.get<InboxService>(InboxService);
+
+      // With DISABLED policy, default should be plain
+      const plainResult = testService.createInbox();
+      expect(plainResult.inbox.encrypted).toBe(false);
+
+      // With DISABLED policy + 'encrypted' preference, should be encrypted
+      const encryptedResult = testService.createInbox(validClientKemPk, undefined, undefined, 'encrypted');
+      expect(encryptedResult.inbox.encrypted).toBe(true);
+    });
+
+    it('should resolve encryption state correctly for ENABLED policy', async () => {
+      const module: TestingModule = await Test.createTestingModule({
+        providers: [
+          InboxService,
+          {
+            provide: InboxStorageService,
+            useValue: {
+              createInbox: jest
+                .fn()
+                .mockImplementation((emailAddress, _clientKemPk, _expiresAt, inboxHash, encrypted) => ({
+                  emailAddress,
+                  inboxHash,
+                  encrypted,
+                  createdAt: new Date(),
+                  expiresAt: new Date(Date.now() + 3600000),
+                  emails: new Map(),
+                  emailsHash: '',
+                })),
+              getInbox: jest.fn(),
+              getInboxByHash: jest.fn(),
+              listInboxHashes: jest.fn(),
+              deleteInbox: jest.fn(),
+              deleteEmail: jest.fn(),
+              clearAllInboxes: jest.fn(),
+              addEmail: jest.fn(),
+              getEmails: jest.fn(),
+              getEmail: jest.fn(),
+              markEmailAsRead: jest.fn(),
+              inboxExists: jest.fn(),
+              getInboxCount: jest.fn(),
+            },
+          },
+          {
+            provide: CryptoService,
+            useValue: {
+              getServerSigningPublicKey: jest.fn().mockReturnValue('serverSigPk123'),
+            },
+          },
+          {
+            provide: ConfigService,
+            useValue: {
+              get: jest.fn((key: string, defaultValue: unknown) => {
+                if (key === 'vsb.crypto.encryptionPolicy') return 'enabled';
+                if (key === 'vsb.local.inboxDefaultTtl') return 3600;
+                if (key === 'vsb.local.inboxMaxTtl') return 604800;
+                if (key === 'vsb.local.inboxAliasRandomBytes') return 4;
+                if (key === 'vsb.smtp.allowedRecipientDomains') return ['vaultsandbox.test'];
+                return defaultValue;
+              }),
+            },
+          },
+          {
+            provide: MetricsService,
+            useValue: {
+              increment: jest.fn(),
+              set: jest.fn(),
+            },
+          },
+        ],
+      }).compile();
+
+      const testService = module.get<InboxService>(InboxService);
+
+      // With ENABLED policy + 'plain' preference, should be plain
+      const plainResult = testService.createInbox(undefined, undefined, undefined, 'plain');
+      expect(plainResult.inbox.encrypted).toBe(false);
     });
   });
 });

@@ -113,7 +113,7 @@ jobs:
             org.opencontainers.image.title=VaultSandbox Gateway${{ matrix.suffix == '-harden' && ' (Hardened)' || '' }}
             org.opencontainers.image.description=Secure receive-only SMTP server with automatic TLS certificate management
             org.opencontainers.image.vendor=VaultSandbox
-            org.opencontainers.image.licenses=AGPL-3.0-or-later
+            org.opencontainers.image.licenses=Apache-2.0
 
       # Determine if we should push to registry
       - name: Determine push behavior

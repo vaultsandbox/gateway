@@ -46,10 +46,19 @@ export class MailManager {
   }
 
   /**
-   * Creates a new inbox with an optional email and TTL, returning creation status and address.
+   * Creates a new inbox with an optional email, TTL, and encryption preference.
+   * @param emailAddress Optional desired email address.
+   * @param ttlSeconds Optional time-to-live override for the inbox.
+   * @param encryption Optional encryption preference: 'encrypted' | 'plain'. Omit to use server default.
+   * @param emailAuth Optional email auth preference: true/false. Omit to use server default.
    */
-  createInbox(emailAddress?: string, ttlSeconds?: number): Promise<{ created: boolean; email: string }> {
-    return this.inboxService.createInbox(emailAddress, ttlSeconds);
+  createInbox(
+    emailAddress?: string,
+    ttlSeconds?: number,
+    encryption?: 'encrypted' | 'plain',
+    emailAuth?: boolean,
+  ): Promise<{ created: boolean; email: string }> {
+    return this.inboxService.createInbox(emailAddress, ttlSeconds, encryption, emailAuth);
   }
 
   /**

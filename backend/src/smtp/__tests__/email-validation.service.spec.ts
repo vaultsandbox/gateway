@@ -2,6 +2,7 @@ import { EmailValidationService } from './../email-validation.service';
 import type { DkimResult, SpfResult } from './../interfaces/email-session.interface';
 import { promises as dns } from 'node:dns';
 import type { LookupAddress } from 'node:dns';
+import { ConfigService } from '@nestjs/config';
 import { dkimVerify } from 'mailauth/lib/dkim/verify';
 import { dmarc } from 'mailauth/lib/dmarc';
 import { spf } from 'mailauth/lib/spf';
@@ -22,6 +23,7 @@ describe('EmailValidationService', () => {
   let service: EmailValidationService;
   let logSpy: jest.SpyInstance;
   let warnSpy: jest.SpyInstance;
+  let mockConfigService: jest.Mocked<ConfigService>;
 
   const mockedDkimVerify = dkimVerify;
   const mockedDmarc = dmarc;
@@ -29,7 +31,13 @@ describe('EmailValidationService', () => {
 
   beforeEach(() => {
     jest.clearAllMocks();
-    service = new EmailValidationService();
+
+    // Mock ConfigService with email auth enabled by default
+    mockConfigService = {
+      get: jest.fn().mockReturnValue(true),
+    } as unknown as jest.Mocked<ConfigService>;
+
+    service = new EmailValidationService(mockConfigService);
     logSpy = jest.spyOn(service['logger'], 'log').mockImplementation(() => undefined);
     warnSpy = jest.spyOn(service['logger'], 'warn').mockImplementation(() => undefined);
   });
@@ -155,6 +163,19 @@ describe('EmailValidationService', () => {
         info: 'neutral info',
       });
     });
+
+    it('returns skipped when inbox has emailAuth disabled', async () => {
+      const inbox = { emailAuth: false } as { emailAuth: boolean };
+      const result = await service.verifySpf('example.com', '192.0.2.1', 'sender@example.com', 'session-skip', inbox);
+
+      expect(result).toEqual({
+        status: 'skipped',
+        domain: 'example.com',
+        ip: '192.0.2.1',
+        info: 'SPF check disabled',
+      });
+      expect(mockedSpf).not.toHaveBeenCalled();
+    });
   });
 
   describe('verifyDkim', () => {
@@ -256,6 +277,19 @@ describe('EmailValidationService', () => {
       const result = await service.verifyDkim(Buffer.from('raw'), 'session-comment');
 
       expect(result).toEqual([{ status: 'pass', domain: 'example.com', selector: 'sel1', info: 'good signature' }]);
+    });
+
+    it('returns skipped when inbox has emailAuth disabled', async () => {
+      const inbox = { emailAuth: false } as { emailAuth: boolean };
+      const result = await service.verifyDkim(Buffer.from('raw'), 'session-skip', inbox);
+
+      expect(result).toEqual([
+        {
+          status: 'skipped',
+          info: 'DKIM check disabled',
+        },
+      ]);
+      expect(mockedDkimVerify).not.toHaveBeenCalled();
     });
   });
 
@@ -466,6 +500,17 @@ describe('EmailValidationService', () => {
         "DMARC check (session=session-none-noinfo): NONE for domain='unknown' - No DMARC policy",
       );
     });
+
+    it('returns skipped when inbox has emailAuth disabled', async () => {
+      const inbox = { emailAuth: false } as { emailAuth: boolean };
+      const result = await service.verifyDmarc(headersWithFrom, spfResult, dkimResults, 'session-skip', inbox);
+
+      expect(result).toEqual({
+        status: 'skipped',
+        info: 'DMARC check disabled',
+      });
+      expect(mockedDmarc).not.toHaveBeenCalled();
+    });
   });
 
   describe('verifyReverseDns', () => {
@@ -667,6 +712,17 @@ describe('EmailValidationService', () => {
       });
 
       reverseSpy.mockRestore();
+    });
+
+    it('returns skipped when inbox has emailAuth disabled', async () => {
+      const inbox = { emailAuth: false } as { emailAuth: boolean };
+      const result = await service.verifyReverseDns('203.0.113.10', 'session-skip', inbox);
+
+      expect(result).toEqual({
+        status: 'skipped',
+        ip: '203.0.113.10',
+        info: 'Reverse DNS check disabled',
+      });
     });
   });
 

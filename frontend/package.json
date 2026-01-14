@@ -1,10 +1,10 @@
 {
   "name": "vaultsandbox-gateway-frontend",
-  "version": "0.6.1",
+  "version": "0.7.0",
   "description": "Web interface for VaultSandbox Gateway with inbox management, HTML email preview, and real-time delivery via SSE",
   "author": "Antero",
   "private": false,
-  "license": "MIT",
+  "license": "Apache-2.0",
   "repository": {
     "type": "git",
     "url": "https://github.com/vaultsandbox/gateway.git",
@@ -58,7 +58,7 @@
     "@angular/forms": "^20.3.16",
     "@angular/platform-browser": "^20.3.16",
     "@angular/router": "^20.3.16",
-    "@noble/post-quantum": "^0.5.2",
+    "@noble/post-quantum": "^0.5.4",
     "@primeuix/themes": "^1.2.5",
     "@tailwindcss/postcss": "^4.1.18",
     "dompurify": "^3.3.1",

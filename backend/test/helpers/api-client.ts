@@ -8,9 +8,10 @@ export interface ApiClientOptions {
 }
 
 export interface CreateInboxBody {
-  clientKemPk: string;
+  clientKemPk?: string;
   ttl?: number;
   emailAddress?: string;
+  encryption?: 'encrypted' | 'plain';
 }
 
 export interface AuthOptions {

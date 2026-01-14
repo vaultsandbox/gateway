@@ -44,7 +44,7 @@ describe('Test Email API - Auth Results (E2E)', () => {
         spf: 'pass',
         dkim: 'pass',
         dmarc: 'pass',
-        reverseDnsVerified: true,
+        reverseDns: 'pass',
       });
     });
 
@@ -173,7 +173,7 @@ describe('Test Email API - Auth Results (E2E)', () => {
       await apiClient
         .createTestEmail({
           to: inbox.emailAddress,
-          auth: { reverseDns: true },
+          auth: { reverseDns: 'pass' },
         })
         .expect(201);
 
@@ -181,19 +181,19 @@ describe('Test Email API - Auth Results (E2E)', () => {
       const emailResponse = await apiClient.getEmail(inbox.emailAddress, emails[0].id).expect(200);
       const parsed = await decryptParsed(emailResponse.body.encryptedParsed, keypair.secretKey);
 
-      expectAuthResultValues(parsed.authResults, { reverseDnsVerified: true });
+      expectAuthResultValues(parsed.authResults, { reverseDns: 'pass' });
       expect(parsed.authResults.reverseDns?.hostname).toBe('test.vaultsandbox.local');
       expect(parsed.authResults.reverseDns?.ip).toBe('127.0.0.1');
     });
 
-    it('should create email with reverseDns=false (not verified)', async () => {
+    it('should create email with reverseDns=fail (not verified)', async () => {
       const keypair = generateClientKeypair();
       const inbox = await createTestInbox(apiClient, keypair.publicKeyB64);
 
       await apiClient
         .createTestEmail({
           to: inbox.emailAddress,
-          auth: { reverseDns: false },
+          auth: { reverseDns: 'fail' },
         })
         .expect(201);
 
@@ -201,7 +201,7 @@ describe('Test Email API - Auth Results (E2E)', () => {
       const emailResponse = await apiClient.getEmail(inbox.emailAddress, emails[0].id).expect(200);
       const parsed = await decryptParsed(emailResponse.body.encryptedParsed, keypair.secretKey);
 
-      expectAuthResultValues(parsed.authResults, { reverseDnsVerified: false });
+      expectAuthResultValues(parsed.authResults, { reverseDns: 'fail' });
     });
   });
 
@@ -217,7 +217,7 @@ describe('Test Email API - Auth Results (E2E)', () => {
             spf: 'fail',
             dkim: 'fail',
             dmarc: 'fail',
-            reverseDns: false,
+            reverseDns: 'fail',
           },
         })
         .expect(201);
@@ -230,7 +230,7 @@ describe('Test Email API - Auth Results (E2E)', () => {
         spf: 'fail',
         dkim: 'fail',
         dmarc: 'fail',
-        reverseDnsVerified: false,
+        reverseDns: 'fail',
       });
     });
 
@@ -245,7 +245,7 @@ describe('Test Email API - Auth Results (E2E)', () => {
             spf: 'softfail',
             dkim: 'pass',
             dmarc: 'fail',
-            reverseDns: true,
+            reverseDns: 'pass',
           },
         })
         .expect(201);
@@ -258,7 +258,7 @@ describe('Test Email API - Auth Results (E2E)', () => {
         spf: 'softfail',
         dkim: 'pass',
         dmarc: 'fail',
-        reverseDnsVerified: true,
+        reverseDns: 'pass',
       });
     });
 

@@ -42,6 +42,7 @@ describe('InboxSyncService', () => {
     emailAddress: 'test@example.com',
     expiresAt: new Date(Date.now() + 3600000).toISOString(),
     inboxHash: 'test-inbox-hash',
+    encrypted: true,
     serverSigPk: 'test-server-sig-pk',
     secretKey: new Uint8Array([1, 2, 3, 4]),
     emails: [],
@@ -193,6 +194,78 @@ describe('InboxSyncService', () => {
   describe('loadEmailsForInbox()', () => {
     beforeEach(() => {
       service = TestBed.inject(InboxSyncService);
+    });
+
+    describe('plain inbox support', () => {
+      const createPlainInbox = (overrides: Partial<InboxModel> = {}): InboxModel => ({
+        emailAddress: 'plain@example.com',
+        expiresAt: new Date(Date.now() + 3600000).toISOString(),
+        inboxHash: 'plain-inbox-hash',
+        encrypted: false,
+        emails: [],
+        ...overrides,
+      });
+
+      const createPlainEmailListItem = (overrides: Partial<EmailListItemResponse> = {}): EmailListItemResponse => {
+        const metadata = {
+          from: 'sender@test.com',
+          to: 'plain@example.com',
+          subject: 'Plain Subject',
+          receivedAt: new Date().toISOString(),
+        };
+        return {
+          id: 'plain-email-1',
+          metadata: btoa(JSON.stringify(metadata)),
+          isRead: false,
+          ...overrides,
+        };
+      };
+
+      it('should decode base64 metadata for plain inbox emails', async () => {
+        const inbox = createPlainInbox();
+        inboxStateServiceStub.setInboxes([inbox]);
+
+        const plainEmail = createPlainEmailListItem();
+        spyOn(vaultSandboxApiStub, 'getInboxSyncStatus').and.returnValue(of({ emailsHash: 'new-hash', emailCount: 1 }));
+        spyOn(vaultSandboxApiStub, 'listEmails').and.returnValue(of([plainEmail]));
+        spyOn(inboxStateServiceStub, 'updateInbox');
+
+        await service.loadEmailsForInbox(inbox.inboxHash);
+
+        expect(inboxStateServiceStub.updateInbox).toHaveBeenCalled();
+        const updatedInbox = (inboxStateServiceStub.updateInbox as jasmine.Spy).calls.mostRecent()
+          .args[0] as InboxModel;
+        expect(updatedInbox.emails.length).toBe(1);
+        expect(updatedInbox.emails[0].decryptedMetadata?.subject).toBe('Plain Subject');
+        expect(updatedInbox.emails[0].decryptedMetadata?.from).toBe('sender@test.com');
+      });
+
+      it('should handle invalid metadata in plain inbox gracefully', async () => {
+        const inbox = createPlainInbox();
+        inboxStateServiceStub.setInboxes([inbox]);
+
+        // Email with neither encryptedMetadata nor valid metadata string
+        const invalidEmail: EmailListItemResponse = {
+          id: 'invalid-email-1',
+          isRead: false,
+        };
+        spyOn(vaultSandboxApiStub, 'getInboxSyncStatus').and.returnValue(of({ emailsHash: 'new-hash', emailCount: 1 }));
+        spyOn(vaultSandboxApiStub, 'listEmails').and.returnValue(of([invalidEmail]));
+        spyOn(console, 'error');
+        spyOn(inboxStateServiceStub, 'updateInbox');
+
+        await service.loadEmailsForInbox(inbox.inboxHash);
+
+        expect(console.error).toHaveBeenCalledWith(
+          '[InboxSyncService] Error processing metadata for email:',
+          'invalid-email-1',
+          jasmine.any(Error),
+        );
+        const updatedInbox = (inboxStateServiceStub.updateInbox as jasmine.Spy).calls.mostRecent()
+          .args[0] as InboxModel;
+        expect(updatedInbox.emails.length).toBe(1);
+        expect(updatedInbox.emails[0].decryptedMetadata).toBeUndefined();
+      });
     });
 
     it('should show error when inbox not found', async () => {
@@ -465,6 +538,82 @@ describe('InboxSyncService', () => {
       service = TestBed.inject(InboxSyncService);
     });
 
+    describe('plain inbox support', () => {
+      const createPlainInbox = (overrides: Partial<InboxModel> = {}): InboxModel => ({
+        emailAddress: 'plain@example.com',
+        expiresAt: new Date(Date.now() + 3600000).toISOString(),
+        inboxHash: 'plain-inbox-hash',
+        encrypted: false,
+        emails: [],
+        ...overrides,
+      });
+
+      it('should decode base64 metadata for plain inbox SSE events', async () => {
+        const inbox = createPlainInbox();
+        inboxStateServiceStub.setInboxes([inbox]);
+
+        spyOn(inboxStateServiceStub, 'updateInbox');
+        spyOn(inboxStateServiceStub, 'notifyNewEmail');
+
+        const metadata = {
+          from: 'sse-sender@test.com',
+          to: inbox.emailAddress,
+          subject: 'SSE Plain Email',
+          receivedAt: new Date().toISOString(),
+        };
+
+        const event: NewEmailEvent = {
+          inboxId: inbox.inboxHash,
+          emailId: 'sse-plain-email-id',
+          metadata: btoa(JSON.stringify(metadata)),
+        };
+
+        vaultSandboxStub.emit(event);
+
+        await new Promise((resolve) => setTimeout(resolve, 10));
+
+        expect(inboxStateServiceStub.updateInbox).toHaveBeenCalled();
+        expect(inboxStateServiceStub.notifyNewEmail).toHaveBeenCalled();
+
+        const updatedInbox = (inboxStateServiceStub.updateInbox as jasmine.Spy).calls.mostRecent()
+          .args[0] as InboxModel;
+        expect(updatedInbox.emails.length).toBe(1);
+        expect(updatedInbox.emails[0].id).toBe('sse-plain-email-id');
+        expect(updatedInbox.emails[0].decryptedMetadata?.subject).toBe('SSE Plain Email');
+        expect(updatedInbox.emails[0].decryptedMetadata?.from).toBe('sse-sender@test.com');
+      });
+
+      it('should create fallback metadata when SSE event has no valid metadata', async () => {
+        const inbox = createPlainInbox();
+        inboxStateServiceStub.setInboxes([inbox]);
+
+        spyOn(console, 'error');
+        spyOn(inboxStateServiceStub, 'updateInbox');
+        spyOn(inboxStateServiceStub, 'notifyNewEmail');
+
+        // Event without encryptedMetadata or metadata
+        const event: NewEmailEvent = {
+          inboxId: inbox.inboxHash,
+          emailId: 'invalid-sse-email-id',
+        };
+
+        vaultSandboxStub.emit(event);
+
+        await new Promise((resolve) => setTimeout(resolve, 10));
+
+        expect(console.error).toHaveBeenCalledWith(
+          '[InboxSyncService] Failed to process SSE metadata:',
+          jasmine.any(Error),
+        );
+        expect(inboxStateServiceStub.updateInbox).toHaveBeenCalled();
+
+        const updatedInbox = (inboxStateServiceStub.updateInbox as jasmine.Spy).calls.mostRecent()
+          .args[0] as InboxModel;
+        expect(updatedInbox.emails[0].decryptedMetadata?.from).toBe('unknown');
+        expect(updatedInbox.emails[0].decryptedMetadata?.subject).toBe('(processing failed)');
+      });
+    });
+
     it('should ignore event when inbox not found', async () => {
       spyOn(inboxStateServiceStub, 'updateInbox');
 
@@ -557,14 +706,14 @@ describe('InboxSyncService', () => {
       await new Promise((resolve) => setTimeout(resolve, 10));
 
       expect(console.error).toHaveBeenCalledWith(
-        '[InboxSyncService] Failed to decrypt SSE metadata:',
+        '[InboxSyncService] Failed to process SSE metadata:',
         jasmine.any(Error),
       );
       expect(inboxStateServiceStub.updateInbox).toHaveBeenCalled();
 
       const updatedInbox = (inboxStateServiceStub.updateInbox as jasmine.Spy).calls.mostRecent().args[0] as InboxModel;
       expect(updatedInbox.emails[0].decryptedMetadata?.from).toBe('unknown');
-      expect(updatedInbox.emails[0].decryptedMetadata?.subject).toBe('(decryption failed)');
+      expect(updatedInbox.emails[0].decryptedMetadata?.subject).toBe('(processing failed)');
     });
 
     it('should prepend new email to existing emails', async () => {

@@ -26,6 +26,8 @@ export class EmailAuthResultsComponent {
       case 'softfail':
       case 'neutral':
         return 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200';
+      case 'skipped':
+        return 'bg-surface-300 text-surface-600 dark:bg-surface-600 dark:text-surface-300';
       case 'none':
       default:
         return 'bg-surface-200 text-surface-700 dark:bg-surface-700 dark:text-surface-300';
