@@ -58,7 +58,7 @@
     "@angular/forms": "^20.3.16",
     "@angular/platform-browser": "^20.3.16",
     "@angular/router": "^20.3.16",
-    "@noble/post-quantum": "^0.5.2",
+    "@noble/post-quantum": "^0.5.4",
     "@primeuix/themes": "^1.2.5",
     "@tailwindcss/postcss": "^4.1.18",
     "dompurify": "^3.3.1",
