@@ -299,4 +299,54 @@ describe('VaultSandboxApi', () => {
       req.flush(null);
     });
   });
+
+  describe('checkLink', () => {
+    it('should make GET request to /proxy/check with url param', () => {
+      const mockResponse = { valid: true, status: 200, contentType: 'text/html' };
+      const testUrl = 'https://example.com/page';
+
+      service.checkLink(testUrl).subscribe((response) => {
+        expect(response).toEqual(mockResponse);
+      });
+
+      const req = httpMock.expectOne(
+        (request) => request.url === `${baseUrl}/proxy/check` && request.params.get('url') === testUrl,
+      );
+      expect(req.request.method).toBe('GET');
+      req.flush(mockResponse);
+    });
+
+    it('should return invalid result for unreachable URL', () => {
+      const mockResponse = { valid: false };
+      const testUrl = 'https://unreachable.example.com';
+
+      service.checkLink(testUrl).subscribe((response) => {
+        expect(response).toEqual(mockResponse);
+      });
+
+      const req = httpMock.expectOne(
+        (request) => request.url === `${baseUrl}/proxy/check` && request.params.get('url') === testUrl,
+      );
+      req.flush(mockResponse);
+    });
+  });
+
+  describe('getProxyImage', () => {
+    it('should make GET request to /proxy with url param and return blob', () => {
+      const testUrl = 'https://example.com/image.png';
+      const mockBlob = new Blob(['image-data'], { type: 'image/png' });
+
+      service.getProxyImage(testUrl).subscribe((response) => {
+        expect(response).toBeInstanceOf(Blob);
+        expect(response.type).toBe('image/png');
+      });
+
+      const req = httpMock.expectOne(
+        (request) => request.url === `${baseUrl}/proxy` && request.params.get('url') === testUrl,
+      );
+      expect(req.request.method).toBe('GET');
+      expect(req.request.responseType).toBe('blob');
+      req.flush(mockBlob);
+    });
+  });
 });

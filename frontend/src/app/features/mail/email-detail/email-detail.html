@@ -15,6 +15,15 @@
 
       <div class="flex gap-2">
         <p-button
+          [icon]="isTakingScreenshot ? 'pi pi-spinner pi-spin' : 'pi pi-camera'"
+          [text]="true"
+          severity="secondary"
+          (onClick)="downloadScreenshot()"
+          [disabled]="isTakingScreenshot || !email.parsedContent || isRenderingContent"
+          pTooltip="Save screenshot"
+          tooltipPosition="bottom"
+        />
+        <p-button
           [icon]="isDownloadingRaw ? 'pi pi-spinner pi-spin' : 'pi pi-download'"
           [text]="true"
           severity="secondary"
@@ -141,6 +150,7 @@
                   @if (useIframeRendering) {
                     <!-- Iframe rendering for trusted mode: Full CSS support, scripts blocked -->
                     <iframe
+                      #emailContentContainer
                       [srcdoc]="sanitizedHtml"
                       sandbox="allow-same-origin"
                       (load)="onIframeLoad($event)"
@@ -151,6 +161,7 @@
                   } @else {
                     <!-- Standard rendering with DOMPurify sanitization -->
                     <div
+                      #emailContentContainer
                       class="email-html-frame bg-white dark:bg-white dark:text-surface-900 text-surface-900 border border-surface-200 rounded-sm shadow-sm"
                     >
                       <div class="m-1 email-html-content prose prose-sm max-w-none" [innerHTML]="sanitizedHtml"></div>

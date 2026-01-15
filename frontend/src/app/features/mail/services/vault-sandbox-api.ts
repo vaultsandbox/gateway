@@ -138,4 +138,29 @@ export class VaultSandboxApi {
   clearAllInboxes(): Observable<void> {
     return this.http.delete<void>(`${this.baseUrl}/inboxes`);
   }
+
+  /**
+   * GET /api/proxy/check
+   * Check if an external URL is reachable (bypasses CORS)
+   * Requires X-API-Key header
+   * @param url - The URL to check
+   */
+  checkLink(url: string): Observable<{ valid: boolean; status?: number; contentType?: string }> {
+    return this.http.get<{ valid: boolean; status?: number; contentType?: string }>(`${this.baseUrl}/proxy/check`, {
+      params: { url },
+    });
+  }
+
+  /**
+   * GET /api/proxy
+   * Fetch an external image through the proxy (bypasses CORS)
+   * Requires X-API-Key header
+   * @param url - The URL of the image to fetch
+   */
+  getProxyImage(url: string): Observable<Blob> {
+    return this.http.get(`${this.baseUrl}/proxy`, {
+      params: { url },
+      responseType: 'blob',
+    });
+  }
 }

@@ -32,8 +32,8 @@ import {
  * @throws {Error} If only one of cert/key is provided (both required for TLS)
  */
 export function buildTlsConfig() {
-  const certPath = process.env.VSB_SMTP_TLS_CERT_PATH;
-  const keyPath = process.env.VSB_SMTP_TLS_KEY_PATH;
+  const certPath = process.env.VSB_TLS_CERT_PATH;
+  const keyPath = process.env.VSB_TLS_KEY_PATH;
   const cert = readTlsBuffer(certPath);
   const key = readTlsBuffer(keyPath);
 
@@ -42,7 +42,7 @@ export function buildTlsConfig() {
   }
 
   if (!cert || !key) {
-    throw new Error('Both VSB_SMTP_TLS_CERT_PATH and VSB_SMTP_TLS_KEY_PATH must be provided to enable TLS.');
+    throw new Error('Both VSB_TLS_CERT_PATH and VSB_TLS_KEY_PATH must be provided to enable TLS.');
   }
 
   // TLS security hardening (RFC 8996 - deprecates TLS 1.0 and 1.1)

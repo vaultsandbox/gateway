@@ -4,6 +4,7 @@ import { HttpService } from '@nestjs/axios';
 import { Logger } from '@nestjs/common';
 import { EventEmitter2 } from '@nestjs/event-emitter';
 import { of, throwError } from 'rxjs';
+import * as acme from 'acme-client';
 import { CertificateService } from '../certificate.service';
 import { OrchestrationService } from '../../orchestration/orchestration.service';
 import { AcmeClientService } from '../acme/acme-client.service';
@@ -12,6 +13,15 @@ import { CertificateWatcherService } from '../watcher/certificate-watcher.servic
 import { MetricsService } from '../../metrics/metrics.service';
 import { CERTIFICATE_CONFIG } from '../certificate.tokens';
 import type { CertificateConfig, Certificate, CertificateSyncRequest } from '../interfaces';
+
+// Mock fs module
+jest.mock('fs', () => ({
+  ...jest.requireActual('fs'),
+  existsSync: jest.fn(),
+  readFileSync: jest.fn(),
+}));
+
+import * as fs from 'fs';
 
 describe('CertificateService', () => {
   let service: CertificateService;
@@ -804,6 +814,184 @@ describe('CertificateService', () => {
       await service.manualRenewal();
 
       expect(orchestrationService.acquireLeadership).toHaveBeenCalled();
+    });
+  });
+
+  describe('manual TLS certificates', () => {
+    const originalEnv = process.env;
+
+    beforeEach(() => {
+      jest.resetModules();
+      process.env = { ...originalEnv };
+    });
+
+    afterEach(() => {
+      process.env = originalEnv;
+      jest.restoreAllMocks();
+    });
+
+    it('should skip ACME initialization when manual TLS certificates are provided', async () => {
+      process.env.VSB_TLS_CERT_PATH = '/path/to/cert.pem';
+      process.env.VSB_TLS_KEY_PATH = '/path/to/key.pem';
+
+      const module = await createModule(createConfig());
+      const manualService = module.get<CertificateService>(CertificateService);
+      const manualAcmeClient = module.get<AcmeClientService>(AcmeClientService);
+      const manualWatcherService = module.get<CertificateWatcherService>(CertificateWatcherService);
+
+      await manualService.onModuleInit();
+
+      expect(manualAcmeClient.initialize).not.toHaveBeenCalled();
+      expect(manualWatcherService.startWatching).not.toHaveBeenCalled();
+    });
+
+    it('should load manual certificate in getCurrentCertificate when manual TLS is provided', async () => {
+      process.env.VSB_TLS_CERT_PATH = '/path/to/cert.pem';
+      process.env.VSB_TLS_KEY_PATH = '/path/to/key.pem';
+
+      const mockCertContent = Buffer.from('mock-cert-content');
+      const mockKeyContent = Buffer.from('mock-key-content');
+
+      (fs.existsSync as jest.Mock).mockReturnValue(true);
+      (fs.readFileSync as jest.Mock).mockImplementation((path: string) => {
+        if (path.includes('cert')) return mockCertContent;
+        return mockKeyContent;
+      });
+
+      const mockCertInfo = {
+        domains: {
+          commonName: 'example.com',
+          altNames: ['www.example.com'],
+        },
+        notBefore: new Date('2024-01-01'),
+        notAfter: new Date('2025-01-01'),
+      };
+      jest.spyOn(acme.forge, 'readCertificateInfo').mockResolvedValue(mockCertInfo as any);
+
+      const module = await createModule(createConfig());
+      const manualService = module.get<CertificateService>(CertificateService);
+      const manualStorageService = module.get<CertificateStorageService>(CertificateStorageService);
+
+      const result = await manualService.getCurrentCertificate();
+
+      expect(manualStorageService.loadCertificate).not.toHaveBeenCalled();
+      expect(result).not.toBeNull();
+      expect(result?.domains).toContain('example.com');
+      expect(result?.domains).toContain('www.example.com');
+    });
+
+    it('should return null when manual cert files do not exist', async () => {
+      process.env.VSB_TLS_CERT_PATH = '/path/to/cert.pem';
+      process.env.VSB_TLS_KEY_PATH = '/path/to/key.pem';
+
+      (fs.existsSync as jest.Mock).mockReturnValue(false);
+
+      const module = await createModule(createConfig());
+      const manualService = module.get<CertificateService>(CertificateService);
+
+      const result = await manualService.getCurrentCertificate();
+
+      expect(result).toBeNull();
+    });
+
+    it('should handle certificate without altNames', async () => {
+      process.env.VSB_TLS_CERT_PATH = '/path/to/cert.pem';
+      process.env.VSB_TLS_KEY_PATH = '/path/to/key.pem';
+
+      const mockCertContent = Buffer.from('mock-cert-content');
+      const mockKeyContent = Buffer.from('mock-key-content');
+
+      (fs.existsSync as jest.Mock).mockReturnValue(true);
+      (fs.readFileSync as jest.Mock).mockImplementation((path: string) => {
+        if (path.includes('cert')) return mockCertContent;
+        return mockKeyContent;
+      });
+
+      const mockCertInfo = {
+        domains: {
+          commonName: 'example.com',
+          altNames: undefined, // No altNames
+        },
+        notBefore: new Date('2024-01-01'),
+        notAfter: new Date('2025-01-01'),
+      };
+      jest.spyOn(acme.forge, 'readCertificateInfo').mockResolvedValue(mockCertInfo as any);
+
+      const module = await createModule(createConfig());
+      const manualService = module.get<CertificateService>(CertificateService);
+
+      const result = await manualService.getCurrentCertificate();
+
+      expect(result).not.toBeNull();
+      expect(result?.domains).toContain('example.com');
+      expect(result?.domains).toHaveLength(1);
+    });
+
+    it('should use default metadata for self-signed certificates without standard metadata', async () => {
+      process.env.VSB_TLS_CERT_PATH = '/path/to/cert.pem';
+      process.env.VSB_TLS_KEY_PATH = '/path/to/key.pem';
+
+      const mockCertContent = Buffer.from('mock-cert-content');
+      const mockKeyContent = Buffer.from('mock-key-content');
+
+      (fs.existsSync as jest.Mock).mockReturnValue(true);
+      (fs.readFileSync as jest.Mock).mockImplementation((path: string) => {
+        if (path.includes('cert')) return mockCertContent;
+        return mockKeyContent;
+      });
+
+      // Simulate self-signed cert that throws when reading metadata
+      jest.spyOn(acme.forge, 'readCertificateInfo').mockRejectedValue(new Error('Invalid certificate'));
+
+      const module = await createModule(createConfig());
+      const manualService = module.get<CertificateService>(CertificateService);
+
+      const result = await manualService.getCurrentCertificate();
+
+      expect(result).not.toBeNull();
+      expect(result?.domains).toContain('localhost');
+    });
+
+    it('should return null when only cert path is provided without key path', async () => {
+      process.env.VSB_TLS_CERT_PATH = '/path/to/cert.pem';
+      delete process.env.VSB_TLS_KEY_PATH;
+
+      const module = await createModule(createConfig());
+      const manualService = module.get<CertificateService>(CertificateService);
+      const manualStorageService = module.get<CertificateStorageService>(CertificateStorageService);
+
+      // When only one path is provided, manualCertProvided is false, so it delegates to storage
+      manualStorageService.loadCertificate.mockResolvedValue(null);
+
+      await manualService.getCurrentCertificate();
+
+      expect(manualStorageService.loadCertificate).toHaveBeenCalled();
+    });
+
+    it('should skip scheduledCertificateCheck when manual TLS is provided', async () => {
+      process.env.VSB_TLS_CERT_PATH = '/path/to/cert.pem';
+      process.env.VSB_TLS_KEY_PATH = '/path/to/key.pem';
+
+      const module = await createModule(createConfig());
+      const manualService = module.get<CertificateService>(CertificateService);
+      const manualOrchestrationService = module.get<OrchestrationService>(OrchestrationService);
+
+      await manualService.scheduledCertificateCheck();
+
+      expect(manualOrchestrationService.acquireLeadership).not.toHaveBeenCalled();
+    });
+
+    it('should skip checkAndRenewIfNeeded when manual TLS is provided', async () => {
+      process.env.VSB_TLS_CERT_PATH = '/path/to/cert.pem';
+      process.env.VSB_TLS_KEY_PATH = '/path/to/key.pem';
+
+      const module = await createModule(createConfig());
+      const manualService = module.get<CertificateService>(CertificateService);
+      const manualOrchestrationService = module.get<OrchestrationService>(OrchestrationService);
+
+      await manualService.checkAndRenewIfNeeded();
+
+      expect(manualOrchestrationService.acquireLeadership).not.toHaveBeenCalled();
     });
   });
 });

@@ -68,10 +68,10 @@ VSB_CERT_EMAIL=hello@mydomain.com
 # VSB_CERT_STAGING=false  # Set to true for testing with Let's Encrypt staging
 
 # OPTION 2: Manual Certificate Management
-# Uncomment these lines and set VSB_CERT_ENABLED=false to use manual certificates:
-# VSB_CERT_ENABLED=false
-# VSB_SMTP_TLS_CERT_PATH=/path/to/fullchain.pem
-# VSB_SMTP_TLS_KEY_PATH=/path/to/key.pem
+# Provide your own certificates (self-signed or from another CA).
+# When these are set, ACME certificate renewal is skipped.
+# VSB_TLS_CERT_PATH=/path/to/fullchain.pem
+# VSB_TLS_KEY_PATH=/path/to/key.pem
 
 # ============================================================================
 # HTTP/HTTPS SERVER CONFIGURATION

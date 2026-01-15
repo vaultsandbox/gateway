@@ -8,6 +8,8 @@ import {
   SimpleChanges,
   inject,
   ChangeDetectorRef,
+  ViewChild,
+  ElementRef,
 } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { DomSanitizer, SafeHtml } from '@angular/platform-browser';
@@ -28,7 +30,7 @@ import { EmailAttachmentsComponent } from './email-attachments/email-attachments
 import { EmailLinksComponent } from './email-links/email-links';
 import { SettingsManager, SanitizationLevel } from '../services/settings-manager';
 import { DateFormatter } from '../../../shared/utils/date-formatter';
-import { EmailHeaderFormatter, MailContentSanitizer, EmailDownloads } from './helpers';
+import { EmailHeaderFormatter, MailContentSanitizer, EmailDownloads, EmailScreenshot } from './helpers';
 import { VaultSandboxApi } from '../services/vault-sandbox-api';
 
 export enum EmailDetailTab {
@@ -71,6 +73,10 @@ export class EmailDetail implements OnInit, OnChanges {
    * Event emitted when the user navigates back to the list view.
    */
   @Output() backToList = new EventEmitter<void>();
+  /**
+   * Reference to the email content container for screenshot capture.
+   */
+  @ViewChild('emailContentContainer') emailContentContainer?: ElementRef<HTMLElement>;
 
   protected readonly dateFormatter = DateFormatter;
   private readonly mailManager = inject(MailManager);
@@ -101,6 +107,10 @@ export class EmailDetail implements OnInit, OnChanges {
    * Guards the delete button while a delete is in progress.
    */
   isDeletingEmail = false;
+  /**
+   * Guards the screenshot button while a screenshot is in progress.
+   */
+  isTakingScreenshot = false;
   /**
    * Guards toggled content rendering to avoid blocking UI when switching emails.
    */
@@ -299,6 +309,48 @@ export class EmailDetail implements OnInit, OnChanges {
       this.toast.showError('Failed to download email', 'Please try again');
     } finally {
       this.isDownloadingRaw = false;
+    }
+  }
+
+  /**
+   * Captures a screenshot of the email content and downloads it as PNG.
+   */
+  /* istanbul ignore next */
+  async downloadScreenshot(): Promise<void> {
+    if (!this.email || !this.emailContentContainer?.nativeElement) {
+      return;
+    }
+
+    this.isTakingScreenshot = true;
+
+    try {
+      // Determine the element to capture - for iframes, use the inner document body
+      let elementToCapture: HTMLElement = this.emailContentContainer.nativeElement;
+
+      if (this.useIframeRendering) {
+        const iframe = this.emailContentContainer.nativeElement as HTMLIFrameElement;
+        const iframeBody = iframe.contentDocument?.body;
+        if (!iframeBody) {
+          this.toast.showError('Cannot capture screenshot', 'Email content not accessible');
+          return;
+        }
+        elementToCapture = iframeBody;
+      }
+
+      await EmailScreenshot.captureAndDownload({
+        api: this.api,
+        element: elementToCapture,
+        email: this.email,
+        isIframeBody: this.useIframeRendering,
+      });
+
+      const filename = EmailScreenshot.buildScreenshotFilename(this.email);
+      this.toast.showSuccess('Screenshot saved', filename);
+    } catch (error) {
+      console.error('Error taking screenshot:', error);
+      this.toast.showError('Failed to capture screenshot', 'Please try again');
+    } finally {
+      this.isTakingScreenshot = false;
     }
   }
 

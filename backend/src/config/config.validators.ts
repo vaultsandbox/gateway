@@ -98,13 +98,13 @@ export function validateTlsConfig(smtpPort: number, smtpSecure: boolean): void {
 
   // Warn if both certificate management and manual TLS paths are configured
   const certEnabled = parseOptionalBoolean(process.env.VSB_CERT_ENABLED, false);
-  const hasTlsPaths = process.env.VSB_SMTP_TLS_CERT_PATH || process.env.VSB_SMTP_TLS_KEY_PATH;
+  const hasTlsPaths = process.env.VSB_TLS_CERT_PATH || process.env.VSB_TLS_KEY_PATH;
 
   if (certEnabled && hasTlsPaths) {
     logger.warn(
       'Both automatic certificate management (VSB_CERT_ENABLED=true) ' +
-        'and manual TLS paths (VSB_SMTP_TLS_CERT_PATH/VSB_SMTP_TLS_KEY_PATH) are configured. ' +
-        'Manual TLS paths will be IGNORED. Remove manual path configuration to avoid confusion.',
+        'and manual TLS paths (VSB_TLS_CERT_PATH/VSB_TLS_KEY_PATH) are configured. ' +
+        'Manual TLS paths will be used; ACME certificate renewal will be skipped.',
     );
   }
 }

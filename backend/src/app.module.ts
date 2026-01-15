@@ -22,10 +22,11 @@ import { SseConsoleModule } from './sse-console/sse-console.module';
 import { ThrottlerModule, ThrottlerGuard } from '@nestjs/throttler';
 import { DEFAULT_GATEWAY_MODE } from './config/config.constants';
 import { TestModule } from './test/test.module';
+import { ProxyModule } from './proxy/proxy.module';
 
 // Conditional module loading based on gateway mode
 const gatewayMode = process.env.VSB_GATEWAY_MODE || DEFAULT_GATEWAY_MODE;
-const isDevelopment = process.env.VSB_DEVELOPMENT === 'true';
+const isDevelopment = process.env.VSB_SDK_DEVELOPMENT === 'true';
 
 @Module({
   imports: [
@@ -60,9 +61,9 @@ const isDevelopment = process.env.VSB_DEVELOPMENT === 'true';
     CryptoModule,
     MetricsModule,
     SseConsoleModule, // Always import, enabled/disabled via config
-    // Conditionally import InboxModule only in local mode
-    ...(gatewayMode === 'local' ? [InboxModule, EventsModule] : []),
-    // Conditionally import TestModule only in local mode with VSB_DEVELOPMENT=true
+    // Conditionally import InboxModule, EventsModule, and ProxyModule only in local mode
+    ...(gatewayMode === 'local' ? [InboxModule, EventsModule, ProxyModule] : []),
+    // Conditionally import TestModule only in local mode with VSB_SDK_DEVELOPMENT=true
     ...(gatewayMode === 'local' && isDevelopment ? [TestModule] : []),
   ],
   controllers: [AppController],

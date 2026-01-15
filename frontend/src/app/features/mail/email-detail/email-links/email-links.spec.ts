@@ -1,21 +1,28 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { provideZonelessChangeDetection } from '@angular/core';
+import { Observable, of, throwError } from 'rxjs';
 import { EmailLinksComponent } from './email-links';
 import { VsToast } from '../../../../shared/services/vs-toast';
+import { VaultSandboxApi } from '../../services/vault-sandbox-api';
 import { VsToastStub } from '../../../../../testing/mail-testing.mocks';
-import { FETCH_TIMEOUT_MS } from '../../../../shared/constants/app.constants';
 
 describe('EmailLinksComponent', () => {
   let component: EmailLinksComponent;
   let fixture: ComponentFixture<EmailLinksComponent>;
   let toastSpy: jasmine.SpyObj<VsToastStub>;
+  let apiSpy: jasmine.SpyObj<VaultSandboxApi>;
 
   beforeEach(async () => {
     toastSpy = jasmine.createSpyObj('VsToast', ['showInfo', 'showError', 'showSuccess']);
+    apiSpy = jasmine.createSpyObj('VaultSandboxApi', ['checkLink']);
 
     await TestBed.configureTestingModule({
       imports: [EmailLinksComponent],
-      providers: [provideZonelessChangeDetection(), { provide: VsToast, useValue: toastSpy }],
+      providers: [
+        provideZonelessChangeDetection(),
+        { provide: VsToast, useValue: toastSpy },
+        { provide: VaultSandboxApi, useValue: apiSpy },
+      ],
     }).compileComponents();
 
     fixture = TestBed.createComponent(EmailLinksComponent);
@@ -57,6 +64,7 @@ describe('EmailLinksComponent', () => {
 
       expect(toastSpy.showInfo).not.toHaveBeenCalled();
       expect(toastSpy.showError).not.toHaveBeenCalled();
+      expect(apiSpy.checkLink).not.toHaveBeenCalled();
     });
 
     it('shows info toast for mailto links without validation', async () => {
@@ -66,6 +74,7 @@ describe('EmailLinksComponent', () => {
 
       expect(toastSpy.showInfo).toHaveBeenCalledWith('Email Link', 'Email links cannot be validated automatically');
       expect(component.linkStatuses[0].status).toBe('unchecked');
+      expect(apiSpy.checkLink).not.toHaveBeenCalled();
     });
 
     it('shows info toast for mailto links (case insensitive)', async () => {
@@ -81,8 +90,9 @@ describe('EmailLinksComponent', () => {
 
       await component.validateLink(component.linkStatuses[0]);
 
-      expect(toastSpy.showInfo).toHaveBeenCalledWith('FTP Link', 'FTP links cannot be validated from the browser');
+      expect(toastSpy.showInfo).toHaveBeenCalledWith('FTP Link', 'FTP links cannot be validated automatically');
       expect(component.linkStatuses[0].status).toBe('unchecked');
+      expect(apiSpy.checkLink).not.toHaveBeenCalled();
     });
 
     it('shows info toast for ftp links (case insensitive)', async () => {
@@ -90,24 +100,23 @@ describe('EmailLinksComponent', () => {
 
       await component.validateLink(component.linkStatuses[0]);
 
-      expect(toastSpy.showInfo).toHaveBeenCalledWith('FTP Link', 'FTP links cannot be validated from the browser');
+      expect(toastSpy.showInfo).toHaveBeenCalledWith('FTP Link', 'FTP links cannot be validated automatically');
     });
 
-    it('sets status to valid on successful fetch', async () => {
+    it('sets status to valid when API returns valid: true', async () => {
       component.links = ['https://example.com'];
-      const mockResponse = { status: 200 } as Response;
-      spyOn(globalThis, 'fetch').and.returnValue(Promise.resolve(mockResponse));
+      apiSpy.checkLink.and.returnValue(of({ valid: true, status: 200 }));
 
       await component.validateLink(component.linkStatuses[0]);
 
+      expect(apiSpy.checkLink).toHaveBeenCalledWith('https://example.com');
       expect(component.linkStatuses[0].status).toBe('valid');
       expect(component.linkStatuses[0].statusCode).toBe(200);
     });
 
-    it('sets statusCode to undefined when response.status is 0', async () => {
+    it('sets status to valid without statusCode when status is undefined', async () => {
       component.links = ['https://example.com'];
-      const mockResponse = { status: 0 } as Response;
-      spyOn(globalThis, 'fetch').and.returnValue(Promise.resolve(mockResponse));
+      apiSpy.checkLink.and.returnValue(of({ valid: true }));
 
       await component.validateLink(component.linkStatuses[0]);
 
@@ -120,8 +129,7 @@ describe('EmailLinksComponent', () => {
       component.linkStatuses[0].error = 'previous error';
       component.linkStatuses[0].statusCode = 500;
 
-      const mockResponse = { status: 200 } as Response;
-      spyOn(globalThis, 'fetch').and.returnValue(Promise.resolve(mockResponse));
+      apiSpy.checkLink.and.returnValue(of({ valid: true, status: 200 }));
 
       await component.validateLink(component.linkStatuses[0]);
 
@@ -129,37 +137,30 @@ describe('EmailLinksComponent', () => {
       expect(component.linkStatuses[0].statusCode).toBe(200);
     });
 
-    it('handles AbortError (timeout)', async () => {
+    it('sets status to invalid when API returns valid: false with status', async () => {
       component.links = ['https://example.com'];
-      const abortError = new DOMException('Aborted', 'AbortError');
-      spyOn(globalThis, 'fetch').and.returnValue(Promise.reject(abortError));
+      apiSpy.checkLink.and.returnValue(of({ valid: false, status: 404 }));
 
       await component.validateLink(component.linkStatuses[0]);
 
-      expect(component.linkStatuses[0].status).toBe('error');
-      expect(component.linkStatuses[0].error).toBe(`Request timeout (${FETCH_TIMEOUT_MS / 1000}s)`);
-      expect(toastSpy.showError).toHaveBeenCalledWith(
-        'Validation Failed',
-        `Request timeout (${FETCH_TIMEOUT_MS / 1000}s)`,
-      );
+      expect(component.linkStatuses[0].status).toBe('invalid');
+      expect(component.linkStatuses[0].statusCode).toBe(404);
+      expect(component.linkStatuses[0].error).toBe('HTTP 404');
     });
 
-    it('handles Failed to fetch error (CORS)', async () => {
+    it('sets status to invalid with generic message when status is undefined', async () => {
       component.links = ['https://example.com'];
-      const corsError = new TypeError('Failed to fetch');
-      spyOn(globalThis, 'fetch').and.returnValue(Promise.reject(corsError));
+      apiSpy.checkLink.and.returnValue(of({ valid: false }));
 
       await component.validateLink(component.linkStatuses[0]);
 
-      expect(component.linkStatuses[0].status).toBe('valid');
-      expect(component.linkStatuses[0].error).toBe('CORS blocked (link might still be valid)');
-      expect(toastSpy.showError).not.toHaveBeenCalled();
+      expect(component.linkStatuses[0].status).toBe('invalid');
+      expect(component.linkStatuses[0].error).toBe('Link unreachable');
     });
 
-    it('handles other fetch errors', async () => {
+    it('handles API errors', async () => {
       component.links = ['https://example.com'];
-      const genericError = new Error('Network failure');
-      spyOn(globalThis, 'fetch').and.returnValue(Promise.reject(genericError));
+      apiSpy.checkLink.and.returnValue(throwError(() => new Error('Network failure')));
 
       await component.validateLink(component.linkStatuses[0]);
 
@@ -170,35 +171,20 @@ describe('EmailLinksComponent', () => {
 
     it('handles non-Error exceptions', async () => {
       component.links = ['https://example.com'];
-      spyOn(globalThis, 'fetch').and.returnValue(Promise.reject('string error'));
+      apiSpy.checkLink.and.returnValue(throwError(() => 'string error'));
 
       await component.validateLink(component.linkStatuses[0]);
 
       expect(component.linkStatuses[0].status).toBe('error');
-      expect(component.linkStatuses[0].error).toBe('Unknown error occurred');
-      expect(toastSpy.showError).toHaveBeenCalledWith('Validation Failed', 'Unknown error occurred');
-    });
-
-    it('shows error toast with fallback message when error is undefined', async () => {
-      component.links = ['https://example.com'];
-      component.linkStatuses[0].status = 'unchecked';
-
-      const errorWithoutMessage = new Error('');
-      errorWithoutMessage.name = 'CustomError';
-      spyOn(globalThis, 'fetch').and.returnValue(Promise.reject(errorWithoutMessage));
-
-      await component.validateLink(component.linkStatuses[0]);
-
-      expect(component.linkStatuses[0].status).toBe('error');
-      expect(toastSpy.showError).toHaveBeenCalledWith('Validation Failed', 'Unable to validate link');
+      expect(component.linkStatuses[0].error).toBe('Failed to validate link');
+      expect(toastSpy.showError).toHaveBeenCalledWith('Validation Failed', 'Failed to validate link');
     });
   });
 
   describe('validateAllLinks', () => {
     it('validates all links and shows summary toast', async () => {
       component.links = ['https://example1.com', 'https://example2.com'];
-      const mockResponse = { status: 200 } as Response;
-      spyOn(globalThis, 'fetch').and.returnValue(Promise.resolve(mockResponse));
+      apiSpy.checkLink.and.returnValue(of({ valid: true, status: 200 }));
 
       await component.validateAllLinks();
 
@@ -209,12 +195,12 @@ describe('EmailLinksComponent', () => {
     it('counts errors correctly in summary', async () => {
       component.links = ['https://example1.com', 'https://example2.com', 'https://example3.com'];
       let callCount = 0;
-      spyOn(globalThis, 'fetch').and.callFake(() => {
+      apiSpy.checkLink.and.callFake(() => {
         callCount++;
         if (callCount === 2) {
-          return Promise.reject(new Error('Network error'));
+          return throwError(() => new Error('Network error'));
         }
-        return Promise.resolve({ status: 200 } as Response);
+        return of({ valid: true, status: 200 });
       });
 
       await component.validateAllLinks();
@@ -224,8 +210,7 @@ describe('EmailLinksComponent', () => {
 
     it('counts invalid status in errors', async () => {
       component.links = ['https://example.com'];
-      const mockResponse = { status: 200 } as Response;
-      spyOn(globalThis, 'fetch').and.returnValue(Promise.resolve(mockResponse));
+      apiSpy.checkLink.and.returnValue(of({ valid: true, status: 200 }));
 
       await component.validateAllLinks();
 
@@ -248,13 +233,14 @@ describe('EmailLinksComponent', () => {
       let concurrentCalls = 0;
       let maxConcurrent = 0;
 
-      spyOn(globalThis, 'fetch').and.callFake(() => {
+      apiSpy.checkLink.and.callFake((): Observable<{ valid: boolean; status: number }> => {
         concurrentCalls++;
         maxConcurrent = Math.max(maxConcurrent, concurrentCalls);
-        return new Promise<Response>((resolve) => {
+        return new Observable((subscriber) => {
           setTimeout(() => {
             concurrentCalls--;
-            resolve({ status: 200 } as Response);
+            subscriber.next({ valid: true, status: 200 });
+            subscriber.complete();
           }, 10);
         });
       });
@@ -268,9 +254,9 @@ describe('EmailLinksComponent', () => {
       component.links = ['https://example.com'];
       let capturedIsValidating = false;
 
-      spyOn(globalThis, 'fetch').and.callFake(() => {
+      apiSpy.checkLink.and.callFake(() => {
         capturedIsValidating = component.isValidatingAll;
-        return Promise.resolve({ status: 200 } as Response);
+        return of({ valid: true, status: 200 });
       });
 
       await component.validateAllLinks();

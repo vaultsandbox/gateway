@@ -45,6 +45,7 @@ import {
   parseAllowedDomains,
   parseDisabledCommands,
   parseEncryptionPolicy,
+  isDevMode,
 } from './config/config.parsers';
 import { EncryptionPolicy } from './config/config.constants';
 import { isValidDomain, validateTlsConfig } from './config/config.validators';
@@ -93,7 +94,7 @@ function buildSmtpConfig() {
     throw new Error(
       'VSB_SMTP_SECURE=true requires TLS credentials. Either:\n' +
         '  1. Enable certificate management: VSB_CERT_ENABLED=true\n' +
-        '  2. Provide manual certificates: VSB_SMTP_TLS_CERT_PATH + VSB_SMTP_TLS_KEY_PATH',
+        '  2. Provide manual certificates: VSB_TLS_CERT_PATH + VSB_TLS_KEY_PATH',
     );
   }
 
@@ -203,23 +204,38 @@ function buildLocalModeConfig() {
         mkdirSync(dataPath, { recursive: true, mode: 0o700 });
         writeFileSync(apiKeyFilePath, apiKey, { mode: 0o600 });
 
-        logger.warn(
-          '\n' +
-            '━'.repeat(80) +
+        // Show API key in logs only in dev mode for easy local development
+        /* v8 ignore start - dev/prod logging branches not tested */
+        if (isDevMode()) {
+          logger.warn(
             '\n' +
-            '⚠️  AUTO-GENERATED API KEY (First-Time Setup)\n' +
-            '━'.repeat(80) +
+              '━'.repeat(80) +
+              '\n' +
+              '🔑 AUTO-GENERATED API KEY (Dev Mode)\n' +
+              '━'.repeat(80) +
+              '\n' +
+              `${apiKey}\n` +
+              '\n' +
+              `Persisted to: ${apiKeyFilePath}\n` +
+              '━'.repeat(80) +
+              '\n',
+          );
+        } else {
+          // Production: only show file location, not the key itself
+          logger.warn(
             '\n' +
-            `Saved to: ${apiKeyFilePath}\n` +
-            `This key will be reused on container restarts.\n\n` +
-            'To view the key:\n' +
-            `  cat ${apiKeyFilePath}\n\n` +
-            'For production deployments:\n' +
-            '  • Set VSB_LOCAL_API_KEY in environment or .env file\n' +
-            '  • Use VSB_LOCAL_API_KEY_STRICT=true to enforce explicit configuration\n' +
-            '━'.repeat(80) +
-            '\n',
-        );
+              '━'.repeat(80) +
+              '\n' +
+              '⚠️  AUTO-GENERATED API KEY\n' +
+              '━'.repeat(80) +
+              '\n' +
+              `Saved to: ${apiKeyFilePath}\n` +
+              `To view: docker compose exec gateway cat ${apiKeyFilePath}; echo\n` +
+              '━'.repeat(80) +
+              '\n',
+          );
+        }
+        /* v8 ignore stop */
       } catch (err) {
         // Cannot persist - require manual configuration
         /* c8 ignore next */
@@ -258,7 +274,12 @@ function buildLocalModeConfig() {
   }
 
   if (source) {
-    logger.log(`✓ Local API key loaded from ${source}`);
+    // In dev mode, always show the API key for convenience (except when generated, which has its own banner)
+    if (isDevMode() && source !== 'generated') {
+      logger.log(`🔑 API Key (Dev Mode): ${apiKey}`);
+    } else {
+      logger.log(`✓ Local API key loaded from ${source}`);
+    }
   }
 
   const inboxAliasRandomBytes = parseNumberWithDefault(
@@ -444,6 +465,10 @@ function buildCertificateConfig() {
  * If both key paths are provided, keys will be loaded from files.
  * Otherwise, ephemeral keys will be generated on startup.
  *
+ * Encryption policy varies based on dev/production mode:
+ * - Dev mode: defaults to 'never' (plain JSON responses for easy API testing)
+ * - Production mode: defaults to 'always' (secure by default)
+ *
  * Optional environment variables:
  * - VSB_SERVER_SIGNATURE_SECRET_KEY_PATH: Path to secret key file (raw binary, 4032 bytes)
  * - VSB_SERVER_SIGNATURE_PUBLIC_KEY_PATH: Path to public key file (raw binary, 1952 bytes)
@@ -460,12 +485,29 @@ function buildCryptoConfig() {
     );
   }
 
-  const encryptionPolicy = parseEncryptionPolicy(process.env.VSB_ENCRYPTION_ENABLED);
+  // Dev mode: disable encryption by default but allow override; Production: always encrypt
+  const devMode = isDevMode();
+  const defaultEncryptionPolicy = devMode ? EncryptionPolicy.DISABLED : EncryptionPolicy.ALWAYS;
+  const encryptionPolicy = parseEncryptionPolicy(process.env.VSB_ENCRYPTION_ENABLED, defaultEncryptionPolicy);
+
+  // Log encryption configuration
+  const policyLabels: Record<EncryptionPolicy, string> = {
+    [EncryptionPolicy.ALWAYS]: 'always (all inboxes encrypted)',
+    [EncryptionPolicy.ENABLED]: 'enabled (encrypted by default, can request plain)',
+    [EncryptionPolicy.DISABLED]: 'disabled (plain by default, can request encrypted)',
+    [EncryptionPolicy.NEVER]: 'never (all inboxes plain)',
+  };
+  const defaultInbox =
+    encryptionPolicy === EncryptionPolicy.ALWAYS || encryptionPolicy === EncryptionPolicy.ENABLED
+      ? 'encrypted'
+      : 'plain';
+  logger.log(`Encryption policy: ${policyLabels[encryptionPolicy]} - new inboxes: ${defaultInbox}`);
 
   /* v8 ignore next 4 - warning log for non-encrypted modes not tested */
   if (encryptionPolicy === EncryptionPolicy.DISABLED || encryptionPolicy === EncryptionPolicy.NEVER) {
-    const mode = encryptionPolicy === EncryptionPolicy.NEVER ? 'disabled (locked)' : 'disabled by default';
-    logger.warn(`Encryption is ${mode}. Emails may be stored in plaintext.`);
+    if (!devMode) {
+      logger.warn(`⚠️  Encryption is not enforced. Emails may be stored in plaintext.`);
+    }
   }
 
   return {
@@ -625,8 +667,12 @@ function buildSseConsoleConfig() {
  * These checks can be disabled globally via environment variables or per-inbox.
  * When disabled, checks return status: 'skipped' instead of running.
  *
+ * Security posture varies based on dev/production mode:
+ * - Dev mode (no domain configured): email auth disabled by default for easy local testing
+ * - Production mode (domain configured): email auth enabled by default for security
+ *
  * Optional environment variables:
- * - VSB_EMAIL_AUTH_ENABLED: Master switch for all auth checks (default: true)
+ * - VSB_EMAIL_AUTH_ENABLED: Master switch for all auth checks (default: true in prod, false in dev)
  * - VSB_EMAIL_AUTH_SPF_ENABLED: SPF verification (default: true)
  * - VSB_EMAIL_AUTH_DKIM_ENABLED: DKIM verification (default: true)
  * - VSB_EMAIL_AUTH_DMARC_ENABLED: DMARC verification (default: true)
@@ -639,13 +685,23 @@ function buildSseConsoleConfig() {
  * - Per-inbox emailAuth=false skips all checks for that inbox
  */
 function buildEmailAuthConfig() {
+  const devMode = isDevMode();
+
+  // Secure by default: enable auth checks unless in dev mode
+  const defaultEnabled = !devMode;
+  const defaultInboxEmailAuth = !devMode;
+
+  if (devMode) {
+    logger.log('Dev mode detected (no domain configured) - email auth disabled by default');
+  }
+
   return {
-    enabled: parseOptionalBoolean(process.env.VSB_EMAIL_AUTH_ENABLED, true),
+    enabled: parseOptionalBoolean(process.env.VSB_EMAIL_AUTH_ENABLED, defaultEnabled),
     spf: parseOptionalBoolean(process.env.VSB_EMAIL_AUTH_SPF_ENABLED, true),
     dkim: parseOptionalBoolean(process.env.VSB_EMAIL_AUTH_DKIM_ENABLED, true),
     dmarc: parseOptionalBoolean(process.env.VSB_EMAIL_AUTH_DMARC_ENABLED, true),
     reverseDns: parseOptionalBoolean(process.env.VSB_EMAIL_AUTH_REVERSE_DNS_ENABLED, true),
-    inboxDefault: parseOptionalBoolean(process.env.VSB_EMAIL_AUTH_INBOX_DEFAULT, true),
+    inboxDefault: parseOptionalBoolean(process.env.VSB_EMAIL_AUTH_INBOX_DEFAULT, defaultInboxEmailAuth),
   };
 }
 

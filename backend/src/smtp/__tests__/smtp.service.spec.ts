@@ -388,7 +388,7 @@ describe('SmtpService', () => {
       }
     });
 
-    it('warns when manual TLS paths are configured but will be overridden', async () => {
+    it('uses manual TLS certificates when both manual and managed are configured', async () => {
       const loggerWarnSpy = jest.spyOn(Logger.prototype, 'warn').mockImplementation();
       const certService = createMockCertificateService(null);
       // Create config via the direct config object, not through mocked service
@@ -410,29 +410,24 @@ describe('SmtpService', () => {
         mockSseConsoleService,
       );
 
-      const logger = (service as unknown as { logger: { warn: jest.Mock } }).logger;
-      const warnSpy = jest.spyOn(logger, 'warn');
+      const logger = (service as unknown as { logger: { log: jest.Mock } }).logger;
+      const logSpy = jest.spyOn(logger, 'log');
 
-      // The server will fail because cert service returns null but TLS config has invalid certs
-      // But we can still verify the warning was logged before the failure
+      // The server will fail because TLS config has invalid cert data
+      // But we can still verify the log message was generated before the failure
       try {
         await service.start();
       } catch {
         // Expected: SMTPServer fails with invalid cert data
       }
 
-      expect(warnSpy).toHaveBeenCalledWith(
-        expect.stringContaining('will be IGNORED because certificate management is enabled'),
-      );
+      expect(logSpy).toHaveBeenCalledWith('Using manual TLS certificates (VSB_TLS_CERT_PATH/VSB_TLS_KEY_PATH)');
       loggerWarnSpy.mockRestore();
     });
 
-    it('preserves existing TLS security options when applying managed certificate', async () => {
+    it('skips certificate service when manual TLS is configured', async () => {
       const loggerWarnSpy = jest.spyOn(Logger.prototype, 'warn').mockImplementation();
-      // Test that when cert management is enabled and manual TLS config exists,
-      // the security options (minVersion, ciphers, etc.) are preserved
-      // We can't actually test server startup without valid certs, but we can verify the
-      // applyManagedCertificate method preserves security options
+      // Test that when manual TLS config exists, certificate service is not used
       const certService = createMockCertificateService(null);
       const smtpConfig = {
         ...baseConfig,
@@ -455,9 +450,6 @@ describe('SmtpService', () => {
         mockSseConsoleService,
       );
 
-      const logger = (service as unknown as { logger: { warn: jest.Mock } }).logger;
-      const warnSpy = jest.spyOn(logger, 'warn');
-
       // Server will fail due to invalid certs, but the code path was exercised
       try {
         await service.start();
@@ -465,8 +457,8 @@ describe('SmtpService', () => {
         // Expected failure
       }
 
-      // Verify the code ran and warnings were logged (which exercises the existingTlsSecurityOptions path)
-      expect(warnSpy).toHaveBeenCalledWith(expect.stringContaining('will be IGNORED'));
+      // Certificate service should not be called when manual TLS is configured
+      expect(certService.getCurrentCertificate).not.toHaveBeenCalled();
       loggerWarnSpy.mockRestore();
     });
 

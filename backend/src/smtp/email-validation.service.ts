@@ -144,7 +144,6 @@ export class EmailValidationService {
     }
 
     try {
-      // eslint-disable-next-line @typescript-eslint/no-unsafe-call
       const spfPromise = spf({ ip: remoteIp, sender: senderAddress }) as Promise<unknown>;
       const rawResult: unknown = await this.resolveWithTimeout(
         spfPromise,
@@ -219,7 +218,6 @@ export class EmailValidationService {
     const timeoutMs = DNS_TIMEOUTS.DKIM_TIMEOUT_MS;
 
     try {
-      // eslint-disable-next-line @typescript-eslint/no-unsafe-call
       const dkimPromise = dkimVerify(rawData) as Promise<unknown>;
       const rawDkimResult: unknown = await this.resolveWithTimeout(
         dkimPromise,
@@ -335,7 +333,6 @@ export class EmailValidationService {
       .map((result) => ({ domain: result.domain!.toLowerCase() }));
 
     try {
-      // eslint-disable-next-line @typescript-eslint/no-unsafe-call
       const dmarcPromise = dmarc({
         headerFrom,
         spfDomains,

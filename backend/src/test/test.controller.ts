@@ -30,7 +30,7 @@ export class TestController {
     summary: 'Create a test email',
     description:
       'Creates a test email with controlled authentication results (SPF, DKIM, DMARC, ReverseDNS). ' +
-      'This endpoint is only available when VSB_DEVELOPMENT=true.',
+      'This endpoint is only available when VSB_SDK_DEVELOPMENT=true.',
   })
   @ApiCreatedResponse({
     type: CreateTestEmailResponseDto,

@@ -198,23 +198,10 @@ export class SmtpService implements OnModuleInit, OnModuleDestroy {
       return;
     }
 
-    // Store existing TLS security options before overriding
-    const existingTlsSecurityOptions = this.config.tls
-      ? {
-          minVersion: this.config.tls.minVersion,
-          ciphers: this.config.tls.ciphers,
-          honorCipherOrder: this.config.tls.honorCipherOrder,
-          ecdhCurve: this.config.tls.ecdhCurve,
-        }
-      : undefined;
-
-    // Warn if manual TLS paths are configured but will be ignored
+    // Manual TLS certificates take precedence over ACME-managed certificates
     if (this.config.tls) {
-      this.logger.warn(
-        'Manual TLS certificate paths (VSB_SMTP_TLS_CERT_PATH/VSB_SMTP_TLS_KEY_PATH) are configured ' +
-          'but will be IGNORED because certificate management is enabled (VSB_CERT_ENABLED=true). ' +
-          'The app will use automatically managed certificates from the certificate service instead.',
-      );
+      this.logger.log('Using manual TLS certificates (VSB_TLS_CERT_PATH/VSB_TLS_KEY_PATH)');
+      return;
     }
 
     const cert = await this.certificateService.getCurrentCertificate();
@@ -223,12 +210,10 @@ export class SmtpService implements OnModuleInit, OnModuleDestroy {
       this.logger.warn('Certificate management enabled but no certificate found yet');
       return;
     }
-    /* v8 ignore next 10 - requires valid PEM certificates for integration testing */
+    /* v8 ignore next 7 - requires valid PEM certificates for integration testing */
     this.config.tls = {
       cert: cert.certificate,
       key: cert.privateKey,
-      // Preserve TLS security options from buildTlsConfig
-      ...existingTlsSecurityOptions,
     };
 
     this.logger.log('Loaded TLS certificate from certificate service');

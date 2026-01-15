@@ -71,8 +71,8 @@ describe('app.config', () => {
     const certBuffer = Buffer.from('-----BEGIN CERTIFICATE-----\ncert-content\n-----END CERTIFICATE-----');
     const keyBuffer = Buffer.from('-----BEGIN PRIVATE KEY-----\nkey-content\n-----END PRIVATE KEY-----');
 
-    process.env.VSB_SMTP_TLS_CERT_PATH = '/path/to/cert.pem';
-    process.env.VSB_SMTP_TLS_KEY_PATH = '/path/to/key.pem';
+    process.env.VSB_TLS_CERT_PATH = '/path/to/cert.pem';
+    process.env.VSB_TLS_KEY_PATH = '/path/to/key.pem';
 
     mockExistsSync.mockReturnValue(true);
     mockReadFileSync.mockImplementation((path: any) => (path.toString().includes('cert') ? certBuffer : keyBuffer));
@@ -267,8 +267,8 @@ describe('app.config', () => {
     it('should return undefined when files do not exist', () => {
       mockExistsSync.mockReturnValue(false);
       setMinimalEnv();
-      process.env.VSB_SMTP_TLS_CERT_PATH = '/nonexistent/cert.pem';
-      process.env.VSB_SMTP_TLS_KEY_PATH = '/nonexistent/key.pem';
+      process.env.VSB_TLS_CERT_PATH = '/nonexistent/cert.pem';
+      process.env.VSB_TLS_KEY_PATH = '/nonexistent/key.pem';
       const config = require('./app.config').default();
       expect(config.smtp.tls).toBeUndefined();
     });
@@ -283,8 +283,8 @@ describe('app.config', () => {
       });
 
       setMinimalEnv();
-      process.env.VSB_SMTP_TLS_CERT_PATH = '/path/to/cert.pem';
-      process.env.VSB_SMTP_TLS_KEY_PATH = '/path/to/key.pem';
+      process.env.VSB_TLS_CERT_PATH = '/path/to/cert.pem';
+      process.env.VSB_TLS_KEY_PATH = '/path/to/key.pem';
       const config = require('./app.config').default();
       expect(config.smtp.tls).toBeDefined();
       expect(config.smtp.tls?.cert).toEqual(certBuffer);
@@ -297,9 +297,9 @@ describe('app.config', () => {
       });
       mockReadFileSync.mockReturnValue(Buffer.from('-----BEGIN CERTIFICATE-----\ncontent\n-----END CERTIFICATE-----'));
       setMinimalEnv();
-      process.env.VSB_SMTP_TLS_CERT_PATH = '/path/to/cert.pem';
+      process.env.VSB_TLS_CERT_PATH = '/path/to/cert.pem';
       expect(() => require('./app.config').default()).toThrow(
-        'Both VSB_SMTP_TLS_CERT_PATH and VSB_SMTP_TLS_KEY_PATH must be provided to enable TLS',
+        'Both VSB_TLS_CERT_PATH and VSB_TLS_KEY_PATH must be provided to enable TLS',
       );
     });
 
@@ -309,9 +309,9 @@ describe('app.config', () => {
       });
       mockReadFileSync.mockReturnValue(Buffer.from('-----BEGIN PRIVATE KEY-----\ncontent\n-----END PRIVATE KEY-----'));
       setMinimalEnv();
-      process.env.VSB_SMTP_TLS_KEY_PATH = '/path/to/key.pem';
+      process.env.VSB_TLS_KEY_PATH = '/path/to/key.pem';
       expect(() => require('./app.config').default()).toThrow(
-        'Both VSB_SMTP_TLS_CERT_PATH and VSB_SMTP_TLS_KEY_PATH must be provided to enable TLS',
+        'Both VSB_TLS_CERT_PATH and VSB_TLS_KEY_PATH must be provided to enable TLS',
       );
     });
 
@@ -319,8 +319,8 @@ describe('app.config', () => {
       mockExistsSync.mockReturnValue(true);
       mockReadFileSync.mockReturnValue(Buffer.from('not a valid PEM file content'));
       setMinimalEnv();
-      process.env.VSB_SMTP_TLS_CERT_PATH = '/path/to/cert.pem';
-      process.env.VSB_SMTP_TLS_KEY_PATH = '/path/to/key.pem';
+      process.env.VSB_TLS_CERT_PATH = '/path/to/cert.pem';
+      process.env.VSB_TLS_KEY_PATH = '/path/to/key.pem';
       expect(() => require('./app.config').default()).toThrow(
         'Invalid certificate/key format in /path/to/cert.pem: File must be in PEM format',
       );
@@ -398,28 +398,25 @@ describe('app.config', () => {
       expect(config.smtp.allowedRecipientDomains).toEqual(['example.com', 'example.org']);
     });
 
-    it('should throw error when domains env is undefined', () => {
+    it('should default to localhost when domains env is undefined (dev mode)', () => {
       setMinimalEnv();
       delete process.env.VSB_SMTP_ALLOWED_RECIPIENT_DOMAINS;
-      expect(() => require('./app.config').default()).toThrow(
-        'VSB_SMTP_ALLOWED_RECIPIENT_DOMAINS is required. Specify comma-separated domains',
-      );
+      const config = require('./app.config').default();
+      expect(config.smtp.allowedRecipientDomains).toEqual(['localhost']);
     });
 
-    it('should throw error when domains env is empty', () => {
+    it('should default to localhost when domains env is empty (dev mode)', () => {
       setMinimalEnv();
       process.env.VSB_SMTP_ALLOWED_RECIPIENT_DOMAINS = '';
-      expect(() => require('./app.config').default()).toThrow(
-        'VSB_SMTP_ALLOWED_RECIPIENT_DOMAINS is required. Specify comma-separated domains',
-      );
+      const config = require('./app.config').default();
+      expect(config.smtp.allowedRecipientDomains).toEqual(['localhost']);
     });
 
-    it('should throw error when domains env is whitespace only', () => {
+    it('should default to localhost when domains env is whitespace only (dev mode)', () => {
       setMinimalEnv();
       process.env.VSB_SMTP_ALLOWED_RECIPIENT_DOMAINS = '   ';
-      expect(() => require('./app.config').default()).toThrow(
-        'VSB_SMTP_ALLOWED_RECIPIENT_DOMAINS is required. Specify comma-separated domains',
-      );
+      const config = require('./app.config').default();
+      expect(config.smtp.allowedRecipientDomains).toEqual(['localhost']);
     });
 
     it('should throw error when all domains are empty after filtering', () => {
@@ -507,8 +504,8 @@ describe('app.config', () => {
       process.env.VSB_CERT_ENABLED = 'true';
       process.env.VSB_CERT_EMAIL = 'test@example.com';
       process.env.VSB_CERT_DOMAIN = 'test.com';
-      process.env.VSB_SMTP_TLS_CERT_PATH = '/path/cert.pem';
-      process.env.VSB_SMTP_TLS_KEY_PATH = '/path/key.pem';
+      process.env.VSB_TLS_CERT_PATH = '/path/cert.pem';
+      process.env.VSB_TLS_KEY_PATH = '/path/key.pem';
       require('./app.config').default();
       expect(mockLoggerWarn).toHaveBeenCalledWith(expect.stringContaining('Both automatic certificate management'));
     });
@@ -1117,6 +1114,44 @@ describe('app.config', () => {
 
       const config = require('./app.config').default();
       expect(config.main.origin).toBe('http://first.com');
+    });
+  });
+
+  describe('buildEmailAuthConfig dev mode behavior', () => {
+    it('should disable email auth by default in dev mode', () => {
+      setMinimalEnv();
+      delete process.env.VSB_SMTP_ALLOWED_RECIPIENT_DOMAINS;
+      delete process.env.VSB_EMAIL_AUTH_ENABLED;
+
+      const config = require('./app.config').default();
+      expect(config.emailAuth.enabled).toBe(false);
+    });
+
+    it('should enable email auth by default in production mode', () => {
+      setMinimalEnv();
+      process.env.VSB_SMTP_ALLOWED_RECIPIENT_DOMAINS = 'example.com';
+      delete process.env.VSB_EMAIL_AUTH_ENABLED;
+
+      const config = require('./app.config').default();
+      expect(config.emailAuth.enabled).toBe(true);
+    });
+
+    it('should respect explicit VSB_EMAIL_AUTH_ENABLED=true in dev mode', () => {
+      setMinimalEnv();
+      delete process.env.VSB_SMTP_ALLOWED_RECIPIENT_DOMAINS;
+      process.env.VSB_EMAIL_AUTH_ENABLED = 'true';
+
+      const config = require('./app.config').default();
+      expect(config.emailAuth.enabled).toBe(true);
+    });
+
+    it('should respect explicit VSB_EMAIL_AUTH_ENABLED=false in production mode', () => {
+      setMinimalEnv();
+      process.env.VSB_SMTP_ALLOWED_RECIPIENT_DOMAINS = 'example.com';
+      process.env.VSB_EMAIL_AUTH_ENABLED = 'false';
+
+      const config = require('./app.config').default();
+      expect(config.emailAuth.enabled).toBe(false);
     });
   });
 });

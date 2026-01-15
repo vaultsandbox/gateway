@@ -1,6 +1,6 @@
 {
   "name": "vaultsandbox-gateway-backend",
-  "version": "0.7.0",
+  "version": "0.7.1",
   "description": "Secure receive-only SMTP server with automatic TLS, SPF/DKIM/DMARC validation, and zero-knowledge storage",
   "author": "Antero",
   "private": false,

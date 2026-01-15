@@ -1,5 +1,61 @@
-import { parseEncryptionPolicy } from '../config.parsers';
+import { parseEncryptionPolicy, isDevMode } from '../config.parsers';
 import { EncryptionPolicy, DEFAULT_ENCRYPTION_POLICY } from '../config.constants';
+
+describe('isDevMode', () => {
+  const originalEnv = process.env;
+
+  beforeEach(() => {
+    jest.resetModules();
+    process.env = { ...originalEnv };
+  });
+
+  afterAll(() => {
+    process.env = originalEnv;
+  });
+
+  it('should return true when VSB_SMTP_ALLOWED_RECIPIENT_DOMAINS is undefined', () => {
+    delete process.env.VSB_SMTP_ALLOWED_RECIPIENT_DOMAINS;
+    expect(isDevMode()).toBe(true);
+  });
+
+  it('should return true when VSB_SMTP_ALLOWED_RECIPIENT_DOMAINS is empty', () => {
+    process.env.VSB_SMTP_ALLOWED_RECIPIENT_DOMAINS = '';
+    expect(isDevMode()).toBe(true);
+  });
+
+  it('should return true when VSB_SMTP_ALLOWED_RECIPIENT_DOMAINS is whitespace only', () => {
+    process.env.VSB_SMTP_ALLOWED_RECIPIENT_DOMAINS = '   ';
+    expect(isDevMode()).toBe(true);
+  });
+
+  it('should return false when VSB_SMTP_ALLOWED_RECIPIENT_DOMAINS is set', () => {
+    process.env.VSB_SMTP_ALLOWED_RECIPIENT_DOMAINS = 'example.com';
+    expect(isDevMode()).toBe(false);
+  });
+
+  it('should return false when VSB_SMTP_ALLOWED_RECIPIENT_DOMAINS is localhost (explicitly set)', () => {
+    process.env.VSB_SMTP_ALLOWED_RECIPIENT_DOMAINS = 'localhost';
+    expect(isDevMode()).toBe(false);
+  });
+
+  it('should return false when VSB_VSX_DNS_ENABLED is true (even without domains)', () => {
+    delete process.env.VSB_SMTP_ALLOWED_RECIPIENT_DOMAINS;
+    process.env.VSB_VSX_DNS_ENABLED = 'true';
+    expect(isDevMode()).toBe(false);
+  });
+
+  it('should return false when VSB_VSX_DNS_ENABLED is "1"', () => {
+    delete process.env.VSB_SMTP_ALLOWED_RECIPIENT_DOMAINS;
+    process.env.VSB_VSX_DNS_ENABLED = '1';
+    expect(isDevMode()).toBe(false);
+  });
+
+  it('should return true when VSB_VSX_DNS_ENABLED is false and no domains set', () => {
+    delete process.env.VSB_SMTP_ALLOWED_RECIPIENT_DOMAINS;
+    process.env.VSB_VSX_DNS_ENABLED = 'false';
+    expect(isDevMode()).toBe(true);
+  });
+});
 
 describe('parseEncryptionPolicy', () => {
   it('should return ENABLED for "enabled"', () => {

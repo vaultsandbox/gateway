@@ -5,6 +5,24 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.7.1] - 2026-01-14
+
+### Added
+
+- **Screenshot Capture**: Take screenshots of emails in the web interface
+- **Link Checking**: Check email links via proxy to bypass CORS restrictions
+- **Proxy Module**: Backend proxy for image fetching and link validation
+- **Zero-Config Local Development**: Run the gateway with no environment variables for local testing
+  - Auto-detects dev mode when no domain is configured
+  - Defaults to `localhost` domain, disabled email auth, and plain (unencrypted) inboxes
+  - API key displayed in startup logs for easy access
+
+### Changed
+
+- Renamed `VSB_DEVELOPMENT` to `VSB_SDK_DEVELOPMENT` to avoid confusion with dev mode
+
+[0.7.1]: https://github.com/vaultsandbox/gateway/releases/tag/v0.7.1
+
 ## [0.7.0] - 2026-01-12
 
 ### Added

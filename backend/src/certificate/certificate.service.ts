@@ -5,6 +5,8 @@ import { EventEmitter2 } from '@nestjs/event-emitter';
 import { Cron, CronExpression } from '@nestjs/schedule';
 import { firstValueFrom } from 'rxjs';
 import { createHmac } from 'crypto';
+import { readFileSync, existsSync } from 'fs';
+import * as acme from 'acme-client';
 import { OrchestrationService } from '../orchestration/orchestration.service';
 import { AcmeClientService } from './acme/acme-client.service';
 import { CertificateStorageService } from './storage/certificate-storage.service';
@@ -29,6 +31,7 @@ import { METRIC_PATHS } from '../metrics/metrics.constants';
 export class CertificateService implements OnModuleInit, OnModuleDestroy {
   private readonly logger = new Logger(CertificateService.name);
   private initializationTimer?: NodeJS.Timeout;
+  private readonly manualCertProvided: boolean;
 
   /**
    * Constructor
@@ -44,7 +47,10 @@ export class CertificateService implements OnModuleInit, OnModuleDestroy {
     private readonly httpService: HttpService,
     private readonly eventEmitter: EventEmitter2,
     private readonly metricsService: MetricsService,
-  ) {}
+  ) {
+    // Check if manual TLS certificates are provided - if so, skip ACME operations
+    this.manualCertProvided = !!(process.env.VSB_TLS_CERT_PATH && process.env.VSB_TLS_KEY_PATH);
+  }
 
   /**
    * Initializes the certificate module when the application starts.
@@ -52,6 +58,12 @@ export class CertificateService implements OnModuleInit, OnModuleDestroy {
   async onModuleInit(): Promise<void> {
     if (!this.config.enabled) {
       this.logger.log('Certificate management is disabled');
+      return;
+    }
+
+    // Skip ACME initialization when manual certificates are provided
+    if (this.manualCertProvided) {
+      this.logger.log('Manual TLS certificates provided (VSB_TLS_CERT_PATH); ACME disabled');
       return;
     }
 
@@ -110,7 +122,7 @@ export class CertificateService implements OnModuleInit, OnModuleDestroy {
   /* v8 ignore next 2 - decorator branch coverage false positive */
   @Cron(CronExpression.EVERY_DAY_AT_3AM)
   async scheduledCertificateCheck(): Promise<void> {
-    if (!this.config.enabled) {
+    if (!this.config.enabled || this.manualCertProvided) {
       return;
     }
 
@@ -123,7 +135,7 @@ export class CertificateService implements OnModuleInit, OnModuleDestroy {
    * This method acquires leadership before performing any actions.
    */
   async checkAndRenewIfNeeded(): Promise<void> {
-    if (!this.config.enabled) {
+    if (!this.config.enabled || this.manualCertProvided) {
       return;
     }
 
@@ -447,11 +459,55 @@ export class CertificateService implements OnModuleInit, OnModuleDestroy {
   }
 
   /**
-   * Gets the current certificate from storage.
+   * Gets the current certificate from storage or manual TLS paths.
+   * When manual certificates are provided via VSB_TLS_CERT_PATH/VSB_TLS_KEY_PATH,
+   * they take precedence over ACME-managed certificates.
    * @returns A promise that resolves to the certificate object or null if not found.
    */
   async getCurrentCertificate(): Promise<Certificate | null> {
+    // When manual certificates are provided, load them directly
+    if (this.manualCertProvided) {
+      return this.loadManualCertificate();
+    }
     return this.storageService.loadCertificate();
+  }
+
+  /**
+   * Loads manual TLS certificates from the paths specified in environment variables.
+   * @private
+   */
+  private async loadManualCertificate(): Promise<Certificate | null> {
+    const certPath = process.env.VSB_TLS_CERT_PATH;
+    const keyPath = process.env.VSB_TLS_KEY_PATH;
+
+    if (!certPath || !keyPath || !existsSync(certPath) || !existsSync(keyPath)) {
+      return null;
+    }
+
+    const certificate = readFileSync(certPath);
+    const privateKey = readFileSync(keyPath);
+
+    // Read certificate metadata (domains, expiry) from the certificate itself
+    try {
+      const info = await acme.forge.readCertificateInfo(certificate);
+      return {
+        certificate,
+        privateKey,
+        domains: [info.domains.commonName, ...(info.domains.altNames ?? [])].filter(Boolean),
+        issuedAt: info.notBefore,
+        expiresAt: info.notAfter,
+      };
+    } catch {
+      // For self-signed certs that may not have standard metadata, use defaults
+      this.logger.warn('Could not read certificate metadata; using defaults for manual certificate');
+      return {
+        certificate,
+        privateKey,
+        domains: ['localhost'],
+        issuedAt: new Date(),
+        expiresAt: new Date(Date.now() + 365 * 24 * 60 * 60 * 1000), // 1 year from now
+      };
+    }
   }
 
   /**

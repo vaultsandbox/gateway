@@ -91,14 +91,42 @@ export function readTlsBuffer(path: string | undefined): Buffer | undefined {
 }
 
 /**
+ * Determines if the gateway is running in dev mode.
+ * Dev mode is detected when:
+ * - VSB_SMTP_ALLOWED_RECIPIENT_DOMAINS is not set, AND
+ * - VSB_VSX_DNS_ENABLED is not true (VSX DNS auto-provisions a real domain)
+ *
+ * In dev mode:
+ * - VSB_SMTP_ALLOWED_RECIPIENT_DOMAINS defaults to 'localhost'
+ * - VSB_EMAIL_AUTH_ENABLED defaults to false
+ * - API key is shown in startup logs
+ *
+ * In production mode (domain configured or VSX DNS enabled):
+ * - All security features are enabled by default
+ * - API key is NOT shown in logs
+ */
+export function isDevMode(): boolean {
+  const domainsEnv = process.env.VSB_SMTP_ALLOWED_RECIPIENT_DOMAINS;
+  const vsxDnsEnabled = process.env.VSB_VSX_DNS_ENABLED?.toLowerCase().trim();
+
+  // VSX DNS mode auto-provisions a real domain, so it's not dev mode
+  if (vsxDnsEnabled === 'true' || vsxDnsEnabled === '1') {
+    return false;
+  }
+
+  return !domainsEnv || !domainsEnv.trim();
+}
+
+/**
  * Parses allowed recipient domains from environment variable.
  *
  * Domains should be comma-separated in the environment variable.
  * This is critical for security - only emails to these domains will be accepted,
  * preventing the server from being used as an open relay.
  *
+ * In dev mode (no domains configured), defaults to ['localhost'] for easy local testing.
+ *
  * @returns Array of allowed domain names (lowercased for case-insensitive matching)
- * @throws {Error} If no domains are configured (required for receive-only server)
  * @example
  * ```
  * VSB_SMTP_ALLOWED_RECIPIENT_DOMAINS=example.com,example.org
@@ -108,10 +136,9 @@ export function readTlsBuffer(path: string | undefined): Buffer | undefined {
 export function parseAllowedDomains(): string[] {
   const domainsEnv = process.env.VSB_SMTP_ALLOWED_RECIPIENT_DOMAINS;
 
+  // Dev mode: default to localhost for easy local development
   if (!domainsEnv || !domainsEnv.trim()) {
-    throw new Error(
-      'VSB_SMTP_ALLOWED_RECIPIENT_DOMAINS is required. Specify comma-separated domains (e.g., "example.com,example.org")',
-    );
+    return ['localhost'];
   }
 
   const domains = domainsEnv
@@ -164,9 +191,13 @@ export function parseDisabledCommands(defaultCommands: string[] = []): string[] 
  * Accepts: 'enabled', 'disabled', 'always', 'never' (case-insensitive)
  *
  * @param value - The environment variable value
+ * @param defaultPolicy - The default policy when value is not set (defaults to DEFAULT_ENCRYPTION_POLICY)
  * @returns Parsed EncryptionPolicy
  */
-export function parseEncryptionPolicy(value: string | undefined): EncryptionPolicy {
+export function parseEncryptionPolicy(
+  value: string | undefined,
+  defaultPolicy: EncryptionPolicy = DEFAULT_ENCRYPTION_POLICY,
+): EncryptionPolicy {
   const normalized = value?.toLowerCase().trim();
 
   switch (normalized) {
@@ -180,10 +211,10 @@ export function parseEncryptionPolicy(value: string | undefined): EncryptionPoli
       return EncryptionPolicy.NEVER;
     case undefined:
     case '':
-      return DEFAULT_ENCRYPTION_POLICY;
+      return defaultPolicy;
     /* v8 ignore next 3 - defensive: invalid env value falls back to default */
     default:
-      console.warn(`Invalid VSB_ENCRYPTION_ENABLED value "${value}", using default "${DEFAULT_ENCRYPTION_POLICY}"`);
-      return DEFAULT_ENCRYPTION_POLICY;
+      console.warn(`Invalid VSB_ENCRYPTION_ENABLED value "${value}", using default "${defaultPolicy}"`);
+      return defaultPolicy;
   }
 }
