@@ -58,7 +58,7 @@
     "@nestjs/config": "^4.0.2",
     "@nestjs/core": "^11.0.1",
     "@nestjs/event-emitter": "^3.0.1",
-    "@nestjs/platform-express": "^11.0.1",
+    "@nestjs/platform-express": "^11.1.10",
     "@nestjs/schedule": "^5.0.0",
     "@nestjs/serve-static": "^5.0.4",
     "@nestjs/swagger": "^11.2.3",
