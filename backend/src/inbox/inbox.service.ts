@@ -6,6 +6,7 @@ import {
   InternalServerErrorException,
 } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
+import { EventEmitter2 } from '@nestjs/event-emitter';
 import { InboxStorageService } from './storage/inbox-storage.service';
 import { CryptoService } from '../crypto/crypto.service';
 import { Inbox, StoredEmail, isEncryptedEmail } from './interfaces';
@@ -93,12 +94,13 @@ export class InboxService {
   /**
    * Constructor
    */
-  /* v8 ignore next 5 - false positive on constructor parameter properties */
+  /* v8 ignore next 6 - false positive on constructor parameter properties */
   constructor(
     private readonly storageService: InboxStorageService,
     private readonly cryptoService: CryptoService,
     private readonly configService: ConfigService,
     private readonly metricsService: MetricsService,
+    private readonly eventEmitter: EventEmitter2,
   ) {
     this.defaultTtl = this.configService.get<number>('vsb.local.inboxDefaultTtl', DEFAULT_LOCAL_INBOX_TTL);
     this.maxTtl = this.configService.get<number>('vsb.local.inboxMaxTtl', DEFAULT_LOCAL_INBOX_MAX_TTL);
@@ -294,7 +296,28 @@ export class InboxService {
    * Delete a specific email
    */
   deleteEmail(emailAddress: string, emailId: string): boolean {
-    return this.storageService.deleteEmail(emailAddress, emailId);
+    // Get inbox for event emission before deletion
+    const inbox = this.storageService.getInbox(emailAddress);
+    const deleted = this.storageService.deleteEmail(emailAddress, emailId);
+
+    // Emit webhook event for email deletion
+    if (deleted && inbox) {
+      try {
+        this.eventEmitter.emit('email.deleted', {
+          emailId,
+          inboxHash: inbox.inboxHash,
+          inboxEmail: emailAddress.toLowerCase(),
+          reason: 'manual',
+        });
+        /* v8 ignore start - defensive error handling */
+      } catch (error) {
+        const message = error instanceof Error ? error.message : String(error);
+        this.logger.error(`Failed to emit email.deleted event: ${message}`);
+      }
+      /* v8 ignore stop */
+    }
+
+    return deleted;
   }
 
   /**
@@ -411,6 +434,8 @@ export class InboxService {
       'vsb.crypto.encryptionPolicy',
       EncryptionPolicy.ALWAYS,
     );
+    const webhookEnabled = this.configService.get<boolean>('vsb.webhook.enabled', true);
+    const webhookRequireAuthDefault = this.configService.get<boolean>('vsb.webhook.requireAuthDefault', false);
 
     return {
       serverSigPk: this.cryptoService.getServerSigningPublicKey(),
@@ -422,6 +447,8 @@ export class InboxService {
       allowClearAllInboxes: this.allowClearAllInboxes,
       allowedDomains: this.getAllowedDomains(),
       encryptionPolicy,
+      webhookEnabled,
+      webhookRequireAuthDefault,
     };
   }
 

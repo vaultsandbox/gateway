@@ -19,6 +19,9 @@ import { SettingsManager } from './services/settings-manager';
 import { MetricsDialog } from '../metrics-dialog/metrics-dialog';
 import { SseConsoleDialog } from '../sse-console/sse-console-dialog';
 import { ServerInfoService } from './services/server-info.service';
+import { WebhookListDialog } from './webhooks/webhook-list-dialog/webhook-list-dialog';
+import { WebhookScope } from './webhooks/interfaces/webhook.interfaces';
+import { InboxModel } from './interfaces';
 
 /**
  * Main mail application component that manages inbox display, email viewing, and application settings.
@@ -43,6 +46,7 @@ import { ServerInfoService } from './services/server-info.service';
     SettingsDialog,
     MetricsDialog,
     SseConsoleDialog,
+    WebhookListDialog,
   ],
   templateUrl: './mail.html',
   styleUrl: './mail.scss',
@@ -77,6 +81,12 @@ export class Mail {
   openConsoleDialogs = signal<number[]>([]);
   private nextConsoleId = 0;
 
+  /** Controls visibility of the webhooks dialog */
+  showWebhooksDialog = signal(false);
+
+  /** The scope for the webhooks dialog (global or inbox-specific) */
+  webhookScope = signal<WebhookScope>({ type: 'global' });
+
   /**
    * Date format string based on user's time format preference.
    * Returns either 24-hour format (M/d/yy, HH:mm) or 12-hour format (M/d/yy, h:mm a).
@@ -98,11 +108,13 @@ export class Mail {
    * Menu items for the top-left menu dropdown.
    * Dynamically updates based on dark mode state to show appropriate theme toggle option.
    * Console menu item is only shown when sseConsole is enabled on the server.
+   * Webhooks menu item is only shown when webhookEnabled is enabled on the server.
    */
   topLeftMenuitems = computed<MenuItem[]>(() => {
     const isDark = this.isDarkMode();
     const serverInfo = this.serverInfoService.serverInfo();
     const sseConsoleEnabled = serverInfo?.sseConsole ?? false;
+    const webhookEnabled = serverInfo?.webhookEnabled ?? false;
 
     return [
       {
@@ -124,6 +136,15 @@ export class Mail {
               label: 'Console',
               icon: 'pi pi-fw pi-book',
               command: () => this.openConsoleDialog(),
+            },
+          ]
+        : []),
+      ...(webhookEnabled
+        ? [
+            {
+              label: 'Webhooks',
+              icon: 'pi pi-fw pi-bolt',
+              command: () => this.openWebhooksDialog(),
             },
           ]
         : []),
@@ -258,6 +279,23 @@ export class Mail {
    */
   openMetricsDialog(): void {
     this.showMetricsDialog.set(true);
+  }
+
+  /**
+   * Opens the webhooks dialog for global webhooks.
+   */
+  openWebhooksDialog(): void {
+    this.webhookScope.set({ type: 'global' });
+    this.showWebhooksDialog.set(true);
+  }
+
+  /**
+   * Opens the webhooks dialog for a specific inbox.
+   * @param inbox - The inbox to manage webhooks for
+   */
+  openInboxWebhooksDialog(inbox: InboxModel): void {
+    this.webhookScope.set({ type: 'inbox', email: inbox.emailAddress });
+    this.showWebhooksDialog.set(true);
   }
 
   /**

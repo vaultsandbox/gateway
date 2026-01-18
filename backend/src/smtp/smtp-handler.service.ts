@@ -34,6 +34,7 @@ import { Injectable, Logger, Optional } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { HttpService } from '@nestjs/axios';
 import { Cron, CronExpression } from '@nestjs/schedule';
+import { EventEmitter2 } from '@nestjs/event-emitter';
 
 import type {
   ReceivedEmail,
@@ -113,13 +114,14 @@ export class SmtpHandlerService {
   /**
    * Constructor with conditional service injection based on gateway mode
    */
-  /* v8 ignore next 13 - false positive on constructor parameter properties */
+  /* v8 ignore next 14 - false positive on constructor parameter properties */
   constructor(
     private readonly configService: ConfigService,
     private readonly emailValidationService: EmailValidationService,
     private readonly emailProcessingService: EmailProcessingService,
     private readonly metricsService: MetricsService,
     private readonly sseConsoleService: SseConsoleService,
+    private readonly eventEmitter: EventEmitter2,
     @Optional() private readonly inboxService?: InboxService,
     @Optional() private readonly inboxStorageService?: InboxStorageService,
     @Optional() private readonly cryptoService?: CryptoService,
@@ -462,6 +464,18 @@ export class SmtpHandlerService {
         );
 
         this.notifyClient(recipientContext.inbox, emailId, encryptedPayloads.encryptedMetadata);
+
+        // Emit webhook events for email.received and email.stored
+        this.emitEmailWebhookEvents(
+          emailId,
+          recipientContext.inbox,
+          recipientContext.recipientAddress,
+          parsedMail,
+          displayFrom,
+          to,
+          validationResults,
+          receivedAt,
+        );
       } else {
         // Plain inbox: store as binary Uint8Array (no encryption)
         const plainEmail = this.buildPlainEmail(emailId, metadataPayload, parsedPayload, rawPayload);
@@ -474,6 +488,18 @@ export class SmtpHandlerService {
         );
 
         this.notifyClientPlain(recipientContext.inbox, emailId, metadataPayload);
+
+        // Emit webhook events for email.received and email.stored
+        this.emitEmailWebhookEvents(
+          emailId,
+          recipientContext.inbox,
+          recipientContext.recipientAddress,
+          parsedMail,
+          displayFrom,
+          to,
+          validationResults,
+          receivedAt,
+        );
       }
     }
 
@@ -803,6 +829,109 @@ export class SmtpHandlerService {
       this.logger.error(`Failed to emit SSE event for email ${emailId}: ${message}`);
     }
     /* v8 ignore stop */
+  }
+
+  /**
+   * Emits webhook events for email.received and email.stored.
+   * Non-critical failures are logged only (webhooks should not block email processing).
+   */
+  private emitEmailWebhookEvents(
+    emailId: string,
+    inbox: Inbox,
+    recipientAddress: string,
+    parsedMail: LocalParsedMail | undefined,
+    displayFrom: string | undefined,
+    to: string[],
+    validationResults: EmailValidationResults,
+    receivedAt: Date,
+  ): void {
+    try {
+      // Extract parsed address from mailparser (preferred) or parse from display string (fallback)
+      const fromAddress =
+        parsedMail?.from?.value?.[0]?.address || this.extractEmailFromDisplay(displayFrom) || 'unknown';
+      const fromName = parsedMail?.from?.value?.[0]?.name || undefined;
+
+      // Build email data payload for webhook event
+      const emailPayload = {
+        email: {
+          id: emailId,
+          from: { address: fromAddress, name: fromName },
+          // Use parsedMail.to.value for proper parsing of display names with commas
+          to:
+            parsedMail?.to?.value?.map((addr) => ({
+              address: addr.address,
+              name: addr.name || undefined,
+            })) || to.map((addr) => ({ address: addr })),
+          // Use parsedMail.cc.value instead of splitting on commas (breaks "Doe, John" format)
+          cc:
+            parsedMail?.cc?.value?.map((addr) => ({
+              address: addr.address,
+              name: addr.name || undefined,
+            })) || undefined,
+          subject: parsedMail?.subject || '(no subject)',
+          text: parsedMail?.text,
+          html: this.bufferToString(parsedMail?.html) || undefined,
+          /* v8 ignore next */
+          headers: parsedMail?.headers ? this.serializeHeaders(parsedMail.headers) : undefined,
+          attachments: parsedMail?.attachments?.map((att) => ({
+            filename: typeof att.filename === 'string' ? att.filename : 'unnamed',
+            contentType: att.contentType || 'application/octet-stream',
+            size: att.size || 0,
+            contentId: att.cid,
+          })),
+          receivedAt,
+          auth: {
+            spf: validationResults.spfResult?.status,
+            dkim: validationResults.dkimResults?.some((d) => d.status === 'pass')
+              ? 'pass'
+              : validationResults.dkimResults?.some((d) => d.status === 'fail')
+                ? 'fail'
+                : 'none',
+            dmarc: validationResults.dmarcResult?.status,
+          },
+        },
+        inboxHash: inbox.inboxHash,
+        inboxEmail: recipientAddress,
+      };
+
+      // Emit email.received event (for real-time webhook notifications)
+      this.eventEmitter.emit('email.received', emailPayload);
+
+      // Emit email.stored event (confirms successful storage)
+      this.eventEmitter.emit('email.stored', {
+        emailId,
+        inboxHash: inbox.inboxHash,
+        inboxEmail: recipientAddress,
+      });
+      /* v8 ignore start */
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      this.logger.error(`Failed to emit webhook events for email ${emailId}: ${message}`);
+    }
+    /* v8 ignore stop */
+  }
+
+  /**
+   * Extract email address from display format "Name <email>" or plain email.
+   *
+   * @param display - Display string that may contain "Name <email>" format or plain email
+   * @returns The extracted email address, or undefined if not found
+   */
+  private extractEmailFromDisplay(display?: string): string | undefined {
+    if (!display) return undefined;
+
+    // Match email in angle brackets: "Name <email@domain.com>"
+    const bracketMatch = display.match(/<([^>]+)>/);
+    if (bracketMatch) {
+      return bracketMatch[1].trim().toLowerCase();
+    }
+
+    // If no brackets, assume it's a plain email address
+    if (display.includes('@')) {
+      return display.trim().toLowerCase();
+    }
+
+    return undefined;
   }
 
   /**

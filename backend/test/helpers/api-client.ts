@@ -30,6 +30,42 @@ export interface CreateTestEmailBody {
   auth?: AuthOptions;
 }
 
+export interface FilterRuleBody {
+  field: string;
+  operator: string;
+  value: string;
+  caseSensitive?: boolean;
+}
+
+export interface FilterConfigBody {
+  rules: FilterRuleBody[];
+  mode: 'all' | 'any';
+  requireAuth?: boolean;
+}
+
+export interface CustomTemplateBody {
+  type: 'custom';
+  body: string;
+  contentType?: string;
+}
+
+export interface CreateWebhookBody {
+  url: string;
+  events: string[];
+  template?: string | CustomTemplateBody;
+  filter?: FilterConfigBody;
+  description?: string;
+}
+
+export interface UpdateWebhookBody {
+  url?: string;
+  events?: string[];
+  template?: string | CustomTemplateBody | null;
+  filter?: FilterConfigBody | null;
+  description?: string;
+  enabled?: boolean;
+}
+
 export class ApiClient {
   private readonly http: SuperTest<SuperTestRequest>;
   private readonly basePath: string;
@@ -117,6 +153,78 @@ export class ApiClient {
 
   createTestEmail(body: CreateTestEmailBody) {
     return this.post('/test/emails').send(body);
+  }
+
+  // ============================================
+  // Global Webhooks
+  // ============================================
+
+  createGlobalWebhook(body: CreateWebhookBody) {
+    return this.post('/webhooks').send(body);
+  }
+
+  listGlobalWebhooks() {
+    return this.get('/webhooks');
+  }
+
+  getGlobalWebhook(id: string) {
+    return this.get(`/webhooks/${encodeURIComponent(id)}`);
+  }
+
+  updateGlobalWebhook(id: string, body: UpdateWebhookBody) {
+    return this.patch(`/webhooks/${encodeURIComponent(id)}`).send(body);
+  }
+
+  deleteGlobalWebhook(id: string) {
+    return this.delete(`/webhooks/${encodeURIComponent(id)}`);
+  }
+
+  testGlobalWebhook(id: string) {
+    return this.post(`/webhooks/${encodeURIComponent(id)}/test`);
+  }
+
+  rotateGlobalWebhookSecret(id: string) {
+    return this.post(`/webhooks/${encodeURIComponent(id)}/rotate-secret`);
+  }
+
+  getWebhookMetrics() {
+    return this.get('/webhooks/metrics');
+  }
+
+  getWebhookTemplates() {
+    return this.get('/webhooks/templates');
+  }
+
+  // ============================================
+  // Inbox Webhooks
+  // ============================================
+
+  createInboxWebhook(email: string, body: CreateWebhookBody) {
+    return this.post(`/inboxes/${encodeURIComponent(email)}/webhooks`).send(body);
+  }
+
+  listInboxWebhooks(email: string) {
+    return this.get(`/inboxes/${encodeURIComponent(email)}/webhooks`);
+  }
+
+  getInboxWebhook(email: string, id: string) {
+    return this.get(`/inboxes/${encodeURIComponent(email)}/webhooks/${encodeURIComponent(id)}`);
+  }
+
+  updateInboxWebhook(email: string, id: string, body: UpdateWebhookBody) {
+    return this.patch(`/inboxes/${encodeURIComponent(email)}/webhooks/${encodeURIComponent(id)}`).send(body);
+  }
+
+  deleteInboxWebhook(email: string, id: string) {
+    return this.delete(`/inboxes/${encodeURIComponent(email)}/webhooks/${encodeURIComponent(id)}`);
+  }
+
+  testInboxWebhook(email: string, id: string) {
+    return this.post(`/inboxes/${encodeURIComponent(email)}/webhooks/${encodeURIComponent(id)}/test`);
+  }
+
+  rotateInboxWebhookSecret(email: string, id: string) {
+    return this.post(`/inboxes/${encodeURIComponent(email)}/webhooks/${encodeURIComponent(id)}/rotate-secret`);
   }
 }
 

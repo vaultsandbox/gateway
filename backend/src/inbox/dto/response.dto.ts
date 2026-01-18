@@ -163,6 +163,18 @@ export class ServerInfoResponseDto {
     example: 'always',
   })
   encryptionPolicy: 'always' | 'enabled' | 'disabled' | 'never';
+
+  @ApiProperty({
+    description: 'Whether the webhook system is enabled on this server',
+    example: true,
+  })
+  webhookEnabled: boolean;
+
+  @ApiProperty({
+    description: 'Default value for webhook requireAuth filter when not specified',
+    example: true,
+  })
+  webhookRequireAuthDefault: boolean;
 }
 
 /**

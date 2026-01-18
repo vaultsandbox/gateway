@@ -1,0 +1,150 @@
+<p-dialog
+  [header]="dialogTitle()"
+  [(visible)]="dialogVisible"
+  (visibleChange)="onVisibleChange($event)"
+  [modal]="true"
+  [style]="{ width: '1100px', maxWidth: '95vw' }"
+  [draggable]="false"
+  [resizable]="false"
+>
+  <!-- Header with Create Button -->
+  <div class="flex justify-between items-center mb-4">
+    <span class="text-gray-500">{{ scopeTitle() }}</span>
+    <p-button label="Create Webhook" icon="pi pi-plus" (onClick)="openCreateDialog()" />
+  </div>
+
+  <!-- Loading State -->
+  @if (loading()) {
+    <div class="flex flex-col items-center justify-center py-12">
+      <p-progressSpinner class="w-12 h-12" strokeWidth="4" />
+      <p class="text-gray-500 mt-4">Loading webhooks...</p>
+    </div>
+  }
+
+  <!-- Error State -->
+  @if (error() && !loading()) {
+    <div class="flex flex-col items-center justify-center py-12 text-red-500">
+      <i class="pi pi-exclamation-circle text-4xl mb-4"></i>
+      <p>{{ error() }}</p>
+      <p-button label="Retry" icon="pi pi-refresh" [text]="true" (onClick)="loadWebhooks()" class="mt-4" />
+    </div>
+  }
+
+  <!-- Webhook List -->
+  @if (!loading() && !error()) {
+    @if (webhooks().length === 0) {
+      <!-- Empty State -->
+      <div class="flex flex-col items-center justify-center py-12 text-gray-500">
+        <i class="pi pi-bolt text-6xl mb-4"></i>
+        <p class="text-xl font-semibold mb-2">No webhooks configured</p>
+        <p class="text-sm">Click "Create Webhook" to add one</p>
+      </div>
+    } @else {
+      <!-- Webhook Table -->
+      <div class="overflow-x-auto">
+        <table class="w-full">
+          <thead>
+            <tr class="border-b border-gray-200 dark:border-gray-700">
+              <th class="text-left py-3 px-4 font-medium text-gray-600 dark:text-gray-300">URL</th>
+              <th class="text-left py-3 px-4 font-medium text-gray-600 dark:text-gray-300">Events</th>
+              <th class="text-center py-3 px-4 font-medium text-gray-600 dark:text-gray-300">Enabled</th>
+              <th class="text-left py-3 px-4 font-medium text-gray-600 dark:text-gray-300">Last Delivery</th>
+              <th class="text-right py-3 px-4 font-medium text-gray-600 dark:text-gray-300">Actions</th>
+            </tr>
+          </thead>
+          <tbody>
+            @for (webhook of webhooks(); track trackByWebhookId($index, webhook)) {
+              <tr class="border-b border-gray-100 dark:border-gray-800 hover:bg-gray-50 dark:hover:bg-gray-800/50">
+                <!-- URL -->
+                <td class="py-3 px-4">
+                  <div class="flex flex-col">
+                    <span class="font-mono text-sm" [pTooltip]="webhook.url" tooltipPosition="top">
+                      {{ truncateUrl(webhook.url) }}
+                    </span>
+                    @if (webhook.description) {
+                      <span class="text-xs text-gray-500 mt-1">{{ webhook.description }}</span>
+                    }
+                  </div>
+                </td>
+
+                <!-- Events -->
+                <td class="py-3 px-4">
+                  <div class="flex flex-wrap gap-1">
+                    @for (event of webhook.events; track event) {
+                      <p-tag [value]="event" severity="info" styleClass="text-xs" />
+                    }
+                  </div>
+                </td>
+
+                <!-- Enabled Toggle -->
+                <td class="py-3 px-4 text-center">
+                  <p-toggleSwitch [ngModel]="webhook.enabled" (onChange)="toggleEnabled(webhook)" />
+                </td>
+
+                <!-- Last Delivery -->
+                <td class="py-3 px-4">
+                  @if (webhook.lastDeliveryAt) {
+                    <div class="flex items-center gap-2">
+                      @if (webhook.lastDeliveryStatus === 'success') {
+                        <i class="pi pi-check-circle text-green-500"></i>
+                      } @else {
+                        <i class="pi pi-times-circle text-red-500"></i>
+                      }
+                      <span class="text-sm">{{ formatTimeAgo(webhook.lastDeliveryAt) }}</span>
+                    </div>
+                  } @else {
+                    <span class="text-gray-400 text-sm">Never</span>
+                  }
+                </td>
+
+                <!-- Actions -->
+                <td class="py-3 px-4">
+                  <div class="flex justify-end gap-1">
+                    <p-button
+                      icon="pi pi-pencil"
+                      [text]="true"
+                      [rounded]="true"
+                      (onClick)="openEditDialog(webhook)"
+                      pTooltip="Edit"
+                    />
+                    <p-button
+                      icon="pi pi-play"
+                      [text]="true"
+                      [rounded]="true"
+                      (onClick)="testWebhook(webhook)"
+                      [loading]="testingWebhookId() === webhook.id"
+                      pTooltip="Test"
+                    />
+                    <p-button
+                      icon="pi pi-trash"
+                      [text]="true"
+                      [rounded]="true"
+                      severity="danger"
+                      (onClick)="confirmDelete(webhook)"
+                      pTooltip="Delete"
+                    />
+                  </div>
+                </td>
+              </tr>
+            }
+          </tbody>
+        </table>
+      </div>
+    }
+  }
+</p-dialog>
+
+<!-- Edit Dialog -->
+@if (editDialogVisible()) {
+  <app-webhook-edit-dialog
+    [scope]="scope()"
+    [webhook]="editingWebhook()"
+    (closed)="onEditDialogClosed()"
+    (saved)="onWebhookSaved($event)"
+  />
+}
+
+<!-- Test Result Dialog -->
+@if (testResultDialogVisible() && testResult()) {
+  <app-webhook-test-result-dialog [result]="testResult()!" (closed)="onTestResultDialogClosed()" />
+}

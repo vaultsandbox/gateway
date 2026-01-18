@@ -22,6 +22,8 @@ class ConfigurableServerInfoServiceStub {
     allowClearAllInboxes: true,
     allowedDomains: ['example.com', 'test.com'],
     encryptionPolicy: 'always',
+    webhookEnabled: false,
+    webhookRequireAuthDefault: true,
   });
 
   get serverInfo() {
@@ -55,6 +57,8 @@ describe('CustomInboxDialog', () => {
     allowClearAllInboxes: true,
     allowedDomains: ['example.com', 'test.com'],
     encryptionPolicy: 'always',
+    webhookEnabled: false,
+    webhookRequireAuthDefault: true,
     ...overrides,
   });
 

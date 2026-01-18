@@ -1,4 +1,4 @@
-import { Component, inject, model, ViewChild, signal, computed } from '@angular/core';
+import { Component, inject, model, ViewChild, signal, computed, output } from '@angular/core';
 import { Badge } from 'primeng/badge';
 import { VsLogo } from '../../../shared/components/vs-logo/vs-logo';
 import { ButtonModule } from 'primeng/button';
@@ -38,6 +38,9 @@ export class MailboxSidebar {
   protected menuItems: MenuItem[] = [];
   protected selectedInboxForMenu: InboxModel | null = null;
   protected showCustomInboxDialog = signal(false);
+
+  /** Emits when the user requests to manage webhooks for an inbox */
+  openInboxWebhooks = output<InboxModel>();
 
   /**
    * Builds the "create inbox" menu with options gated by server configuration.
@@ -132,6 +135,11 @@ export class MailboxSidebar {
         label: 'Export Inbox',
         icon: 'pi pi-download',
         command: () => this.exportInbox(this.selectedInboxForMenu!),
+      },
+      {
+        label: 'Webhooks',
+        icon: 'pi pi-bolt',
+        command: () => this.openInboxWebhooks.emit(this.selectedInboxForMenu!),
       },
       {
         label: 'Forget Inbox',

@@ -4,7 +4,7 @@ import { provideNoopAnimations } from '@angular/platform-browser/animations';
 import { MetricsDialog } from './metrics-dialog';
 import { MetricsService } from './metrics.service';
 import { of, throwError } from 'rxjs';
-import { Metrics, StorageMetrics } from '../../shared/interfaces/metrics.interfaces';
+import { Metrics, StorageMetrics, WebhookMetrics } from '../../shared/interfaces/metrics.interfaces';
 
 describe('MetricsDialog', () => {
   let component: MetricsDialog;
@@ -65,10 +65,25 @@ describe('MetricsDialog', () => {
     },
   };
 
+  const mockWebhookMetrics: WebhookMetrics = {
+    webhooks: {
+      global: 5,
+      inbox: 5,
+      enabled: 8,
+      total: 10,
+    },
+    deliveries: {
+      total: 100,
+      successful: 95,
+      failed: 5,
+    },
+  };
+
   beforeEach(async () => {
     const metricsServiceSpy = jasmine.createSpyObj('MetricsService', [
       'getMetrics',
       'getStorageMetrics',
+      'getWebhookMetrics',
       'calculateAuthPassRates',
       'calculateRejectionRate',
       'getTotalRejections',
@@ -90,6 +105,7 @@ describe('MetricsDialog', () => {
     metricsService = TestBed.inject(MetricsService) as jasmine.SpyObj<MetricsService>;
     metricsService.getMetrics.and.returnValue(of(mockMetrics));
     metricsService.getStorageMetrics.and.returnValue(of(mockStorageMetrics));
+    metricsService.getWebhookMetrics.and.returnValue(of(mockWebhookMetrics));
     metricsService.calculateAuthPassRates.and.returnValue({ spf: 100, dkim: 100, dmarc: 100 });
     metricsService.calculateRejectionRate.and.returnValue(5);
     metricsService.getTotalRejections.and.callFake(
@@ -201,6 +217,15 @@ describe('MetricsDialog', () => {
 
     expect(metricsService.getMetrics).toHaveBeenCalled();
     expect(component.activeTab).toBe('general');
+  });
+
+  it('should load webhook metrics when switching to webhooks tab', async () => {
+    component.onTabChange('webhooks');
+    await fixture.whenStable();
+
+    expect(metricsService.getWebhookMetrics).toHaveBeenCalled();
+    expect(component.webhookMetrics).toEqual(mockWebhookMetrics);
+    expect(component.activeTab).toBe('webhooks');
   });
 
   it('should handle undefined tab change', () => {
@@ -405,6 +430,35 @@ describe('MetricsDialog', () => {
     it('formats uptime correctly', () => {
       expect(component.formatUptime(3600)).toBe('1h');
       expect(component.formatUptime(86400)).toBe('1d');
+    });
+  });
+
+  describe('webhookDeliverySuccessRate', () => {
+    it('returns 0 when webhookMetrics is null', () => {
+      component.webhookMetrics = null;
+      expect(component.webhookDeliverySuccessRate).toBe(0);
+    });
+
+    it('returns 0 when total deliveries is 0', () => {
+      component.webhookMetrics = {
+        ...mockWebhookMetrics,
+        deliveries: { total: 0, successful: 0, failed: 0 },
+      };
+      expect(component.webhookDeliverySuccessRate).toBe(0);
+    });
+
+    it('calculates correct success rate', () => {
+      component.webhookMetrics = mockWebhookMetrics;
+      // 95 successful out of 100 total = 95%
+      expect(component.webhookDeliverySuccessRate).toBe(95);
+    });
+
+    it('calculates 100% when all deliveries are successful', () => {
+      component.webhookMetrics = {
+        ...mockWebhookMetrics,
+        deliveries: { total: 50, successful: 50, failed: 0 },
+      };
+      expect(component.webhookDeliverySuccessRate).toBe(100);
     });
   });
 });

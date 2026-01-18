@@ -4,7 +4,7 @@ import { provideHttpClient } from '@angular/common/http';
 import { HttpTestingController, provideHttpClientTesting } from '@angular/common/http/testing';
 import { MetricsService } from '../../../features/metrics-dialog/metrics.service';
 import { environment } from '../../../../environments/environment';
-import { Metrics, StorageMetrics } from '../../interfaces/metrics.interfaces';
+import { Metrics, StorageMetrics, WebhookMetrics } from '../../interfaces/metrics.interfaces';
 
 describe('MetricsService', () => {
   let service: MetricsService;
@@ -98,6 +98,30 @@ describe('MetricsService', () => {
     const req = httpMock.expectOne(`${environment.apiUrl}/metrics/storage`);
     expect(req.request.method).toBe('GET');
     req.flush(mockStorageMetrics);
+  });
+
+  it('should fetch webhook metrics', () => {
+    const mockWebhookMetrics: WebhookMetrics = {
+      webhooks: {
+        global: 5,
+        inbox: 5,
+        enabled: 8,
+        total: 10,
+      },
+      deliveries: {
+        total: 100,
+        successful: 95,
+        failed: 5,
+      },
+    };
+
+    service.getWebhookMetrics().subscribe((metrics) => {
+      expect(metrics).toEqual(mockWebhookMetrics);
+    });
+
+    const req = httpMock.expectOne(`${environment.apiUrl}/webhooks/metrics`);
+    expect(req.request.method).toBe('GET');
+    req.flush(mockWebhookMetrics);
   });
 
   it('should calculate auth pass rates correctly', () => {

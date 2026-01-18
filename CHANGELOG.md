@@ -5,6 +5,19 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.8.0] - 2026-01-16
+
+### Added
+
+- **Webhooks**: HTTP webhook notifications for email events (`email.received`, `email.stored`, `email.deleted`)
+  - Global and inbox-scoped webhooks
+  - HMAC-SHA256 request signatures for verification
+  - Automatic retries with exponential backoff (up to 5 attempts)
+  - Built-in templates for Slack, Discord, Teams, Zapier, and custom formats
+  - Smart filtering by subject, sender, headers, and more with regex support
+
+[0.8.0]: https://github.com/vaultsandbox/gateway/releases/tag/v0.8.0
+
 ## [0.7.1] - 2026-01-14
 
 ### Added

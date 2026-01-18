@@ -661,6 +661,44 @@ function buildSseConsoleConfig() {
 }
 
 /**
+ * Build Webhook Configuration
+ *
+ * Configures the webhook system for real-time HTTP notifications on email events.
+ * Supports both global webhooks (all events) and inbox-scoped webhooks.
+ *
+ * Optional environment variables:
+ * - VSB_WEBHOOK_ENABLED: Enable webhook system (default: true)
+ * - VSB_WEBHOOK_MAX_GLOBAL: Maximum global webhooks (default: 100)
+ * - VSB_WEBHOOK_MAX_PER_INBOX: Maximum webhooks per inbox (default: 50)
+ * - VSB_WEBHOOK_TIMEOUT: HTTP delivery timeout in ms (default: 10000)
+ * - VSB_WEBHOOK_MAX_RETRIES: Maximum retry attempts (default: 5)
+ * - VSB_WEBHOOK_MAX_RETRIES_PER_WEBHOOK: Maximum pending retries per webhook (default: 100)
+ * - VSB_WEBHOOK_ALLOW_HTTP: Allow HTTP URLs (default: false, requires HTTPS)
+ * - VSB_WEBHOOK_REQUIRE_AUTH_DEFAULT: Default requireAuth for filters (default: true in prod, false in dev)
+ * - VSB_WEBHOOK_MAX_HEADERS: Maximum number of headers to include in payload (default: 50)
+ * - VSB_WEBHOOK_MAX_HEADER_VALUE_LEN: Maximum length of header values in chars (default: 1000)
+ */
+function buildWebhookConfig() {
+  const devMode = isDevMode();
+
+  return {
+    enabled: parseOptionalBoolean(process.env.VSB_WEBHOOK_ENABLED, true),
+    maxGlobalWebhooks: parseNumberWithDefault(process.env.VSB_WEBHOOK_MAX_GLOBAL, 100),
+    maxInboxWebhooks: parseNumberWithDefault(process.env.VSB_WEBHOOK_MAX_PER_INBOX, 50),
+    deliveryTimeout: parseNumberWithDefault(process.env.VSB_WEBHOOK_TIMEOUT, 10000),
+    maxRetries: parseNumberWithDefault(process.env.VSB_WEBHOOK_MAX_RETRIES, 5),
+    maxRetriesPerWebhook: parseNumberWithDefault(process.env.VSB_WEBHOOK_MAX_RETRIES_PER_WEBHOOK, 100),
+    allowHttp: parseOptionalBoolean(process.env.VSB_WEBHOOK_ALLOW_HTTP, false),
+    // Default for requireAuth when not specified in webhook filter
+    // In dev mode, defaults to false for easier local testing
+    requireAuthDefault: parseOptionalBoolean(process.env.VSB_WEBHOOK_REQUIRE_AUTH_DEFAULT, !devMode),
+    // Header limits for payload size control
+    maxHeaders: parseNumberWithDefault(process.env.VSB_WEBHOOK_MAX_HEADERS, 50),
+    maxHeaderValueLen: parseNumberWithDefault(process.env.VSB_WEBHOOK_MAX_HEADER_VALUE_LEN, 1000),
+  };
+}
+
+/**
  * Build Email Auth Configuration
  *
  * Configures optional email authentication checks (SPF, DKIM, DMARC, Reverse DNS).
@@ -723,5 +761,6 @@ export default registerAs('vsb', () => {
     smtpRateLimit: buildSmtpRateLimitConfig(),
     sseConsole: buildSseConsoleConfig(),
     emailAuth: buildEmailAuthConfig(),
+    webhook: gatewayMode === 'local' ? buildWebhookConfig() : undefined,
   };
 });

@@ -1,6 +1,7 @@
 import { PassThrough } from 'stream';
 import { SMTPServerDataStream, SMTPServerSession } from 'smtp-server';
 import { ConfigService } from '@nestjs/config';
+import type { EventEmitter2 } from '@nestjs/event-emitter';
 
 import { SmtpHandlerService } from '../smtp-handler.service';
 import type { SmtpConfig } from '../interfaces/smtp-config.interface';
@@ -101,6 +102,10 @@ const mockSseConsoleService = {
   logRateLimitExceeded: jest.fn(),
 } as unknown as SseConsoleService;
 
+const mockEventEmitter = {
+  emit: jest.fn(),
+} as unknown as EventEmitter2;
+
 const mockInboxService = {
   storeEmail: jest.fn().mockResolvedValue(undefined),
   getInboxByEmail: jest.fn().mockReturnValue({
@@ -176,6 +181,7 @@ describe('SmtpHandlerService', () => {
       mockEmailProcessingService,
       mockMetricsService,
       mockSseConsoleService,
+      mockEventEmitter,
       mockInboxService,
       mockInboxStorageService,
       mockCryptoService,
@@ -200,6 +206,7 @@ describe('SmtpHandlerService', () => {
       mockEmailProcessingService,
       mockMetricsService,
       mockSseConsoleService,
+      mockEventEmitter,
       mockInboxService,
       mockInboxStorageService,
       mockCryptoService,
@@ -227,6 +234,7 @@ describe('SmtpHandlerService', () => {
       mockEmailProcessingService,
       mockMetricsService,
       mockSseConsoleService,
+      mockEventEmitter,
       mockInboxService,
       mockInboxStorageService,
       mockCryptoService,
@@ -249,6 +257,7 @@ describe('SmtpHandlerService', () => {
         mockEmailProcessingService,
         mockMetricsService,
         mockSseConsoleService,
+        mockEventEmitter,
         mockInboxService,
         mockInboxStorageService,
         mockCryptoService,
@@ -268,6 +277,7 @@ describe('SmtpHandlerService', () => {
         mockEmailProcessingService,
         mockMetricsService,
         mockSseConsoleService,
+        mockEventEmitter,
         mockInboxService,
         mockInboxStorageService,
         mockCryptoService,
@@ -292,6 +302,7 @@ describe('SmtpHandlerService', () => {
         mockEmailProcessingService,
         mockMetricsService,
         mockSseConsoleService,
+        mockEventEmitter,
         mockInboxService,
         mockInboxStorageService,
         mockCryptoService,
@@ -319,6 +330,7 @@ describe('SmtpHandlerService', () => {
         mockEmailProcessingService,
         mockMetricsService,
         mockSseConsoleService,
+        mockEventEmitter,
         mockInboxService,
         mockInboxStorageService,
         mockCryptoService,
@@ -339,6 +351,7 @@ describe('SmtpHandlerService', () => {
         mockEmailProcessingService,
         mockMetricsService,
         mockSseConsoleService,
+        mockEventEmitter,
         mockInboxService,
         mockInboxStorageService,
         mockCryptoService,
@@ -359,6 +372,7 @@ describe('SmtpHandlerService', () => {
         mockEmailProcessingService,
         mockMetricsService,
         mockSseConsoleService,
+        mockEventEmitter,
         mockInboxService,
         mockInboxStorageService,
         mockCryptoService,
@@ -379,6 +393,7 @@ describe('SmtpHandlerService', () => {
         mockEmailProcessingService,
         mockMetricsService,
         mockSseConsoleService,
+        mockEventEmitter,
         mockInboxService,
         mockInboxStorageService,
         mockCryptoService,
@@ -405,6 +420,7 @@ describe('SmtpHandlerService', () => {
         mockEmailProcessingService,
         mockMetricsService,
         mockSseConsoleService,
+        mockEventEmitter,
         mockInboxServiceNoInbox,
         mockInboxStorageService,
         mockCryptoService,
@@ -441,6 +457,7 @@ describe('SmtpHandlerService', () => {
         mockEmailProcessingService,
         mockMetricsService,
         mockSseConsoleService,
+        mockEventEmitter,
         mockInboxService,
         mockInboxStorageNoInboxes,
         mockCryptoService,
@@ -459,6 +476,7 @@ describe('SmtpHandlerService', () => {
         mockEmailProcessingService,
         mockMetricsService,
         mockSseConsoleService,
+        mockEventEmitter,
         mockInboxService,
         mockInboxStorageService,
         mockCryptoService,
@@ -482,6 +500,7 @@ describe('SmtpHandlerService', () => {
         mockEmailProcessingService,
         mockMetricsService,
         mockSseConsoleService,
+        mockEventEmitter,
         mockInboxService,
         mockInboxStorageService,
         mockCryptoService,
@@ -509,6 +528,7 @@ describe('SmtpHandlerService', () => {
         mockEmailProcessingService,
         mockMetricsService,
         mockSseConsoleService,
+        mockEventEmitter,
         mockInboxService,
         mockInboxStorageService,
         mockCryptoService,
@@ -537,6 +557,7 @@ describe('SmtpHandlerService', () => {
         mockEmailProcessingService,
         mockMetricsService,
         mockSseConsoleService,
+        mockEventEmitter,
         mockInboxService,
         mockInboxStorageService,
         mockCryptoService,
@@ -569,6 +590,7 @@ describe('SmtpHandlerService', () => {
         mockEmailProcessingService,
         mockMetricsService,
         mockSseConsoleService,
+        mockEventEmitter,
         mockInboxService,
         mockInboxStorageService,
         mockCryptoService,
@@ -608,6 +630,7 @@ describe('SmtpHandlerService', () => {
         mockEmailProcessingService,
         mockMetricsService,
         mockSseConsoleService,
+        mockEventEmitter,
         mockInboxService,
         mockInboxStorageService,
         mockCryptoService,
@@ -641,6 +664,7 @@ describe('SmtpHandlerService', () => {
         mockEmailProcessingService,
         mockMetricsService,
         mockSseConsoleService,
+        mockEventEmitter,
         mockInboxService,
         mockInboxStorageService,
         mockCryptoService,
@@ -667,6 +691,7 @@ describe('SmtpHandlerService', () => {
         mockEmailProcessingService,
         mockMetricsService,
         mockSseConsoleService,
+        mockEventEmitter,
         mockInboxService,
         mockInboxStorageService,
         mockCryptoService,
@@ -700,6 +725,7 @@ describe('SmtpHandlerService', () => {
         mockEmailProcessingService,
         mockMetricsService,
         mockSseConsoleService,
+        mockEventEmitter,
         mockInboxService,
         mockInboxStorageService,
         mockCryptoService,
@@ -737,6 +763,7 @@ describe('SmtpHandlerService', () => {
         mockEmailProcessingService,
         mockMetricsService,
         mockSseConsoleService,
+        mockEventEmitter,
         mockInboxService,
         mockInboxStorageService,
         mockCryptoService,
@@ -774,6 +801,7 @@ describe('SmtpHandlerService', () => {
         mockEmailProcessingService,
         mockMetricsService,
         mockSseConsoleService,
+        mockEventEmitter,
         mockInboxService,
         mockInboxStorageService,
         mockCryptoService,
@@ -823,6 +851,7 @@ describe('SmtpHandlerService', () => {
         mockEmailProcessingService,
         metricsServiceLocal,
         mockSseConsoleService,
+        mockEventEmitter,
         mockInboxService,
         mockInboxStorageService,
         mockCryptoService,
@@ -865,6 +894,7 @@ describe('SmtpHandlerService', () => {
         mockEmailProcessingService,
         metricsServiceLocal,
         mockSseConsoleService,
+        mockEventEmitter,
         mockInboxService,
         mockInboxStorageService,
         mockCryptoService,
@@ -908,6 +938,7 @@ describe('SmtpHandlerService', () => {
         mockEmailProcessingService,
         metricsServiceLocal,
         mockSseConsoleService,
+        mockEventEmitter,
         mockInboxService,
         mockInboxStorageService,
         mockCryptoService,
@@ -949,6 +980,7 @@ describe('SmtpHandlerService', () => {
         mockEmailProcessingService,
         metricsServiceLocal,
         mockSseConsoleService,
+        mockEventEmitter,
         mockInboxService,
         mockInboxStorageService,
         mockCryptoService,
@@ -977,6 +1009,7 @@ describe('SmtpHandlerService', () => {
         mockEmailProcessingService,
         mockMetricsService,
         mockSseConsoleService,
+        mockEventEmitter,
         mockInboxService,
         mockInboxStorageService,
         mockCryptoService,
@@ -1005,6 +1038,7 @@ describe('SmtpHandlerService', () => {
         mockEmailProcessingService,
         mockMetricsService,
         mockSseConsoleService,
+        mockEventEmitter,
         mockInboxService,
         mockInboxStorageService,
         mockCryptoService,
@@ -1033,6 +1067,7 @@ describe('SmtpHandlerService', () => {
         mockEmailProcessingService,
         mockMetricsService,
         mockSseConsoleService,
+        mockEventEmitter,
         mockInboxService,
         mockInboxStorageService,
         mockCryptoService,
@@ -1060,6 +1095,7 @@ describe('SmtpHandlerService', () => {
         mockEmailProcessingService,
         mockMetricsService,
         mockSseConsoleService,
+        mockEventEmitter,
         mockInboxService,
         mockInboxStorageService,
         mockCryptoService,
@@ -1105,6 +1141,7 @@ describe('SmtpHandlerService', () => {
         mockEmailProcessingWithAttachments,
         mockMetricsService,
         mockSseConsoleService,
+        mockEventEmitter,
         mockInboxService,
         mockInboxStorageService,
         mockCryptoService,
@@ -1148,6 +1185,7 @@ describe('SmtpHandlerService', () => {
         mockEmailProcessingWithAttachments,
         mockMetricsService,
         mockSseConsoleService,
+        mockEventEmitter,
         mockInboxService,
         mockInboxStorageService,
         mockCryptoService,
@@ -1191,6 +1229,7 @@ describe('SmtpHandlerService', () => {
         mockEmailProcessingWithAttachments,
         mockMetricsService,
         mockSseConsoleService,
+        mockEventEmitter,
         mockInboxService,
         mockInboxStorageService,
         mockCryptoService,
@@ -1234,6 +1273,7 @@ describe('SmtpHandlerService', () => {
         mockEmailProcessingWithAttachments,
         mockMetricsService,
         mockSseConsoleService,
+        mockEventEmitter,
         mockInboxService,
         mockInboxStorageService,
         mockCryptoService,
@@ -1273,6 +1313,7 @@ describe('SmtpHandlerService', () => {
         mockEmailProcessingWithBufferHtml,
         mockMetricsService,
         mockSseConsoleService,
+        mockEventEmitter,
         mockInboxService,
         mockInboxStorageService,
         mockCryptoService,
@@ -1312,6 +1353,7 @@ describe('SmtpHandlerService', () => {
         mockEmailProcessingService,
         mockMetricsService,
         mockSseConsoleService,
+        mockEventEmitter,
         mockInboxService,
         mockInboxStorageService,
         mockCryptoService,
@@ -1347,6 +1389,7 @@ describe('SmtpHandlerService', () => {
         mockEmailProcessingService,
         mockMetricsService,
         mockSseConsoleService,
+        mockEventEmitter,
         mockInboxService,
         mockInboxStorageService,
         mockCryptoService,
@@ -1377,6 +1420,7 @@ describe('SmtpHandlerService', () => {
         mockEmailProcessingService,
         mockMetricsService,
         mockSseConsoleService,
+        mockEventEmitter,
         mockInboxServiceNotFound,
         mockInboxStorageService,
         mockCryptoService,
@@ -1404,6 +1448,7 @@ describe('SmtpHandlerService', () => {
         mockEmailProcessingService,
         mockMetricsService,
         mockSseConsoleService,
+        mockEventEmitter,
         mockInboxService,
         mockInboxStorageService,
         mockCryptoService,
@@ -1441,6 +1486,7 @@ describe('SmtpHandlerService', () => {
         mockEmailProcessingService,
         mockMetricsService,
         mockSseConsoleService,
+        mockEventEmitter,
         mockInboxService,
         mockInboxStorageService,
         mockCryptoService,
@@ -1479,6 +1525,7 @@ describe('SmtpHandlerService', () => {
         mockEmailProcessingService,
         mockMetricsService,
         mockSseConsoleService,
+        mockEventEmitter,
         undefined, // No InboxService
         mockInboxStorageService,
         mockCryptoService,
@@ -1498,6 +1545,7 @@ describe('SmtpHandlerService', () => {
         mockEmailProcessingService,
         mockMetricsService,
         mockSseConsoleService,
+        mockEventEmitter,
         mockInboxService,
         mockInboxStorageService,
         undefined, // No CryptoService
@@ -1516,6 +1564,7 @@ describe('SmtpHandlerService', () => {
         mockEmailProcessingService,
         mockMetricsService,
         mockSseConsoleService,
+        mockEventEmitter,
         undefined, // No InboxService
         mockInboxStorageService,
         mockCryptoService,
@@ -1551,6 +1600,7 @@ describe('SmtpHandlerService', () => {
         mockEmailProcessingService,
         mockMetricsService,
         mockSseConsoleService,
+        mockEventEmitter,
         mockInboxService,
         mockInboxStorageService,
         mockCryptoService,
@@ -1597,6 +1647,7 @@ describe('SmtpHandlerService', () => {
           mockEmailProcessingService,
           mockMetricsService,
           mockSseConsoleService,
+          mockEventEmitter,
           mockInboxService,
           mockInboxStorageNoInboxes,
           mockCryptoService,
@@ -1626,6 +1677,7 @@ describe('SmtpHandlerService', () => {
         mockEmailProcessingService,
         mockMetricsService,
         mockSseConsoleService,
+        mockEventEmitter,
         mockInboxService,
         mockInboxStorageService,
         mockCryptoService,
@@ -1664,6 +1716,7 @@ describe('SmtpHandlerService', () => {
         mockEmailProcessingNoMessageId,
         mockMetricsService,
         mockSseConsoleService,
+        mockEventEmitter,
         mockInboxService,
         mockInboxStorageService,
         mockCryptoService,
@@ -1702,6 +1755,7 @@ describe('SmtpHandlerService', () => {
         mockEmailProcessingService,
         mockMetricsService,
         mockSseConsoleService,
+        mockEventEmitter,
         mockInboxService,
         mockInboxStorageService,
         mockCryptoService,
@@ -1760,6 +1814,7 @@ describe('SmtpHandlerService', () => {
         mockEmailProcessingService,
         mockMetricsService,
         mockSseConsoleService,
+        mockEventEmitter,
         mockInboxServicePlain,
         mockInboxStorageServicePlain,
         mockCryptoService,
@@ -1816,6 +1871,7 @@ describe('SmtpHandlerService', () => {
         mockEmailProcessingService,
         mockMetricsService,
         mockSseConsoleService,
+        mockEventEmitter,
         mockInboxServicePlain,
         mockInboxStorageServicePlain,
         mockCryptoService,
@@ -1869,6 +1925,7 @@ describe('SmtpHandlerService', () => {
         mockEmailProcessingService,
         mockMetricsService,
         mockSseConsoleService,
+        mockEventEmitter,
         mockInboxServicePlain,
         mockInboxStorageServicePlain,
         mockCryptoService,
@@ -1908,6 +1965,7 @@ describe('SmtpHandlerService', () => {
         mockEmailProcessingService,
         mockMetricsService,
         mockSseConsoleService,
+        mockEventEmitter,
         mockInboxServicePlain,
         mockInboxStorageServicePlain,
         mockCryptoService,
@@ -1928,6 +1986,369 @@ describe('SmtpHandlerService', () => {
 
       // Email should still be stored
       expect(mockInboxStorageServicePlain.addEmail).toHaveBeenCalled();
+    });
+  });
+
+  describe('extractEmailFromDisplay helper', () => {
+    let handler: SmtpHandlerService;
+    let handlerAny: any;
+
+    beforeEach(() => {
+      handler = new SmtpHandlerService(
+        createMockConfigService(defaultConfig),
+        mockEmailValidationService,
+        mockEmailProcessingService,
+        mockMetricsService,
+        mockSseConsoleService,
+        mockEventEmitter,
+        mockInboxService,
+        mockInboxStorageService,
+        mockCryptoService,
+        undefined,
+        undefined,
+        mockEmailStorageService,
+      );
+      handlerAny = handler as any;
+    });
+
+    it('should extract email from "Name <email>" format', () => {
+      expect(handlerAny.extractEmailFromDisplay('John Doe <john@example.com>')).toBe('john@example.com');
+    });
+
+    it('should extract email from plain email address', () => {
+      expect(handlerAny.extractEmailFromDisplay('john@example.com')).toBe('john@example.com');
+    });
+
+    it('should normalize email to lowercase', () => {
+      expect(handlerAny.extractEmailFromDisplay('John.Doe@Example.COM')).toBe('john.doe@example.com');
+      expect(handlerAny.extractEmailFromDisplay('John Doe <John.Doe@Example.COM>')).toBe('john.doe@example.com');
+    });
+
+    it('should handle email with commas in display name', () => {
+      expect(handlerAny.extractEmailFromDisplay('"Doe, John" <john@example.com>')).toBe('john@example.com');
+    });
+
+    it('should return undefined for undefined input', () => {
+      expect(handlerAny.extractEmailFromDisplay(undefined)).toBeUndefined();
+    });
+
+    it('should return undefined for empty string', () => {
+      expect(handlerAny.extractEmailFromDisplay('')).toBeUndefined();
+    });
+
+    it('should return undefined for string without @ symbol', () => {
+      expect(handlerAny.extractEmailFromDisplay('not an email')).toBeUndefined();
+    });
+  });
+
+  describe('webhook event payload formatting', () => {
+    it('should emit email.received with properly parsed from address', async () => {
+      const mockEmailProcessingWithFrom = {
+        parseEmail: jest.fn().mockResolvedValue({
+          messageId: '123@local',
+          headers: new Map([['subject', 'Test']]),
+          text: 'Body',
+          html: '',
+          attachments: [],
+          from: {
+            value: [{ address: 'sender@example.com', name: 'John Doe' }],
+            text: 'John Doe <sender@example.com>',
+            html: '<a href="mailto:sender@example.com">John Doe</a>',
+          },
+        }),
+      } as unknown as EmailProcessingService;
+
+      const capturedEvents: any[] = [];
+      const mockEventEmitterCapture = {
+        emit: jest.fn((event, payload) => {
+          capturedEvents.push({ event, payload });
+        }),
+      } as unknown as EventEmitter2;
+
+      const handler = new SmtpHandlerService(
+        createMockConfigService(defaultConfig),
+        mockEmailValidationService,
+        mockEmailProcessingWithFrom,
+        mockMetricsService,
+        mockSseConsoleService,
+        mockEventEmitterCapture,
+        mockInboxService,
+        mockInboxStorageService,
+        mockCryptoService,
+        undefined,
+        undefined,
+        mockEmailStorageService,
+      );
+
+      const payload = 'Subject: Test\r\nFrom: John Doe <sender@example.com>\r\n\r\nBody';
+      const stream = createStream();
+      (stream as unknown as { byteLength: number }).byteLength = Buffer.byteLength(payload);
+
+      const promise = handler.handleData(stream, baseSession);
+      stream.end(payload);
+      await promise;
+
+      const emailReceived = capturedEvents.find((e) => e.event === 'email.received');
+      expect(emailReceived).toBeDefined();
+      expect(emailReceived.payload.email.from).toEqual({
+        address: 'sender@example.com',
+        name: 'John Doe',
+      });
+    });
+
+    it('should emit email.received with properly parsed to and cc addresses', async () => {
+      const mockEmailProcessingWithAddresses = {
+        parseEmail: jest.fn().mockResolvedValue({
+          messageId: '123@local',
+          headers: new Map([['subject', 'Test']]),
+          text: 'Body',
+          html: '',
+          attachments: [],
+          from: {
+            value: [{ address: 'sender@example.com', name: 'Sender' }],
+            text: 'Sender <sender@example.com>',
+            html: '',
+          },
+          to: {
+            value: [
+              { address: 'recipient@example.com', name: 'Recipient' },
+              { address: 'second@example.com', name: undefined },
+            ],
+            text: 'Recipient <recipient@example.com>, second@example.com',
+            html: '',
+          },
+          cc: {
+            value: [{ address: 'cc@example.com', name: 'CC User' }],
+            text: 'CC User <cc@example.com>',
+            html: '',
+          },
+        }),
+      } as unknown as EmailProcessingService;
+
+      const capturedEvents: any[] = [];
+      const mockEventEmitterCapture = {
+        emit: jest.fn((event, payload) => {
+          capturedEvents.push({ event, payload });
+        }),
+      } as unknown as EventEmitter2;
+
+      const handler = new SmtpHandlerService(
+        createMockConfigService(defaultConfig),
+        mockEmailValidationService,
+        mockEmailProcessingWithAddresses,
+        mockMetricsService,
+        mockSseConsoleService,
+        mockEventEmitterCapture,
+        mockInboxService,
+        mockInboxStorageService,
+        mockCryptoService,
+        undefined,
+        undefined,
+        mockEmailStorageService,
+      );
+
+      const payload = 'Subject: Test\r\n\r\nBody';
+      const stream = createStream();
+      (stream as unknown as { byteLength: number }).byteLength = Buffer.byteLength(payload);
+
+      const promise = handler.handleData(stream, baseSession);
+      stream.end(payload);
+      await promise;
+
+      const emailReceived = capturedEvents.find((e) => e.event === 'email.received');
+      expect(emailReceived).toBeDefined();
+
+      // Check to addresses
+      expect(emailReceived.payload.email.to).toEqual([
+        { address: 'recipient@example.com', name: 'Recipient' },
+        { address: 'second@example.com', name: undefined },
+      ]);
+
+      // Check cc addresses
+      expect(emailReceived.payload.email.cc).toEqual([{ address: 'cc@example.com', name: 'CC User' }]);
+    });
+
+    it('should handle addresses with commas in display names (no string splitting)', async () => {
+      const mockEmailProcessingWithCommas = {
+        parseEmail: jest.fn().mockResolvedValue({
+          messageId: '123@local',
+          headers: new Map([['subject', 'Test']]),
+          text: 'Body',
+          html: '',
+          attachments: [],
+          from: {
+            value: [{ address: 'john@example.com', name: 'Doe, John' }],
+            text: '"Doe, John" <john@example.com>',
+            html: '',
+          },
+          cc: {
+            value: [
+              { address: 'smith@example.com', name: 'Smith, Jane' },
+              { address: 'bob@example.com', name: 'Bob' },
+            ],
+            text: '"Smith, Jane" <smith@example.com>, Bob <bob@example.com>',
+            html: '',
+          },
+        }),
+      } as unknown as EmailProcessingService;
+
+      const capturedEvents: any[] = [];
+      const mockEventEmitterCapture = {
+        emit: jest.fn((event, payload) => {
+          capturedEvents.push({ event, payload });
+        }),
+      } as unknown as EventEmitter2;
+
+      const handler = new SmtpHandlerService(
+        createMockConfigService(defaultConfig),
+        mockEmailValidationService,
+        mockEmailProcessingWithCommas,
+        mockMetricsService,
+        mockSseConsoleService,
+        mockEventEmitterCapture,
+        mockInboxService,
+        mockInboxStorageService,
+        mockCryptoService,
+        undefined,
+        undefined,
+        mockEmailStorageService,
+      );
+
+      const payload = 'Subject: Test\r\n\r\nBody';
+      const stream = createStream();
+      (stream as unknown as { byteLength: number }).byteLength = Buffer.byteLength(payload);
+
+      const promise = handler.handleData(stream, baseSession);
+      stream.end(payload);
+      await promise;
+
+      const emailReceived = capturedEvents.find((e) => e.event === 'email.received');
+      expect(emailReceived).toBeDefined();
+
+      // From should have correct address despite comma in display name
+      expect(emailReceived.payload.email.from).toEqual({
+        address: 'john@example.com',
+        name: 'Doe, John',
+      });
+
+      // CC should have 2 addresses, not 3 (which would happen with comma splitting)
+      expect(emailReceived.payload.email.cc).toHaveLength(2);
+      expect(emailReceived.payload.email.cc).toEqual([
+        { address: 'smith@example.com', name: 'Smith, Jane' },
+        { address: 'bob@example.com', name: 'Bob' },
+      ]);
+    });
+
+    it('should fallback to extractEmailFromDisplay when parsedMail.from.value is missing', async () => {
+      const mockEmailProcessingWithoutParsedFrom = {
+        parseEmail: jest.fn().mockResolvedValue({
+          messageId: '123@local',
+          headers: new Map([['subject', 'Test']]),
+          text: 'Body',
+          html: '',
+          attachments: [],
+          from: {
+            value: [], // Empty value array
+            text: 'John Doe <sender@example.com>',
+            html: '',
+          },
+        }),
+      } as unknown as EmailProcessingService;
+
+      // Create session with displayFrom in envelope
+      const sessionWithDisplayFrom: SMTPServerSession = {
+        ...baseSession,
+        envelope: {
+          mailFrom: { address: 'envelope-sender@example.com', args: {} },
+          rcptTo: [{ address: 'recipient@example.com', args: {} }],
+        },
+      };
+
+      const capturedEvents: any[] = [];
+      const mockEventEmitterCapture = {
+        emit: jest.fn((event, payload) => {
+          capturedEvents.push({ event, payload });
+        }),
+      } as unknown as EventEmitter2;
+
+      const handler = new SmtpHandlerService(
+        createMockConfigService(defaultConfig),
+        mockEmailValidationService,
+        mockEmailProcessingWithoutParsedFrom,
+        mockMetricsService,
+        mockSseConsoleService,
+        mockEventEmitterCapture,
+        mockInboxService,
+        mockInboxStorageService,
+        mockCryptoService,
+        undefined,
+        undefined,
+        mockEmailStorageService,
+      );
+
+      const payload = 'Subject: Test\r\nFrom: John Doe <sender@example.com>\r\n\r\nBody';
+      const stream = createStream();
+      (stream as unknown as { byteLength: number }).byteLength = Buffer.byteLength(payload);
+
+      const promise = handler.handleData(stream, sessionWithDisplayFrom);
+      stream.end(payload);
+      await promise;
+
+      const emailReceived = capturedEvents.find((e) => e.event === 'email.received');
+      expect(emailReceived).toBeDefined();
+      // Should fallback to extracting from displayFrom (which comes from parsed headers or envelope)
+      expect(emailReceived.payload.email.from.address).not.toBe('John Doe <sender@example.com>');
+      // The address should be extracted, not the full display format
+      expect(emailReceived.payload.email.from.address).not.toContain('<');
+      expect(emailReceived.payload.email.from.address).not.toContain('>');
+    });
+
+    it('should fallback to envelope recipients when parsedMail.to.value is missing', async () => {
+      const mockEmailProcessingWithoutParsedTo = {
+        parseEmail: jest.fn().mockResolvedValue({
+          messageId: '123@local',
+          headers: new Map([['subject', 'Test']]),
+          text: 'Body',
+          html: '',
+          attachments: [],
+          // No 'to' field at all
+        }),
+      } as unknown as EmailProcessingService;
+
+      const capturedEvents: any[] = [];
+      const mockEventEmitterCapture = {
+        emit: jest.fn((event, payload) => {
+          capturedEvents.push({ event, payload });
+        }),
+      } as unknown as EventEmitter2;
+
+      const handler = new SmtpHandlerService(
+        createMockConfigService(defaultConfig),
+        mockEmailValidationService,
+        mockEmailProcessingWithoutParsedTo,
+        mockMetricsService,
+        mockSseConsoleService,
+        mockEventEmitterCapture,
+        mockInboxService,
+        mockInboxStorageService,
+        mockCryptoService,
+        undefined,
+        undefined,
+        mockEmailStorageService,
+      );
+
+      const payload = 'Subject: Test\r\n\r\nBody';
+      const stream = createStream();
+      (stream as unknown as { byteLength: number }).byteLength = Buffer.byteLength(payload);
+
+      const promise = handler.handleData(stream, baseSession);
+      stream.end(payload);
+      await promise;
+
+      const emailReceived = capturedEvents.find((e) => e.event === 'email.received');
+      expect(emailReceived).toBeDefined();
+      // Should fallback to envelope recipients
+      expect(emailReceived.payload.email.to).toEqual([{ address: 'recipient@example.com' }]);
     });
   });
 });

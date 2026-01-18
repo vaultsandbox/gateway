@@ -1,0 +1,158 @@
+<p-dialog
+  [header]="isEditMode() ? 'Edit Webhook' : 'Create Webhook'"
+  [(visible)]="dialogVisible"
+  (visibleChange)="onVisibleChange($event)"
+  [modal]="true"
+  [style]="{ width: '900px' }"
+  [draggable]="false"
+  [resizable]="false"
+>
+  <div class="flex flex-col gap-4">
+    <!-- URL -->
+    <div class="flex flex-col gap-2">
+      <label for="url" class="font-medium">Webhook URL <span class="text-red-500">*</span></label>
+      <input
+        pInputText
+        id="url"
+        [ngModel]="url()"
+        (ngModelChange)="url.set($event)"
+        placeholder="https://example.com/webhook"
+        class="w-full"
+      />
+      @if (urlError()) {
+        <small class="text-red-500">{{ urlError() }}</small>
+      }
+      @if (urlWarning() && !urlError()) {
+        <small class="text-yellow-600">{{ urlWarning() }}</small>
+      }
+    </div>
+
+    <!-- Description -->
+    <div class="flex flex-col gap-2">
+      <label for="description" class="font-medium">Description</label>
+      <textarea
+        pTextarea
+        id="description"
+        [ngModel]="description()"
+        (ngModelChange)="description.set($event)"
+        [maxlength]="500"
+        rows="2"
+        class="w-full"
+        placeholder="Optional description for this webhook"
+      ></textarea>
+      <small class="text-gray-400">{{ description().length }}/500</small>
+    </div>
+
+    <!-- Events -->
+    <div class="flex flex-col gap-2">
+      <span class="font-medium">Events <span class="text-red-500">*</span></span>
+      <div class="flex flex-wrap gap-3">
+        @for (event of eventOptions; track event.value) {
+          <div class="flex items-center gap-2">
+            <p-checkbox
+              [ngModel]="isEventChecked(event.value)"
+              (ngModelChange)="onEventToggle(event.value, $event)"
+              [binary]="true"
+              [inputId]="event.value"
+            />
+            <label [for]="event.value" class="cursor-pointer">{{ event.label }}</label>
+          </div>
+        }
+      </div>
+      @if (events().length === 0) {
+        <small class="text-red-500">At least one event is required</small>
+      }
+    </div>
+
+    <!-- Template -->
+    <div class="flex flex-col gap-2">
+      <span class="font-medium">Payload Template</span>
+      <p-select
+        [ngModel]="templateType()"
+        (ngModelChange)="templateType.set($event)"
+        [options]="templateOptions()"
+        optionLabel="label"
+        optionValue="value"
+        styleClass="w-full"
+        appendTo="body"
+      />
+      @if (templateType() === 'custom') {
+        <div class="flex flex-col gap-2 mt-2">
+          <label for="customTemplate" class="text-sm">Custom Template (JSON)</label>
+          <textarea
+            pTextarea
+            id="customTemplate"
+            [ngModel]="customTemplateBody()"
+            (ngModelChange)="customTemplateBody.set($event)"
+            rows="6"
+            class="w-full font-mono text-sm"
+            [placeholder]="customTemplatePlaceholder"
+          ></textarea>
+          @if (templateError()) {
+            <small class="text-red-500">{{ templateError() }}</small>
+          }
+          <div class="flex flex-col gap-1 mt-1">
+            <label for="contentType" class="text-sm">Content-Type</label>
+            <input
+              pInputText
+              id="contentType"
+              [ngModel]="customContentType()"
+              (ngModelChange)="customContentType.set($event)"
+              placeholder="application/json"
+              class="w-full"
+            />
+          </div>
+        </div>
+      }
+    </div>
+
+    <!-- Filter -->
+    <p-fieldset
+      legend="Filters"
+      [toggleable]="true"
+      [collapsed]="!filterEnabled()"
+      (onBeforeToggle)="filterEnabled.set(!filterEnabled())"
+    >
+      @if (filterEnabled()) {
+        <app-webhook-filter-form [(filter)]="filterConfig" />
+      } @else {
+        <p class="text-gray-500">Click to expand and configure filters</p>
+      }
+    </p-fieldset>
+
+    <!-- Secret (edit mode only) -->
+    @if (isEditMode() && webhook()?.secret) {
+      <div class="flex flex-col gap-2">
+        <span class="font-medium">Signing Secret</span>
+        <div class="flex gap-2">
+          <input
+            pInputText
+            [type]="secretVisible() ? 'text' : 'password'"
+            [value]="webhook()?.secret"
+            readonly
+            class="flex-1"
+          />
+          <p-button
+            [icon]="secretVisible() ? 'pi pi-eye-slash' : 'pi pi-eye'"
+            [text]="true"
+            (onClick)="secretVisible.set(!secretVisible())"
+            pTooltip="Toggle visibility"
+          />
+          <p-button icon="pi pi-copy" [text]="true" (onClick)="copySecret()" pTooltip="Copy to clipboard" />
+          <p-button icon="pi pi-refresh" [text]="true" (onClick)="confirmRotateSecret()" pTooltip="Rotate secret" />
+        </div>
+        <small class="text-gray-400">Use this secret to verify webhook signatures</small>
+      </div>
+    }
+  </div>
+
+  <ng-template pTemplate="footer">
+    <p-button label="Cancel" [text]="true" (onClick)="onCancel()" />
+    <p-button
+      [label]="isEditMode() ? 'Save' : 'Create'"
+      [loading]="saving()"
+      [disabled]="!isValid()"
+      (onClick)="onSave()"
+    />
+  </ng-template>
+</p-dialog>

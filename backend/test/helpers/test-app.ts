@@ -2,6 +2,7 @@ import { existsSync } from 'node:fs';
 import { mkdir, rm } from 'node:fs/promises';
 import { resolve } from 'node:path';
 import type { INestApplication } from '@nestjs/common';
+import { ValidationPipe } from '@nestjs/common';
 import { Test, TestingModule } from '@nestjs/testing';
 import { afterAll, afterEach, beforeAll } from '@jest/globals';
 import { config as loadEnv } from 'dotenv';
@@ -10,6 +11,7 @@ import { AppModule } from '../../src/app.module';
 import { ConfigService } from '@nestjs/config';
 import { SmtpService } from '../../src/smtp/smtp.service';
 import { InboxStorageService } from '../../src/inbox/storage/inbox-storage.service';
+import { WebhookStorageService } from '../../src/webhook/storage/webhook-storage.service';
 
 const envPath = resolve(__dirname, '../../.env.test-e2e');
 if (existsSync(envPath)) {
@@ -37,6 +39,16 @@ async function createTestApp(): Promise<BootstrappedApp> {
   }).compile();
 
   const app = moduleRef.createNestApplication();
+
+  // Enable global validation pipe (same as main.ts)
+  app.useGlobalPipes(
+    new ValidationPipe({
+      whitelist: true,
+      forbidNonWhitelisted: true,
+      transform: true,
+    }),
+  );
+
   await app.init();
 
   // Listen on ephemeral port for SSE testing
@@ -78,7 +90,9 @@ export async function shutdownTestApp(): Promise<void> {
 export async function resetTestState(): Promise<void> {
   const instance = await bootstrapTestApp();
   const inboxStorage = instance.app.get(InboxStorageService);
+  const webhookStorage = instance.app.get(WebhookStorageService);
   inboxStorage.clearAllInboxes();
+  webhookStorage.clearAll();
   await resetEmailStorage(instance.emailStorageDir);
 }
 

@@ -267,6 +267,12 @@ export interface ServerInfo {
 
   /** Encryption policy controlling inbox encryption behavior */
   encryptionPolicy: EncryptionPolicy;
+
+  /** Whether the webhook system is enabled on this server */
+  webhookEnabled: boolean;
+
+  /** Default value for webhook requireAuth filter when not specified */
+  webhookRequireAuthDefault: boolean;
 }
 
 /**

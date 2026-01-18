@@ -2,7 +2,13 @@ import { Injectable, inject } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
 import { Observable } from 'rxjs';
 import { environment } from '../../../environments/environment';
-import { AuthPassRate, CertificateStatus, Metrics, StorageMetrics } from '../../shared/interfaces/metrics.interfaces';
+import {
+  AuthPassRate,
+  CertificateStatus,
+  Metrics,
+  StorageMetrics,
+  WebhookMetrics,
+} from '../../shared/interfaces/metrics.interfaces';
 
 /**
  * Provides helpers for fetching and transforming SMTP gateway metrics.
@@ -31,6 +37,15 @@ export class MetricsService {
    */
   getStorageMetrics(): Observable<StorageMetrics> {
     return this.http.get<StorageMetrics>(`${this.baseUrl}/metrics/storage`);
+  }
+
+  /**
+   * Retrieves aggregated webhook metrics from the backend.
+   *
+   * @returns Observable that emits WebhookMetrics from `/webhooks/metrics`.
+   */
+  getWebhookMetrics(): Observable<WebhookMetrics> {
+    return this.http.get<WebhookMetrics>(`${this.baseUrl}/webhooks/metrics`);
   }
 
   /**

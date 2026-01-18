@@ -52,6 +52,8 @@ describe('VaultSandboxApi', () => {
         allowClearAllInboxes: true,
         allowedDomains: ['example.com'],
         encryptionPolicy: 'always' as const,
+        webhookEnabled: false,
+        webhookRequireAuthDefault: true,
       };
 
       service.getServerInfo().subscribe((response) => {

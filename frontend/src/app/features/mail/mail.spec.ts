@@ -30,6 +30,8 @@ class TestableServerInfoServiceStub implements Partial<ServerInfoService> {
     allowClearAllInboxes: true,
     allowedDomains: [],
     encryptionPolicy: 'always',
+    webhookEnabled: false,
+    webhookRequireAuthDefault: true,
   });
 
   get serverInfo(): Signal<ServerInfo | null> {
@@ -126,6 +128,8 @@ describe('Mail', () => {
         allowClearAllInboxes: true,
         allowedDomains: [],
         encryptionPolicy: 'always',
+        webhookEnabled: false,
+        webhookRequireAuthDefault: true,
       });
 
       const menuItems = component.topLeftMenuitems();
@@ -144,6 +148,8 @@ describe('Mail', () => {
         allowClearAllInboxes: true,
         allowedDomains: [],
         encryptionPolicy: 'always',
+        webhookEnabled: false,
+        webhookRequireAuthDefault: true,
       });
 
       const menuItems = component.topLeftMenuitems();
@@ -157,6 +163,70 @@ describe('Mail', () => {
       const menuItems = component.topLeftMenuitems();
       const consoleItem = menuItems.find((item) => item.label === 'Console');
       expect(consoleItem).toBeUndefined();
+    });
+
+    it('should include Webhooks menu item when webhookEnabled is true', () => {
+      serverInfoServiceStub.setServerInfo({
+        serverSigPk: 'stub',
+        algs: { kem: 'ml-kem', sig: 'ml-dsa', aead: 'aes-gcm', kdf: 'hkdf' },
+        context: 'stub',
+        maxTtl: 86400,
+        defaultTtl: 3600,
+        sseConsole: false,
+        allowClearAllInboxes: true,
+        allowedDomains: [],
+        encryptionPolicy: 'always',
+        webhookEnabled: true,
+        webhookRequireAuthDefault: true,
+      });
+
+      const menuItems = component.topLeftMenuitems();
+      const webhooksItem = menuItems.find((item) => item.label === 'Webhooks');
+      expect(webhooksItem).toBeTruthy();
+    });
+
+    it('should not include Webhooks menu item when webhookEnabled is false', () => {
+      serverInfoServiceStub.setServerInfo({
+        serverSigPk: 'stub',
+        algs: { kem: 'ml-kem', sig: 'ml-dsa', aead: 'aes-gcm', kdf: 'hkdf' },
+        context: 'stub',
+        maxTtl: 86400,
+        defaultTtl: 3600,
+        sseConsole: false,
+        allowClearAllInboxes: true,
+        allowedDomains: [],
+        encryptionPolicy: 'always',
+        webhookEnabled: false,
+        webhookRequireAuthDefault: true,
+      });
+
+      const menuItems = component.topLeftMenuitems();
+      const webhooksItem = menuItems.find((item) => item.label === 'Webhooks');
+      expect(webhooksItem).toBeUndefined();
+    });
+
+    it('should execute Webhooks menu command', () => {
+      spyOn(component, 'openWebhooksDialog');
+
+      serverInfoServiceStub.setServerInfo({
+        serverSigPk: 'stub',
+        algs: { kem: 'ml-kem', sig: 'ml-dsa', aead: 'aes-gcm', kdf: 'hkdf' },
+        context: 'stub',
+        maxTtl: 86400,
+        defaultTtl: 3600,
+        sseConsole: false,
+        allowClearAllInboxes: true,
+        allowedDomains: [],
+        encryptionPolicy: 'always',
+        webhookEnabled: true,
+        webhookRequireAuthDefault: true,
+      });
+
+      const menuItems = component.topLeftMenuitems();
+      const webhooksItem = menuItems.find((item) => item.label === 'Webhooks');
+      webhooksItem?.command?.({} as never);
+
+      expect(component.openWebhooksDialog).toHaveBeenCalled();
     });
 
     it('should show Light Mode when in dark mode', () => {
@@ -197,6 +267,8 @@ describe('Mail', () => {
         allowClearAllInboxes: true,
         allowedDomains: [],
         encryptionPolicy: 'always',
+        webhookEnabled: false,
+        webhookRequireAuthDefault: true,
       });
 
       const menuItems = component.topLeftMenuitems();
@@ -497,6 +569,38 @@ describe('Mail', () => {
       component.openConsoleDialog();
 
       expect(component.openConsoleDialogs()).toEqual([0, 1, 2]);
+    });
+  });
+
+  describe('openWebhooksDialog', () => {
+    it('should set webhookScope to global and show dialog', () => {
+      expect(component.showWebhooksDialog()).toBe(false);
+
+      component.openWebhooksDialog();
+
+      expect(component.webhookScope()).toEqual({ type: 'global' });
+      expect(component.showWebhooksDialog()).toBe(true);
+    });
+  });
+
+  describe('openInboxWebhooksDialog', () => {
+    it('should set webhookScope to inbox-specific and show dialog', () => {
+      const mockInbox: InboxModel = {
+        emailAddress: 'test@example.com',
+        expiresAt: new Date().toISOString(),
+        inboxHash: 'inbox-hash-123',
+        encrypted: true,
+        serverSigPk: 'sig-pk',
+        secretKey: new Uint8Array(),
+        emails: [],
+      };
+
+      expect(component.showWebhooksDialog()).toBe(false);
+
+      component.openInboxWebhooksDialog(mockInbox);
+
+      expect(component.webhookScope()).toEqual({ type: 'inbox', email: 'test@example.com' });
+      expect(component.showWebhooksDialog()).toBe(true);
     });
   });
 

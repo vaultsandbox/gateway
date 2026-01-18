@@ -1,5 +1,6 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { ConfigService } from '@nestjs/config';
+import { EventEmitter2 } from '@nestjs/event-emitter';
 import { BadRequestException, ForbiddenException, InternalServerErrorException } from '@nestjs/common';
 import { InboxService } from '../inbox.service';
 import { InboxStorageService } from '../storage/inbox-storage.service';
@@ -122,6 +123,12 @@ describe('InboxService', () => {
             set: jest.fn(),
           },
         },
+        {
+          provide: EventEmitter2,
+          useValue: {
+            emit: jest.fn(),
+          },
+        },
       ],
     }).compile();
 
@@ -180,6 +187,12 @@ describe('InboxService', () => {
               set: jest.fn(),
             },
           },
+          {
+            provide: EventEmitter2,
+            useValue: {
+              emit: jest.fn(),
+            },
+          },
         ],
       }).compile();
 
@@ -232,6 +245,12 @@ describe('InboxService', () => {
               set: jest.fn(),
             },
           },
+          {
+            provide: EventEmitter2,
+            useValue: {
+              emit: jest.fn(),
+            },
+          },
         ],
       }).compile();
 
@@ -282,6 +301,12 @@ describe('InboxService', () => {
             useValue: {
               increment: jest.fn(),
               set: jest.fn(),
+            },
+          },
+          {
+            provide: EventEmitter2,
+            useValue: {
+              emit: jest.fn(),
             },
           },
         ],
@@ -679,6 +704,8 @@ describe('InboxService', () => {
         allowClearAllInboxes: true,
         allowedDomains: ['vaultsandbox.test', 'example.com'],
         encryptionPolicy: 'always',
+        webhookEnabled: true,
+        webhookRequireAuthDefault: false,
       });
     });
 
@@ -725,6 +752,12 @@ describe('InboxService', () => {
             useValue: {
               increment: jest.fn(),
               set: jest.fn(),
+            },
+          },
+          {
+            provide: EventEmitter2,
+            useValue: {
+              emit: jest.fn(),
             },
           },
         ],
@@ -780,6 +813,12 @@ describe('InboxService', () => {
             useValue: {
               increment: jest.fn(),
               set: jest.fn(),
+            },
+          },
+          {
+            provide: EventEmitter2,
+            useValue: {
+              emit: jest.fn(),
             },
           },
         ],
@@ -909,6 +948,12 @@ describe('InboxService', () => {
                 set: jest.fn(),
               },
             },
+            {
+              provide: EventEmitter2,
+              useValue: {
+                emit: jest.fn(),
+              },
+            },
           ],
         }).compile();
 
@@ -976,6 +1021,12 @@ describe('InboxService', () => {
                 set: jest.fn(),
               },
             },
+            {
+              provide: EventEmitter2,
+              useValue: {
+                emit: jest.fn(),
+              },
+            },
           ],
         }).compile();
 
@@ -1032,6 +1083,12 @@ describe('InboxService', () => {
               useValue: {
                 increment: jest.fn(),
                 set: jest.fn(),
+              },
+            },
+            {
+              provide: EventEmitter2,
+              useValue: {
+                emit: jest.fn(),
               },
             },
           ],
@@ -1091,6 +1148,12 @@ describe('InboxService', () => {
             useValue: {
               increment: jest.fn(),
               set: jest.fn(),
+            },
+          },
+          {
+            provide: EventEmitter2,
+            useValue: {
+              emit: jest.fn(),
             },
           },
         ],
@@ -1159,6 +1222,12 @@ describe('InboxService', () => {
               set: jest.fn(),
             },
           },
+          {
+            provide: EventEmitter2,
+            useValue: {
+              emit: jest.fn(),
+            },
+          },
         ],
       }).compile();
 
@@ -1225,6 +1294,12 @@ describe('InboxService', () => {
             useValue: {
               increment: jest.fn(),
               set: jest.fn(),
+            },
+          },
+          {
+            provide: EventEmitter2,
+            useValue: {
+              emit: jest.fn(),
             },
           },
         ],
@@ -1297,6 +1372,12 @@ describe('InboxService', () => {
             useValue: {
               increment: jest.fn(),
               set: jest.fn(),
+            },
+          },
+          {
+            provide: EventEmitter2,
+            useValue: {
+              emit: jest.fn(),
             },
           },
         ],

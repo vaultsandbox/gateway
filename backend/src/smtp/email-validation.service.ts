@@ -2,8 +2,11 @@ import { promises as dns } from 'node:dns';
 import type { LookupAddress } from 'node:dns';
 import { Injectable, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
+
 import { spf } from 'mailauth/lib/spf';
+
 import { dmarc } from 'mailauth/lib/dmarc';
+
 import { dkimVerify } from 'mailauth/lib/dkim/verify';
 
 import type { SpfResult, DkimResult, DmarcResult, ReverseDnsResult } from './interfaces/email-session.interface';
@@ -144,6 +147,7 @@ export class EmailValidationService {
     }
 
     try {
+      // eslint-disable-next-line @typescript-eslint/no-unsafe-call -- mailauth lacks proper type definitions
       const spfPromise = spf({ ip: remoteIp, sender: senderAddress }) as Promise<unknown>;
       const rawResult: unknown = await this.resolveWithTimeout(
         spfPromise,
@@ -218,6 +222,7 @@ export class EmailValidationService {
     const timeoutMs = DNS_TIMEOUTS.DKIM_TIMEOUT_MS;
 
     try {
+      // eslint-disable-next-line @typescript-eslint/no-unsafe-call -- mailauth lacks proper type definitions
       const dkimPromise = dkimVerify(rawData) as Promise<unknown>;
       const rawDkimResult: unknown = await this.resolveWithTimeout(
         dkimPromise,
@@ -333,6 +338,7 @@ export class EmailValidationService {
       .map((result) => ({ domain: result.domain!.toLowerCase() }));
 
     try {
+      // eslint-disable-next-line @typescript-eslint/no-unsafe-call -- mailauth lacks proper type definitions
       const dmarcPromise = dmarc({
         headerFrom,
         spfDomains,

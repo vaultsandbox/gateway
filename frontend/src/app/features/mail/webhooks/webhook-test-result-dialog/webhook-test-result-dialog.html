@@ -1,0 +1,75 @@
+<p-dialog
+  header="Webhook Test Result"
+  [(visible)]="dialogVisible"
+  (visibleChange)="onVisibleChange($event)"
+  [modal]="true"
+  [style]="{ width: '500px' }"
+  [draggable]="false"
+  [resizable]="false"
+>
+  <div class="flex flex-col gap-4">
+    <!-- Status -->
+    <div class="flex items-center gap-3">
+      @if (result().success) {
+        <i class="pi pi-check-circle text-green-500 text-2xl"></i>
+        <span class="text-lg font-medium">Test Successful</span>
+      } @else {
+        <i class="pi pi-times-circle text-red-500 text-2xl"></i>
+        <span class="text-lg font-medium">Test Failed</span>
+      }
+    </div>
+
+    <!-- Status Code -->
+    @if (result().statusCode) {
+      <div class="flex gap-2">
+        <span class="font-medium">Status Code:</span>
+        <span
+          [class]="{
+            'text-green-600': result().statusCode! >= 200 && result().statusCode! < 300,
+            'text-red-600': result().statusCode! >= 400,
+          }"
+        >
+          {{ result().statusCode }}
+        </span>
+      </div>
+    }
+
+    <!-- Response Time -->
+    @if (result().responseTime) {
+      <div class="flex gap-2">
+        <span class="font-medium">Response Time:</span>
+        <span>{{ result().responseTime }}ms</span>
+      </div>
+    }
+
+    <!-- Error -->
+    @if (result().error) {
+      <div class="flex flex-col gap-2">
+        <span class="font-medium">Error:</span>
+        <p-message severity="error" [text]="result().error!" />
+      </div>
+    }
+
+    <!-- Response Body -->
+    @if (result().responseBody) {
+      <div class="flex flex-col gap-2">
+        <span class="font-medium">Response Body:</span>
+        <pre class="bg-gray-100 dark:bg-gray-800 p-3 rounded text-sm overflow-auto max-h-40">{{
+          result().responseBody
+        }}</pre>
+      </div>
+    }
+
+    <!-- Payload Sent -->
+    @if (result().payloadSent) {
+      <div class="flex flex-col gap-2">
+        <span class="font-medium">Payload Sent:</span>
+        <pre class="bg-gray-100 dark:bg-gray-800 p-3 rounded text-sm overflow-auto max-h-40">{{ formatPayload() }}</pre>
+      </div>
+    }
+  </div>
+
+  <ng-template pTemplate="footer">
+    <p-button label="Close" (onClick)="onClose()" />
+  </ng-template>
+</p-dialog>

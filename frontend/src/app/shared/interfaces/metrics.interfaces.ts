@@ -75,3 +75,24 @@ export interface StorageMetrics {
 }
 
 export type StorageHealthStatus = 'healthy' | 'warning' | 'critical';
+
+export interface WebhookMetrics {
+  webhooks: {
+    /** Number of global webhooks */
+    global: number;
+    /** Number of inbox-scoped webhooks */
+    inbox: number;
+    /** Number of currently enabled webhooks */
+    enabled: number;
+    /** Total number of webhooks (global + inbox) */
+    total: number;
+  };
+  deliveries: {
+    /** Total delivery attempts across all webhooks */
+    total: number;
+    /** Successful deliveries across all webhooks */
+    successful: number;
+    /** Failed deliveries across all webhooks */
+    failed: number;
+  };
+}

@@ -1,6 +1,7 @@
 import { Injectable, Logger, NotFoundException, ConflictException } from '@nestjs/common';
 import { createHash } from 'crypto';
 import { Inbox, StoredEmail } from '../interfaces';
+import type { IWebhookStorageService } from '../../webhook/interfaces/webhook.interface';
 
 // Interface for EmailStorageService to avoid circular dependency
 interface IEmailStorageService {
@@ -14,6 +15,7 @@ export class InboxStorageService {
   private inboxes: Map<string, Inbox> = new Map(); // Map<emailAddress, Inbox>
   private inboxHashToEmail = new Map<string, string>(); // Map<inboxHash, emailAddress>
   private emailStorageService?: IEmailStorageService; // Will be set by EmailStorageService to avoid circular dependency
+  private webhookStorageService?: IWebhookStorageService; // Will be set by WebhookStorageService to avoid circular dependency
 
   /**
    * Update the emailsHash for an inbox based on its current email IDs
@@ -98,6 +100,16 @@ export class InboxStorageService {
   }
 
   /**
+   * Set the WebhookStorageService reference for deletion notifications.
+   * Called by WebhookStorageService to register itself (avoids circular dependency).
+   *
+   * @param service - WebhookStorageService instance
+   */
+  setWebhookStorageService(service: IWebhookStorageService): void {
+    this.webhookStorageService = service;
+  }
+
+  /**
    * Delete inbox and all associated emails
    */
   deleteInbox(emailAddress: string): boolean {
@@ -115,6 +127,11 @@ export class InboxStorageService {
       // Notify EmailStorageService if available (for memory tracking)
       if (this.emailStorageService) {
         this.emailStorageService.onInboxDeleted(normalizedEmail);
+      }
+
+      // Notify WebhookStorageService if available (for cascading webhook deletion)
+      if (this.webhookStorageService) {
+        this.webhookStorageService.onInboxDeleted(inbox.inboxHash);
       }
     }
     return deleted;
@@ -287,11 +304,15 @@ export class InboxStorageService {
   clearAllInboxes(): number {
     const count = this.inboxes.size;
 
-    // Notify EmailStorageService before clearing (for memory tracking)
-    if (this.emailStorageService) {
-      // Notify for each inbox being deleted
-      for (const emailAddress of this.inboxes.keys()) {
+    // Notify dependent services before clearing
+    for (const [emailAddress, inbox] of this.inboxes.entries()) {
+      // Notify EmailStorageService for memory tracking
+      if (this.emailStorageService) {
         this.emailStorageService.onInboxDeleted(emailAddress);
+      }
+      // Notify WebhookStorageService for cascading webhook deletion
+      if (this.webhookStorageService) {
+        this.webhookStorageService.onInboxDeleted(inbox.inboxHash);
       }
     }
 

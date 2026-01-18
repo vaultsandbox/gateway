@@ -24,6 +24,8 @@ describe('ServerInfoService', () => {
     allowClearAllInboxes: true,
     allowedDomains: ['example.com'],
     encryptionPolicy: 'always',
+    webhookEnabled: false,
+    webhookRequireAuthDefault: true,
   });
 
   beforeEach(() => {

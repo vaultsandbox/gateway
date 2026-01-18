@@ -13,6 +13,7 @@ import {
   CertificateStatus,
   StorageMetrics,
   StorageHealthStatus,
+  WebhookMetrics,
 } from '../../shared/interfaces/metrics.interfaces';
 import { AUTO_REFRESH_INTERVAL_MS } from '../../shared/constants/app.constants';
 import { formatUptime, formatDuration, formatDurationMs } from '../../shared/utils/time.utils';
@@ -49,6 +50,7 @@ export class MetricsDialog extends BaseDialog implements OnInit, OnDestroy {
 
   metrics: Metrics | null = null;
   storageMetrics: StorageMetrics | null = null;
+  webhookMetrics: WebhookMetrics | null = null;
   loading = false;
   error: string | null = null;
   autoRefreshInterval: ReturnType<typeof setInterval> | null = null;
@@ -56,6 +58,7 @@ export class MetricsDialog extends BaseDialog implements OnInit, OnDestroy {
   activeTab = 'general';
   private readonly TAB_GENERAL = 'general';
   private readonly TAB_STORAGE = 'storage';
+  private readonly TAB_WEBHOOKS = 'webhooks';
 
   /**
    * Initializes metrics retrieval and starts the auto-refresh cycle on mount.
@@ -85,6 +88,8 @@ export class MetricsDialog extends BaseDialog implements OnInit, OnDestroy {
         this.metrics = await firstValueFrom(this.metricsService.getMetrics());
       } else if (this.activeTab === this.TAB_STORAGE) {
         this.storageMetrics = await firstValueFrom(this.metricsService.getStorageMetrics());
+      } else if (this.activeTab === this.TAB_WEBHOOKS) {
+        this.webhookMetrics = await firstValueFrom(this.metricsService.getWebhookMetrics());
       }
       this.cdr.detectChanges();
     } catch (err: unknown) {
@@ -335,5 +340,15 @@ export class MetricsDialog extends BaseDialog implements OnInit, OnDestroy {
    */
   formatDurationMs(ms: number): string {
     return formatDurationMs(ms);
+  }
+
+  // Webhook metrics helpers
+
+  /**
+   * Calculates the webhook delivery success rate.
+   */
+  get webhookDeliverySuccessRate(): number {
+    if (!this.webhookMetrics || this.webhookMetrics.deliveries.total === 0) return 0;
+    return (this.webhookMetrics.deliveries.successful / this.webhookMetrics.deliveries.total) * 100;
   }
 }

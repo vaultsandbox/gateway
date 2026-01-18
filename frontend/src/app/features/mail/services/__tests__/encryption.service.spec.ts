@@ -26,6 +26,8 @@ describe('EncryptionService', () => {
       allowClearAllInboxes: true,
       allowedDomains: [],
       encryptionPolicy: 'always',
+      webhookEnabled: false,
+      webhookRequireAuthDefault: true,
     });
 
     get serverInfo() {

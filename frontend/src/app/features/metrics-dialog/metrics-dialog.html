@@ -9,14 +9,14 @@
   [style]="{ width: '900px', maxWidth: '95vw' }"
 >
   <!-- Loading State (show outside tabs when no data) -->
-  @if (loading && !metrics && !storageMetrics) {
+  @if (loading && !metrics && !storageMetrics && !webhookMetrics) {
     <div class="flex justify-center items-center py-12">
       <i class="pi pi-spin pi-spinner text-4xl text-primary"></i>
     </div>
   }
 
   <!-- Error State (show outside tabs when no data) -->
-  @if (error && !metrics && !storageMetrics) {
+  @if (error && !metrics && !storageMetrics && !webhookMetrics) {
     <div
       class="p-4 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded text-red-700 dark:text-red-400"
     >
@@ -26,11 +26,12 @@
   }
 
   <!-- Tabbed Metrics Content -->
-  @if (metrics || storageMetrics) {
+  @if (metrics || storageMetrics || webhookMetrics) {
     <p-tabs [value]="activeTab" (valueChange)="onTabChange($event)">
       <p-tablist>
         <p-tab value="general">General Metrics</p-tab>
         <p-tab value="storage">Storage Metrics</p-tab>
+        <p-tab value="webhooks">Webhook Metrics</p-tab>
       </p-tablist>
       <p-tabpanels>
         <!-- General Metrics Tab -->
@@ -530,6 +531,157 @@
                 <strong>Memory:</strong>
                 {{ storageMetrics.storage.availableMemoryMB }} MB available of
                 {{ storageMetrics.storage.maxMemoryMB }} MB total
+              </div>
+            </div>
+          } @else {
+            <div class="flex justify-center items-center py-12">
+              <i class="pi pi-spin pi-spinner text-4xl text-primary"></i>
+            </div>
+          }
+        </p-tabpanel>
+
+        <!-- Webhook Metrics Tab -->
+        <p-tabpanel value="webhooks">
+          @if (webhookMetrics) {
+            <div class="space-y-6 pt-4">
+              <!-- Webhook Delivery Overview -->
+              <div
+                class="bg-gradient-to-r from-teal-50 to-teal-100 dark:from-teal-900/30 dark:to-teal-800/30 p-4 rounded-lg border border-teal-200 dark:border-teal-700"
+              >
+                <div class="flex items-center gap-3">
+                  <i class="pi pi-bolt text-3xl text-teal-600 dark:text-teal-400"></i>
+                  <div class="flex-1">
+                    <div class="text-sm text-teal-700 dark:text-teal-300 font-medium mb-1">Delivery Success Rate</div>
+                    <div class="text-2xl font-bold text-teal-900 dark:text-teal-100">
+                      {{ webhookDeliverySuccessRate | number: '1.1-1' }}%
+                    </div>
+                    <div class="text-xs text-teal-600 dark:text-teal-400 mt-1">
+                      {{ webhookMetrics.deliveries.successful }} of {{ webhookMetrics.deliveries.total }} deliveries
+                    </div>
+                  </div>
+                  <div class="text-right">
+                    <p-badge
+                      [value]="
+                        webhookDeliverySuccessRate >= 95
+                          ? 'Healthy'
+                          : webhookDeliverySuccessRate >= 80
+                            ? 'Warning'
+                            : 'Critical'
+                      "
+                      [severity]="
+                        webhookDeliverySuccessRate >= 95
+                          ? 'success'
+                          : webhookDeliverySuccessRate >= 80
+                            ? 'warn'
+                            : 'danger'
+                      "
+                    />
+                  </div>
+                </div>
+                <div class="mt-3">
+                  <p-progressBar
+                    [value]="webhookDeliverySuccessRate"
+                    [showValue]="false"
+                    [style]="{ height: '10px' }"
+                  />
+                </div>
+              </div>
+
+              <!-- Webhook Counts -->
+              <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <!-- Total Webhooks -->
+                <div
+                  class="bg-surface-50 dark:bg-surface-800 p-4 rounded-lg border border-surface-200 dark:border-surface-700"
+                >
+                  <div class="text-sm text-surface-600 dark:text-surface-400 mb-1">Total Webhooks</div>
+                  <div class="text-3xl font-bold text-surface-900 dark:text-surface-0">
+                    {{ webhookMetrics.webhooks.total }}
+                  </div>
+                  <div class="text-xs text-surface-500 mt-1">{{ webhookMetrics.webhooks.enabled }} enabled</div>
+                </div>
+
+                <!-- Global Webhooks -->
+                <div
+                  class="bg-surface-50 dark:bg-surface-800 p-4 rounded-lg border border-surface-200 dark:border-surface-700"
+                >
+                  <div class="text-sm text-surface-600 dark:text-surface-400 mb-1">Global Webhooks</div>
+                  <div class="text-3xl font-bold text-primary">
+                    {{ webhookMetrics.webhooks.global }}
+                  </div>
+                  <div class="text-xs text-surface-500 mt-1">Server-wide hooks</div>
+                </div>
+
+                <!-- Inbox Webhooks -->
+                <div
+                  class="bg-surface-50 dark:bg-surface-800 p-4 rounded-lg border border-surface-200 dark:border-surface-700"
+                >
+                  <div class="text-sm text-surface-600 dark:text-surface-400 mb-1">Inbox Webhooks</div>
+                  <div class="text-3xl font-bold text-surface-900 dark:text-surface-0">
+                    {{ webhookMetrics.webhooks.inbox }}
+                  </div>
+                  <div class="text-xs text-surface-500 mt-1">Inbox-specific hooks</div>
+                </div>
+              </div>
+
+              <!-- Delivery Stats -->
+              <div
+                class="bg-surface-50 dark:bg-surface-800 p-4 rounded-lg border border-surface-200 dark:border-surface-700"
+              >
+                <div class="text-base font-semibold text-surface-900 dark:text-surface-0 mb-4">Delivery Statistics</div>
+                <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                  <!-- Total Deliveries -->
+                  <div
+                    class="text-center p-3 bg-blue-50 dark:bg-blue-900/20 rounded-lg border border-blue-200 dark:border-blue-700"
+                  >
+                    <div class="text-xs text-blue-700 dark:text-blue-300 uppercase tracking-wide mb-1">Total</div>
+                    <div class="text-3xl font-bold text-blue-900 dark:text-blue-100">
+                      {{ webhookMetrics.deliveries.total }}
+                    </div>
+                    <div class="text-xs text-blue-600 dark:text-blue-400 mt-1">Attempts</div>
+                  </div>
+
+                  <!-- Successful Deliveries -->
+                  <div
+                    class="text-center p-3 bg-green-50 dark:bg-green-900/20 rounded-lg border border-green-200 dark:border-green-700"
+                  >
+                    <div class="text-xs text-green-700 dark:text-green-300 uppercase tracking-wide mb-1">
+                      Successful
+                    </div>
+                    <div class="text-3xl font-bold text-green-900 dark:text-green-100">
+                      {{ webhookMetrics.deliveries.successful }}
+                    </div>
+                    <div class="text-xs text-green-600 dark:text-green-400 mt-1">Delivered</div>
+                  </div>
+
+                  <!-- Failed Deliveries -->
+                  <div
+                    class="text-center p-3 bg-red-50 dark:bg-red-900/20 rounded-lg border border-red-200 dark:border-red-700"
+                  >
+                    <div class="text-xs text-red-700 dark:text-red-300 uppercase tracking-wide mb-1">Failed</div>
+                    <div class="text-3xl font-bold text-red-900 dark:text-red-100">
+                      {{ webhookMetrics.deliveries.failed }}
+                    </div>
+                    <div class="text-xs text-red-600 dark:text-red-400 mt-1">Errors</div>
+                  </div>
+                </div>
+              </div>
+
+              @if (webhookMetrics.deliveries.failed > 0 && webhookDeliverySuccessRate < 95) {
+                <div
+                  class="p-3 bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-800 rounded text-xs text-yellow-700 dark:text-yellow-400"
+                >
+                  <i class="pi pi-exclamation-triangle mr-1"></i>
+                  Some webhook deliveries are failing. Check your webhook endpoints and server logs.
+                </div>
+              }
+
+              <!-- Info Note -->
+              <div
+                class="p-3 bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded text-xs text-blue-700 dark:text-blue-400"
+              >
+                <i class="pi pi-info-circle mr-1"></i>
+                <strong>Note:</strong> Webhook metrics are aggregated across all configured webhooks. Metrics refresh
+                automatically every 5 seconds.
               </div>
             </div>
           } @else {

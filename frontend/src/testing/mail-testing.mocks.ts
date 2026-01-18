@@ -395,6 +395,8 @@ export class ServerInfoServiceStub implements Partial<ServerInfoService> {
     allowClearAllInboxes: true,
     allowedDomains: [],
     encryptionPolicy: 'always',
+    webhookEnabled: true,
+    webhookRequireAuthDefault: false,
   });
 
   get serverInfo() {
@@ -440,6 +442,8 @@ export class VaultSandboxApiStub implements Partial<VaultSandboxApi> {
       allowClearAllInboxes: true,
       allowedDomains: [],
       encryptionPolicy: 'always' as const,
+      webhookEnabled: true,
+      webhookRequireAuthDefault: false,
     });
   }
 

@@ -1,0 +1,75 @@
+<div class="flex flex-col gap-4">
+  <!-- Mode -->
+  <div class="flex items-center gap-4">
+    <span class="font-medium">Match:</span>
+    <p-selectButton
+      [options]="modeOptions"
+      [ngModel]="filter().mode"
+      (ngModelChange)="updateMode($event)"
+      optionLabel="label"
+      optionValue="value"
+    />
+  </div>
+
+  <!-- Rules -->
+  @for (rule of filter().rules; track trackByIndex($index)) {
+    <div class="flex gap-2 items-center">
+      <p-select
+        [ngModel]="rule.field"
+        (ngModelChange)="updateRule($index, { field: $event })"
+        [options]="fieldOptions"
+        optionLabel="label"
+        optionValue="value"
+        styleClass="w-40"
+        placeholder="Field"
+        appendTo="body"
+      />
+      <p-select
+        [ngModel]="rule.operator"
+        (ngModelChange)="updateRule($index, { operator: $event })"
+        [options]="operatorOptions"
+        optionLabel="label"
+        optionValue="value"
+        styleClass="w-32"
+        placeholder="Operator"
+        appendTo="body"
+      />
+      @if (rule.operator !== 'exists') {
+        <input
+          pInputText
+          [ngModel]="rule.value"
+          (ngModelChange)="updateRule($index, { value: $event })"
+          placeholder="Value"
+          class="flex-1"
+        />
+      }
+      <p-button
+        icon="pi pi-trash"
+        [text]="true"
+        severity="danger"
+        (onClick)="removeRule($index)"
+        pTooltip="Remove rule"
+      />
+    </div>
+  }
+
+  <!-- Add Rule Button -->
+  <p-button
+    label="Add Rule"
+    icon="pi pi-plus"
+    [text]="true"
+    (onClick)="addRule()"
+    [disabled]="filter().rules.length >= 10"
+  />
+
+  <!-- Require Auth -->
+  <div class="flex items-center gap-2 mt-2">
+    <p-checkbox
+      [ngModel]="filter().requireAuth ?? false"
+      (ngModelChange)="updateRequireAuth($event)"
+      [binary]="true"
+      inputId="requireAuth"
+    />
+    <label for="requireAuth" class="cursor-pointer"> Require email authentication (SPF/DKIM/DMARC pass) </label>
+  </div>
+</div>

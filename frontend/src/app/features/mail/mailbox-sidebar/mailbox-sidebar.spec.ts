@@ -136,6 +136,8 @@ describe('MailboxSidebar', () => {
           allowClearAllInboxes: true,
           allowedDomains: ['custom.com', 'other.com'],
           encryptionPolicy: 'always' as const,
+          webhookEnabled: false,
+          webhookRequireAuthDefault: true,
         }).asReadonly(),
       );
 
@@ -245,10 +247,11 @@ describe('MailboxSidebar', () => {
 
       const menuItems = (component as unknown as { menuItems: { label?: string; separator?: boolean }[] }).menuItems;
       expect(menuItems[0].label).toBe('Export Inbox');
-      expect(menuItems[1].label).toBe('Forget Inbox');
-      expect(menuItems[2].separator).toBe(true);
-      expect(menuItems[3].label).toBe('Delete All Emails');
-      expect(menuItems[4].label).toBe('Delete Inbox');
+      expect(menuItems[1].label).toBe('Webhooks');
+      expect(menuItems[2].label).toBe('Forget Inbox');
+      expect(menuItems[3].separator).toBe(true);
+      expect(menuItems[4].label).toBe('Delete All Emails');
+      expect(menuItems[5].label).toBe('Delete Inbox');
     });
 
     it('shows context menu at event position', () => {
@@ -277,6 +280,19 @@ describe('MailboxSidebar', () => {
       expect(exportSpy).toHaveBeenCalledWith(inbox);
     });
 
+    it('emits openInboxWebhooks when Webhooks menu item is clicked', () => {
+      const event = jasmine.createSpyObj('MouseEvent', ['preventDefault']);
+      const inbox = createMockInbox();
+      const webhooksSpy = spyOn(component.openInboxWebhooks, 'emit');
+
+      component.onInboxRightClick(event, inbox);
+
+      const menuItems = (component as unknown as { menuItems: { command?: () => void }[] }).menuItems;
+      menuItems[1].command?.(); // Webhooks
+
+      expect(webhooksSpy).toHaveBeenCalledWith(inbox);
+    });
+
     it('executes forgetInbox command when Forget Inbox menu item is clicked', () => {
       const event = jasmine.createSpyObj('MouseEvent', ['preventDefault']);
       const inbox = createMockInbox();
@@ -285,7 +301,7 @@ describe('MailboxSidebar', () => {
       component.onInboxRightClick(event, inbox);
 
       const menuItems = (component as unknown as { menuItems: { command?: () => void }[] }).menuItems;
-      menuItems[1].command?.(); // Forget Inbox
+      menuItems[2].command?.(); // Forget Inbox (index 2, after Webhooks at 1)
 
       expect(forgetSpy).toHaveBeenCalledWith(inbox);
     });
@@ -298,7 +314,7 @@ describe('MailboxSidebar', () => {
       component.onInboxRightClick(event, inbox);
 
       const menuItems = (component as unknown as { menuItems: { command?: () => void }[] }).menuItems;
-      menuItems[3].command?.(); // Delete All Emails (index 3, after separator at 2)
+      menuItems[4].command?.(); // Delete All Emails (index 4, after separator at 3)
 
       expect(deleteAllSpy).toHaveBeenCalledWith(inbox);
     });
@@ -311,7 +327,7 @@ describe('MailboxSidebar', () => {
       component.onInboxRightClick(event, inbox);
 
       const menuItems = (component as unknown as { menuItems: { command?: () => void }[] }).menuItems;
-      menuItems[4].command?.(); // Delete Inbox
+      menuItems[5].command?.(); // Delete Inbox (index 5)
 
       expect(deleteSpy).toHaveBeenCalledWith(inbox);
     });
@@ -589,6 +605,8 @@ describe('MailboxSidebar', () => {
           allowClearAllInboxes: true,
           allowedDomains: [],
           encryptionPolicy: 'always' as const,
+          webhookEnabled: false,
+          webhookRequireAuthDefault: true,
         }).asReadonly(),
       );
 
@@ -610,6 +628,8 @@ describe('MailboxSidebar', () => {
           allowClearAllInboxes: true,
           allowedDomains: ['example.com'],
           encryptionPolicy: 'always' as const,
+          webhookEnabled: false,
+          webhookRequireAuthDefault: true,
         }).asReadonly(),
       );
 

@@ -3,7 +3,7 @@
     id="app-vs-sidebar"
     class="bg-surface-0 dark:bg-surface-900 h-screen hidden lg:block shrink-0 absolute lg:static left-0 top-0 z-10 border-r border-surface-200 dark:border-surface-700 select-none w-[340px]"
   >
-    <app-mailbox-sidebar></app-mailbox-sidebar>
+    <app-mailbox-sidebar (openInboxWebhooks)="openInboxWebhooksDialog($event)"></app-mailbox-sidebar>
   </div>
   <div class="flex flex-col relative flex-auto min-h-0">
     <div
@@ -110,5 +110,13 @@
   <!-- Console Dialogs -->
   @for (consoleId of openConsoleDialogs(); track consoleId) {
     <app-sse-console-dialog (closed)="closeConsoleDialog(consoleId)"></app-sse-console-dialog>
+  }
+
+  <!-- Webhooks Dialog -->
+  @if (showWebhooksDialog()) {
+    <app-webhook-list-dialog
+      [scope]="webhookScope()"
+      (closed)="showWebhooksDialog.set(false)"
+    ></app-webhook-list-dialog>
   }
 </div>
