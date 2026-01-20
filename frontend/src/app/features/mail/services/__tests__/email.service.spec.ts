@@ -41,6 +41,7 @@ describe('EmailService', () => {
     expiresAt: new Date().toISOString(),
     inboxHash: 'inbox-hash-1',
     encrypted: true,
+    emailAuth: false,
     serverSigPk: 'stub-server-sig',
     secretKey: new Uint8Array(32),
     emails: [createEmail()],
@@ -160,6 +161,7 @@ describe('EmailService', () => {
         expiresAt: new Date().toISOString(),
         inboxHash: 'plain-inbox-hash',
         encrypted: false,
+        emailAuth: false,
         emails: [createEmail()],
         ...overrides,
       });
@@ -360,6 +362,7 @@ describe('EmailService', () => {
         expiresAt: new Date().toISOString(),
         inboxHash: 'plain-inbox-hash',
         encrypted: false,
+        emailAuth: false,
         emails: [createEmail()],
         ...overrides,
       });

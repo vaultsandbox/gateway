@@ -90,6 +90,7 @@ export class InboxService {
   private readonly allowedDomain: string;
   private readonly aliasRandomBytes: number;
   private readonly emailAuthInboxDefault: boolean;
+  private readonly spamAnalysisInboxDefault: boolean;
 
   /**
    * Constructor
@@ -107,6 +108,7 @@ export class InboxService {
     this.sseConsole = this.configService.get<boolean>('vsb.sseConsole.enabled', false);
     this.allowClearAllInboxes = this.configService.get<boolean>('vsb.local.allowClearAllInboxes', true);
     this.emailAuthInboxDefault = this.configService.get<boolean>('vsb.emailAuth.inboxDefault', true);
+    this.spamAnalysisInboxDefault = this.configService.get<boolean>('vsb.spamAnalysis.inboxDefault', true);
     const configuredRandomBytes = this.configService.get<number>(
       'vsb.local.inboxAliasRandomBytes',
       DEFAULT_LOCAL_INBOX_ALIAS_RANDOM_BYTES,
@@ -140,6 +142,7 @@ export class InboxService {
    *     otherwise generate random email with the same domain
    * @param encryption - Optional encryption preference ('encrypted' | 'plain')
    * @param emailAuth - Optional email authentication preference (default: config value)
+   * @param spamAnalysis - Optional spam analysis preference (default: config value)
    */
   createInbox(
     clientKemPk?: string,
@@ -147,6 +150,7 @@ export class InboxService {
     emailAddress?: string,
     encryption?: 'encrypted' | 'plain',
     emailAuth?: boolean,
+    spamAnalysis?: boolean,
   ): { inbox: Inbox; serverSigPk?: string } {
     // 1. Determine effective encryption state using server policy and inbox preference
     const policy = this.configService.get<EncryptionPolicy>('vsb.crypto.encryptionPolicy', EncryptionPolicy.ENABLED);
@@ -209,7 +213,10 @@ export class InboxService {
     // Determine effective emailAuth value (use provided value or default from config)
     const effectiveEmailAuth = emailAuth ?? this.emailAuthInboxDefault;
 
-    // Create inbox with encryption and emailAuth flags
+    // Determine effective spamAnalysis value (use provided value or default from config)
+    const effectiveSpamAnalysis = spamAnalysis ?? this.spamAnalysisInboxDefault;
+
+    // Create inbox with encryption, emailAuth, and spamAnalysis flags
     const inbox = this.storageService.createInbox(
       finalEmailAddress,
       encrypted ? clientKemPk : undefined,
@@ -217,6 +224,7 @@ export class InboxService {
       inboxHash,
       encrypted,
       effectiveEmailAuth,
+      effectiveSpamAnalysis,
     );
 
     // Get server signing public key (only for encrypted inboxes)
@@ -436,6 +444,7 @@ export class InboxService {
     );
     const webhookEnabled = this.configService.get<boolean>('vsb.webhook.enabled', true);
     const webhookRequireAuthDefault = this.configService.get<boolean>('vsb.webhook.requireAuthDefault', false);
+    const spamAnalysisEnabled = this.configService.get<boolean>('vsb.spamAnalysis.enabled', false);
 
     return {
       serverSigPk: this.cryptoService.getServerSigningPublicKey(),
@@ -449,6 +458,7 @@ export class InboxService {
       encryptionPolicy,
       webhookEnabled,
       webhookRequireAuthDefault,
+      spamAnalysisEnabled,
     };
   }
 

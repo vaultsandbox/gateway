@@ -12,6 +12,7 @@ import { EmailValidationService } from './email-validation.service';
 import { EmailProcessingService } from './email-processing.service';
 import { EmailStorageService } from './storage/email-storage.service';
 import { SmtpRateLimiterService } from './smtp-rate-limiter.service';
+import { SpamAnalysisService } from './spam-analysis.service';
 import { DEFAULT_GATEWAY_MODE } from '../config/config.constants';
 
 // Conditional imports based on gateway mode
@@ -25,6 +26,7 @@ if (gatewayMode === 'local') {
   dynamicImports.push(CryptoModule);
   dynamicImports.push(InboxModule);
   dynamicImports.push(EventsModule);
+  dynamicImports.push(HttpModule); // For spam analysis (Rspamd HTTP calls)
 } else if (gatewayMode === 'backend') {
   // Backend mode Imports
   dynamicImports.push(CryptoModule);
@@ -44,6 +46,8 @@ const dynamicProviders: any[] = [
 if (gatewayMode === 'local') {
   // Add EmailStorageService only in local mode (provides memory management for in-memory email storage)
   dynamicProviders.push(EmailStorageService);
+  // Add SpamAnalysisService for Rspamd integration in local mode
+  dynamicProviders.push(SpamAnalysisService);
 }
 
 // Dynamic exports array

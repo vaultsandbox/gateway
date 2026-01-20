@@ -28,6 +28,7 @@ describe('EncryptionService', () => {
       encryptionPolicy: 'always',
       webhookEnabled: false,
       webhookRequireAuthDefault: true,
+      spamAnalysisEnabled: false,
     });
 
     get serverInfo() {

@@ -53,6 +53,7 @@ export class CustomInboxDialog {
   validationError = signal<string | null>(null);
   encryptionEnabled = signal<boolean>(true);
   emailAuthEnabled = signal<boolean>(true);
+  spamAnalysisEnabled = signal<boolean>(true);
 
   // TTL unit options for dropdown
   ttlUnitOptions = [
@@ -88,6 +89,10 @@ export class CustomInboxDialog {
     /* istanbul ignore next */
     return policy === 'always' || policy === 'enabled';
   });
+
+  /** Whether spam analysis is available on this server. */
+  /* istanbul ignore next */
+  isSpamAnalysisAvailable = computed(() => this.serverInfo()?.spamAnalysisEnabled ?? false);
 
   // TTL conversion helper
   /**
@@ -216,8 +221,19 @@ export class CustomInboxDialog {
       // Pass explicit value only when user disables it (false), otherwise omit to use server default
       const emailAuth = this.emailAuthEnabled() ? undefined : false;
 
+      // Determine spam analysis preference (only if feature is available on server)
+      // Pass explicit value only when user disables it (false), otherwise omit to use server default
+      /* istanbul ignore next */
+      const spamAnalysis = this.isSpamAnalysisAvailable() && !this.spamAnalysisEnabled() ? false : undefined;
+
       // Create inbox
-      const response = await this.mailManager.createInbox(emailAddress, ttlSeconds, encryption, emailAuth);
+      const response = await this.mailManager.createInbox(
+        emailAddress,
+        ttlSeconds,
+        encryption,
+        emailAuth,
+        spamAnalysis,
+      );
 
       if (response.created) {
         // Save this TTL and domain as the new defaults (sticky settings)
@@ -293,6 +309,9 @@ export class CustomInboxDialog {
 
     // Reset email auth to enabled (server default)
     this.emailAuthEnabled.set(true);
+
+    // Reset spam analysis to enabled (server default)
+    this.spamAnalysisEnabled.set(true);
 
     this.validationError.set(null);
 

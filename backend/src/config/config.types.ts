@@ -94,4 +94,13 @@ export interface VsbConfiguration {
   sseConsole: {
     enabled: boolean;
   };
+  spamAnalysis?: {
+    enabled: boolean;
+    rspamd: {
+      url: string;
+      timeoutMs: number;
+      password?: string;
+    };
+    inboxDefault: boolean;
+  };
 }

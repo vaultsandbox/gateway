@@ -37,6 +37,9 @@ import {
   DEFAULT_SMTP_SESSION_TIMEOUT,
   DEFAULT_SMTP_PORT,
   DEFAULT_SMTP_HOST,
+  DEFAULT_SPAM_ANALYSIS_ENABLED,
+  DEFAULT_RSPAMD_URL,
+  DEFAULT_RSPAMD_TIMEOUT_MS,
 } from './config/config.constants';
 import {
   parseOptionalBoolean,
@@ -744,6 +747,47 @@ function buildEmailAuthConfig() {
 }
 
 /**
+ * Build Spam Analysis Configuration
+ *
+ * Configures optional Rspamd integration for spam analysis of incoming emails.
+ * When enabled, emails are analyzed via HTTP POST to a Rspamd server before storage.
+ * Analysis results include spam score, triggered rules, and recommended action.
+ *
+ * Security posture varies based on dev/production mode:
+ * - Dev mode: spam analysis disabled by default (requires Rspamd container)
+ * - Production mode: spam analysis disabled by default (opt-in feature)
+ *
+ * Optional environment variables:
+ * - VSB_SPAM_ANALYSIS_ENABLED: Master switch for spam analysis (default: false)
+ * - VSB_RSPAMD_URL: Rspamd worker API base URL (default: http://localhost:11333)
+ * - VSB_RSPAMD_TIMEOUT_MS: HTTP request timeout in milliseconds (default: 5000)
+ * - VSB_RSPAMD_PASSWORD: Rspamd controller password if auth enabled (default: undefined)
+ * - VSB_SPAM_ANALYSIS_INBOX_DEFAULT: Default spamAnalysis for new inboxes (default: true)
+ *
+ * Precedence:
+ * - If VSB_SPAM_ANALYSIS_ENABLED=false → spam analysis skipped for all emails
+ * - Else → per-inbox spamAnalysis setting controls whether analysis runs
+ */
+function buildSpamAnalysisConfig() {
+  const enabled = parseOptionalBoolean(process.env.VSB_SPAM_ANALYSIS_ENABLED, DEFAULT_SPAM_ANALYSIS_ENABLED);
+  const rspamdUrl = parseStringWithDefault(process.env.VSB_RSPAMD_URL, DEFAULT_RSPAMD_URL);
+
+  if (enabled) {
+    logger.log(`Spam analysis enabled - Rspamd URL: ${rspamdUrl}`);
+  }
+
+  return {
+    enabled,
+    rspamd: {
+      url: rspamdUrl,
+      timeoutMs: parseNumberWithDefault(process.env.VSB_RSPAMD_TIMEOUT_MS, DEFAULT_RSPAMD_TIMEOUT_MS),
+      password: process.env.VSB_RSPAMD_PASSWORD || undefined,
+    },
+    inboxDefault: parseOptionalBoolean(process.env.VSB_SPAM_ANALYSIS_INBOX_DEFAULT, true),
+  };
+}
+
+/**
  * Register Config VSB
  */
 export default registerAs('vsb', () => {
@@ -762,5 +806,6 @@ export default registerAs('vsb', () => {
     sseConsole: buildSseConsoleConfig(),
     emailAuth: buildEmailAuthConfig(),
     webhook: gatewayMode === 'local' ? buildWebhookConfig() : undefined,
+    spamAnalysis: gatewayMode === 'local' ? buildSpamAnalysisConfig() : undefined,
   };
 });

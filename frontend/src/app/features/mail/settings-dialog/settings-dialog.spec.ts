@@ -297,6 +297,7 @@ describe('SettingsDialog', () => {
         encryptionPolicy: 'always',
         webhookEnabled: false,
         webhookRequireAuthDefault: true,
+        spamAnalysisEnabled: false,
       });
 
       expect(component.allowClearAllInboxes()).toBe(true);
@@ -315,6 +316,7 @@ describe('SettingsDialog', () => {
         encryptionPolicy: 'always',
         webhookEnabled: false,
         webhookRequireAuthDefault: true,
+        spamAnalysisEnabled: false,
       });
 
       expect(component.allowClearAllInboxes()).toBe(false);

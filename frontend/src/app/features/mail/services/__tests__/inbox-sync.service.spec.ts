@@ -43,6 +43,7 @@ describe('InboxSyncService', () => {
     expiresAt: new Date(Date.now() + 3600000).toISOString(),
     inboxHash: 'test-inbox-hash',
     encrypted: true,
+    emailAuth: false,
     serverSigPk: 'test-server-sig-pk',
     secretKey: new Uint8Array([1, 2, 3, 4]),
     emails: [],
@@ -202,6 +203,7 @@ describe('InboxSyncService', () => {
         expiresAt: new Date(Date.now() + 3600000).toISOString(),
         inboxHash: 'plain-inbox-hash',
         encrypted: false,
+        emailAuth: false,
         emails: [],
         ...overrides,
       });
@@ -544,6 +546,7 @@ describe('InboxSyncService', () => {
         expiresAt: new Date(Date.now() + 3600000).toISOString(),
         inboxHash: 'plain-inbox-hash',
         encrypted: false,
+        emailAuth: false,
         emails: [],
         ...overrides,
       });

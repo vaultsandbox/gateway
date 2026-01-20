@@ -195,6 +195,7 @@ export class MailManagerStub implements Partial<MailManager> {
       expiresAt: now,
       inboxHash: 'stub-hash',
       encrypted: true,
+      emailAuth: true,
       serverSigPk: 'stub-server-sig',
       secretKey: '',
       exportedAt: now,
@@ -245,6 +246,7 @@ export class InboxServiceStub implements Partial<InboxService> {
       expiresAt: new Date().toISOString(),
       inboxHash: 'stub-hash',
       encrypted: true,
+      emailAuth: true,
       serverSigPk: 'stub-server-sig',
       secretKey: new Uint8Array(),
       emails: [],
@@ -281,6 +283,7 @@ export class InboxServiceStub implements Partial<InboxService> {
       expiresAt: now,
       inboxHash: 'stub-hash',
       encrypted: true,
+      emailAuth: true,
       serverSigPk: 'stub-server-sig',
       secretKey: '',
       exportedAt: now,
@@ -397,6 +400,7 @@ export class ServerInfoServiceStub implements Partial<ServerInfoService> {
     encryptionPolicy: 'always',
     webhookEnabled: true,
     webhookRequireAuthDefault: false,
+    spamAnalysisEnabled: false,
   });
 
   get serverInfo() {
@@ -444,6 +448,7 @@ export class VaultSandboxApiStub implements Partial<VaultSandboxApi> {
       encryptionPolicy: 'always' as const,
       webhookEnabled: true,
       webhookRequireAuthDefault: false,
+      spamAnalysisEnabled: false,
     });
   }
 
@@ -453,6 +458,7 @@ export class VaultSandboxApiStub implements Partial<VaultSandboxApi> {
     emailAddress?: string;
     encryption?: 'encrypted' | 'plain';
     emailAuth?: boolean;
+    spamAnalysis?: boolean;
   }) {
     consumeArgs(options);
     return of({

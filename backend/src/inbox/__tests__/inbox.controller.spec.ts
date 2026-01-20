@@ -125,6 +125,7 @@ describe('InboxController', () => {
         'test@example.com',
         undefined,
         undefined,
+        undefined,
       );
     });
 
@@ -141,7 +142,14 @@ describe('InboxController', () => {
       const result = controller.createInbox(dto);
 
       expect(result.emailAddress).toBe('generated@example.com');
-      expect(inboxService.createInbox).toHaveBeenCalledWith('validKemPk', undefined, undefined, undefined, undefined);
+      expect(inboxService.createInbox).toHaveBeenCalledWith(
+        'validKemPk',
+        undefined,
+        undefined,
+        undefined,
+        undefined,
+        undefined,
+      );
     });
   });
 

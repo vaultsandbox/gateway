@@ -81,6 +81,7 @@ export class InboxStorageService {
       expiresAt: importData.expiresAt,
       inboxHash: importData.inboxHash,
       encrypted: importData.encrypted,
+      emailAuth: importData.emailAuth ?? /* istanbul ignore next */ true,
       emails: [],
     };
 

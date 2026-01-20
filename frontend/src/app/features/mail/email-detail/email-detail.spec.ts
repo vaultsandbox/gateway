@@ -13,8 +13,10 @@ import {
   SettingsManagerStub,
   VaultSandboxApiStub,
   VsToastStub,
+  ServerInfoServiceStub,
 } from '../../../../testing/mail-testing.mocks';
 import { EmailDownloads } from './helpers/email-downloads';
+import { ServerInfoService } from '../services/server-info.service';
 
 describe('EmailDetail', () => {
   let component: EmailDetail;
@@ -23,6 +25,7 @@ describe('EmailDetail', () => {
   let toastStub: VsToastStub;
   let apiStub: VaultSandboxApiStub;
   let confirmationService: ConfirmationService;
+  let serverInfoStub: ServerInfoServiceStub;
 
   const createMockParsedContent = (overrides: Partial<ParsedEmailContent> = {}): ParsedEmailContent => ({
     html: '<p>Test HTML</p>',
@@ -57,6 +60,7 @@ describe('EmailDetail', () => {
     expiresAt: new Date().toISOString(),
     inboxHash: 'inbox-hash-123',
     encrypted: true,
+    emailAuth: false,
     serverSigPk: 'stub-sig',
     secretKey: new Uint8Array(),
     emails: [],
@@ -66,6 +70,7 @@ describe('EmailDetail', () => {
     mailManagerStub = new MailManagerStub();
     toastStub = new VsToastStub();
     apiStub = new VaultSandboxApiStub();
+    serverInfoStub = new ServerInfoServiceStub();
 
     await TestBed.configureTestingModule({
       imports: [EmailDetail],
@@ -76,6 +81,7 @@ describe('EmailDetail', () => {
         { provide: SettingsManager, useClass: SettingsManagerStub },
         { provide: VaultSandboxApi, useValue: apiStub },
         { provide: VsToast, useValue: toastStub },
+        { provide: ServerInfoService, useValue: serverInfoStub },
       ],
     }).compileComponents();
 
@@ -588,6 +594,109 @@ describe('EmailDetail', () => {
       await new Promise((resolve) => setTimeout(resolve, 10));
 
       expect(getSanitizedHtmlSpy).toHaveBeenCalled();
+    });
+  });
+
+  describe('isSpamAnalysisEnabled', () => {
+    it('should return true when server info has spamAnalysisEnabled', () => {
+      serverInfoStub.setServerInfo({
+        serverSigPk: 'stub',
+        algs: { kem: 'ml-kem', sig: 'ml-dsa', aead: 'aes-gcm', kdf: 'hkdf' },
+        context: 'stub',
+        maxTtl: 86400,
+        defaultTtl: 3600,
+        sseConsole: false,
+        allowClearAllInboxes: true,
+        allowedDomains: [],
+        encryptionPolicy: 'always',
+        webhookEnabled: true,
+        webhookRequireAuthDefault: false,
+        spamAnalysisEnabled: true,
+      });
+
+      expect(component.isSpamAnalysisEnabled()).toBeTrue();
+    });
+
+    it('should return false when server info has spamAnalysisEnabled false', () => {
+      serverInfoStub.setServerInfo({
+        serverSigPk: 'stub',
+        algs: { kem: 'ml-kem', sig: 'ml-dsa', aead: 'aes-gcm', kdf: 'hkdf' },
+        context: 'stub',
+        maxTtl: 86400,
+        defaultTtl: 3600,
+        sseConsole: false,
+        allowClearAllInboxes: true,
+        allowedDomains: [],
+        encryptionPolicy: 'always',
+        webhookEnabled: true,
+        webhookRequireAuthDefault: false,
+        spamAnalysisEnabled: false,
+      });
+
+      expect(component.isSpamAnalysisEnabled()).toBeFalse();
+    });
+
+    it('should return false when server info is null', () => {
+      serverInfoStub.setServerInfo(null);
+
+      expect(component.isSpamAnalysisEnabled()).toBeFalse();
+    });
+  });
+
+  describe('hasSpamAnalysis', () => {
+    it('should return true when email has spam analysis data', () => {
+      component.email = createMockEmail({
+        parsedContent: createMockParsedContent({
+          spamAnalysis: {
+            status: 'analyzed',
+            isSpam: false,
+            score: 0.1,
+            requiredScore: 5.0,
+          },
+        }),
+      });
+
+      expect(component.hasSpamAnalysis()).toBeTrue();
+    });
+
+    it('should return false when email has no spam analysis', () => {
+      component.email = createMockEmail();
+
+      expect(component.hasSpamAnalysis()).toBeFalse();
+    });
+
+    it('should return false when no email', () => {
+      component.email = null;
+
+      expect(component.hasSpamAnalysis()).toBeFalse();
+    });
+  });
+
+  describe('ensureActiveTabIsValid with spam analysis', () => {
+    it('should include Spam tab when spam analysis is enabled', () => {
+      serverInfoStub.setServerInfo({
+        serverSigPk: 'stub',
+        algs: { kem: 'ml-kem', sig: 'ml-dsa', aead: 'aes-gcm', kdf: 'hkdf' },
+        context: 'stub',
+        maxTtl: 86400,
+        defaultTtl: 3600,
+        sseConsole: false,
+        allowClearAllInboxes: true,
+        allowedDomains: [],
+        encryptionPolicy: 'always',
+        webhookEnabled: true,
+        webhookRequireAuthDefault: false,
+        spamAnalysisEnabled: true,
+      });
+
+      component.email = createMockEmail();
+      component.activeTab = EmailDetailTab.Spam;
+
+      component.ngOnChanges({
+        email: new SimpleChange(null, component.email, true),
+      });
+
+      expect(component.activeTab).toBe(EmailDetailTab.Spam);
     });
   });
 });

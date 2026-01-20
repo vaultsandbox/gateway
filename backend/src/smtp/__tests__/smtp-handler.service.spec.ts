@@ -13,6 +13,8 @@ import { CryptoService } from '../../crypto/crypto.service';
 import { EventsService } from '../../events/events.service';
 import { silenceNestLogger } from '../../../test/helpers/silence-logger';
 import { SseConsoleService } from '../../sse-console/sse-console.service';
+import { SpamAnalysisService } from '../spam-analysis.service';
+import type { SpamAnalysisResult } from '../interfaces/email-session.interface';
 
 const baseSession: SMTPServerSession = {
   id: 'session-1',
@@ -2349,6 +2351,263 @@ describe('SmtpHandlerService', () => {
       expect(emailReceived).toBeDefined();
       // Should fallback to envelope recipients
       expect(emailReceived.payload.email.to).toEqual([{ address: 'recipient@example.com' }]);
+    });
+  });
+
+  describe('trackSpamMetrics', () => {
+    const createMockSpamAnalysisService = (result: SpamAnalysisResult | undefined) => {
+      return {
+        analyzeEmail: jest.fn().mockResolvedValue(result),
+      } as unknown as SpamAnalysisService;
+    };
+
+    it('should not increment any metrics when spamAnalysis is undefined', async () => {
+      const metricsServiceLocal = {
+        increment: jest.fn(),
+        gauge: jest.fn(),
+        histogram: jest.fn(),
+        recordProcessingTime: jest.fn(),
+      } as unknown as MetricsService;
+
+      const handler = new SmtpHandlerService(
+        createMockConfigService(defaultConfig),
+        mockEmailValidationService,
+        mockEmailProcessingService,
+        metricsServiceLocal,
+        mockSseConsoleService,
+        mockEventEmitter,
+        mockInboxService,
+        mockInboxStorageService,
+        mockCryptoService,
+        undefined,
+        undefined,
+        mockEmailStorageService,
+        createMockSpamAnalysisService(undefined),
+      );
+
+      const payload = 'Subject: Test\r\n\r\nBody';
+      const stream = createStream();
+      (stream as unknown as { byteLength: number }).byteLength = Buffer.byteLength(payload);
+
+      const promise = handler.handleData(stream, baseSession);
+      stream.end(payload);
+      await promise;
+
+      // Should not call increment for any spam metrics
+      const calls = (metricsServiceLocal.increment as jest.Mock).mock.calls;
+      const spamCalls = calls.filter((call: string[]) => call[0]?.includes('spam'));
+      expect(spamCalls).toHaveLength(0);
+    });
+
+    it('should increment SPAM_ANALYZED_TOTAL when status is analyzed', async () => {
+      const metricsServiceLocal = {
+        increment: jest.fn(),
+        gauge: jest.fn(),
+        histogram: jest.fn(),
+        recordProcessingTime: jest.fn(),
+      } as unknown as MetricsService;
+
+      const spamResult: SpamAnalysisResult = {
+        status: 'analyzed',
+        score: 2.5,
+        requiredScore: 5.0,
+        action: 'no action',
+        isSpam: false,
+      };
+
+      const handler = new SmtpHandlerService(
+        createMockConfigService(defaultConfig),
+        mockEmailValidationService,
+        mockEmailProcessingService,
+        metricsServiceLocal,
+        mockSseConsoleService,
+        mockEventEmitter,
+        mockInboxService,
+        mockInboxStorageService,
+        mockCryptoService,
+        undefined,
+        undefined,
+        mockEmailStorageService,
+        createMockSpamAnalysisService(spamResult),
+      );
+
+      const payload = 'Subject: Test\r\n\r\nBody';
+      const stream = createStream();
+      (stream as unknown as { byteLength: number }).byteLength = Buffer.byteLength(payload);
+
+      const promise = handler.handleData(stream, baseSession);
+      stream.end(payload);
+      await promise;
+
+      expect(metricsServiceLocal.increment).toHaveBeenCalledWith(expect.stringContaining('spam.analyzed'));
+    });
+
+    it('should increment SPAM_PROCESSING_TIME_MS when processingTimeMs is provided', async () => {
+      const metricsServiceLocal = {
+        increment: jest.fn(),
+        gauge: jest.fn(),
+        histogram: jest.fn(),
+        recordProcessingTime: jest.fn(),
+      } as unknown as MetricsService;
+
+      const spamResult: SpamAnalysisResult = {
+        status: 'analyzed',
+        score: 2.5,
+        requiredScore: 5.0,
+        action: 'no action',
+        isSpam: false,
+        processingTimeMs: 150,
+      };
+
+      const handler = new SmtpHandlerService(
+        createMockConfigService(defaultConfig),
+        mockEmailValidationService,
+        mockEmailProcessingService,
+        metricsServiceLocal,
+        mockSseConsoleService,
+        mockEventEmitter,
+        mockInboxService,
+        mockInboxStorageService,
+        mockCryptoService,
+        undefined,
+        undefined,
+        mockEmailStorageService,
+        createMockSpamAnalysisService(spamResult),
+      );
+
+      const payload = 'Subject: Test\r\n\r\nBody';
+      const stream = createStream();
+      (stream as unknown as { byteLength: number }).byteLength = Buffer.byteLength(payload);
+
+      const promise = handler.handleData(stream, baseSession);
+      stream.end(payload);
+      await promise;
+
+      expect(metricsServiceLocal.increment).toHaveBeenCalledWith(expect.stringContaining('spam.processing_time'), 150);
+    });
+
+    it('should increment SPAM_DETECTED_TOTAL when isSpam is true', async () => {
+      const metricsServiceLocal = {
+        increment: jest.fn(),
+        gauge: jest.fn(),
+        histogram: jest.fn(),
+        recordProcessingTime: jest.fn(),
+      } as unknown as MetricsService;
+
+      const spamResult: SpamAnalysisResult = {
+        status: 'analyzed',
+        score: 7.5,
+        requiredScore: 5.0,
+        action: 'reject',
+        isSpam: true,
+        processingTimeMs: 200,
+      };
+
+      const handler = new SmtpHandlerService(
+        createMockConfigService(defaultConfig),
+        mockEmailValidationService,
+        mockEmailProcessingService,
+        metricsServiceLocal,
+        mockSseConsoleService,
+        mockEventEmitter,
+        mockInboxService,
+        mockInboxStorageService,
+        mockCryptoService,
+        undefined,
+        undefined,
+        mockEmailStorageService,
+        createMockSpamAnalysisService(spamResult),
+      );
+
+      const payload = 'Subject: Test\r\n\r\nBody';
+      const stream = createStream();
+      (stream as unknown as { byteLength: number }).byteLength = Buffer.byteLength(payload);
+
+      const promise = handler.handleData(stream, baseSession);
+      stream.end(payload);
+      await promise;
+
+      expect(metricsServiceLocal.increment).toHaveBeenCalledWith(expect.stringContaining('spam.spam_detected'));
+    });
+
+    it('should increment SPAM_ERRORS_TOTAL when status is error', async () => {
+      const metricsServiceLocal = {
+        increment: jest.fn(),
+        gauge: jest.fn(),
+        histogram: jest.fn(),
+        recordProcessingTime: jest.fn(),
+      } as unknown as MetricsService;
+
+      const spamResult: SpamAnalysisResult = {
+        status: 'error',
+        info: 'Rspamd connection failed',
+      };
+
+      const handler = new SmtpHandlerService(
+        createMockConfigService(defaultConfig),
+        mockEmailValidationService,
+        mockEmailProcessingService,
+        metricsServiceLocal,
+        mockSseConsoleService,
+        mockEventEmitter,
+        mockInboxService,
+        mockInboxStorageService,
+        mockCryptoService,
+        undefined,
+        undefined,
+        mockEmailStorageService,
+        createMockSpamAnalysisService(spamResult),
+      );
+
+      const payload = 'Subject: Test\r\n\r\nBody';
+      const stream = createStream();
+      (stream as unknown as { byteLength: number }).byteLength = Buffer.byteLength(payload);
+
+      const promise = handler.handleData(stream, baseSession);
+      stream.end(payload);
+      await promise;
+
+      expect(metricsServiceLocal.increment).toHaveBeenCalledWith(expect.stringContaining('spam.errors'));
+    });
+
+    it('should increment SPAM_SKIPPED_TOTAL when status is skipped', async () => {
+      const metricsServiceLocal = {
+        increment: jest.fn(),
+        gauge: jest.fn(),
+        histogram: jest.fn(),
+        recordProcessingTime: jest.fn(),
+      } as unknown as MetricsService;
+
+      const spamResult: SpamAnalysisResult = {
+        status: 'skipped',
+        info: 'Spam analysis disabled',
+      };
+
+      const handler = new SmtpHandlerService(
+        createMockConfigService(defaultConfig),
+        mockEmailValidationService,
+        mockEmailProcessingService,
+        metricsServiceLocal,
+        mockSseConsoleService,
+        mockEventEmitter,
+        mockInboxService,
+        mockInboxStorageService,
+        mockCryptoService,
+        undefined,
+        undefined,
+        mockEmailStorageService,
+        createMockSpamAnalysisService(spamResult),
+      );
+
+      const payload = 'Subject: Test\r\n\r\nBody';
+      const stream = createStream();
+      (stream as unknown as { byteLength: number }).byteLength = Buffer.byteLength(payload);
+
+      const promise = handler.handleData(stream, baseSession);
+      stream.end(payload);
+      await promise;
+
+      expect(metricsServiceLocal.increment).toHaveBeenCalledWith(expect.stringContaining('spam.skipped'));
     });
   });
 });

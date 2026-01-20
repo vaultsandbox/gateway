@@ -350,6 +350,7 @@ describe('InboxService', () => {
         expect.any(String),
         true, // encrypted
         true, // emailAuth
+        true, // spamAnalysis
       );
     });
 
@@ -406,6 +407,7 @@ describe('InboxService', () => {
         expect.any(String),
         true, // encrypted
         true, // emailAuth
+        true, // spamAnalysis
       );
     });
 
@@ -437,6 +439,7 @@ describe('InboxService', () => {
         expect.any(String),
         true, // encrypted
         true, // emailAuth
+        true, // spamAnalysis
       );
     });
 
@@ -474,6 +477,7 @@ describe('InboxService', () => {
         expect.any(String),
         true, // encrypted
         true, // emailAuth
+        true, // spamAnalysis
       );
     });
 
@@ -487,6 +491,7 @@ describe('InboxService', () => {
         expect.any(String),
         true, // encrypted
         true, // emailAuth
+        true, // spamAnalysis
       );
     });
 
@@ -706,6 +711,7 @@ describe('InboxService', () => {
         encryptionPolicy: 'always',
         webhookEnabled: true,
         webhookRequireAuthDefault: false,
+        spamAnalysisEnabled: false,
       });
     });
 

@@ -117,6 +117,27 @@
       </small>
     </div>
 
+    <!-- Spam Analysis Toggle (only shown if available on server) -->
+    @if (isSpamAnalysisAvailable()) {
+      <div class="flex flex-col gap-2">
+        <div class="flex items-center gap-3">
+          <p-toggleSwitch
+            [(ngModel)]="spamAnalysisEnabled"
+            [disabled]="creating()"
+            inputId="spamAnalysis"
+          ></p-toggleSwitch>
+          <label for="spamAnalysis" class="font-medium text-sm cursor-pointer">Enable spam analysis</label>
+        </div>
+        <small class="text-surface-500">
+          @if (spamAnalysisEnabled()) {
+            Incoming emails will be analyzed for spam using Rspamd.
+          } @else {
+            Spam analysis will be skipped for this inbox.
+          }
+        </small>
+      </div>
+    }
+
     <!-- Validation Error -->
     @if (validationError()) {
       <p-message severity="error" [text]="validationError()!"></p-message>

@@ -145,6 +145,7 @@ export class EmailProcessingService {
         dmarc: email.dmarcResult,
         reverseDns: email.reverseDnsResult,
       },
+      spamAnalysis: email.spamAnalysis,
       parsed: serializedParsed,
       rawEncoding: 'base64',
       raw: email.rawData.toString('base64'),

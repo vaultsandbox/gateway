@@ -39,6 +39,13 @@ export interface Metrics {
   server: {
     uptime_seconds: number;
   };
+  spam: {
+    analyzed_total: number;
+    skipped_total: number;
+    errors_total: number;
+    spam_detected_total: number;
+    processing_time_ms: number;
+  };
 }
 
 export interface AuthPassRate {

@@ -104,4 +104,21 @@ export interface Metrics {
     /** Server uptime in seconds since last restart */
     uptime_seconds: number;
   };
+
+  /**
+   * @property {object} spam - Spam analysis metrics
+   * @description Tracks spam analysis results and performance.
+   */
+  spam: {
+    /** Total number of emails successfully analyzed for spam */
+    analyzed_total: number;
+    /** Total number of emails where spam analysis was skipped */
+    skipped_total: number;
+    /** Total number of spam analysis errors */
+    errors_total: number;
+    /** Total number of emails classified as spam */
+    spam_detected_total: number;
+    /** Total processing time for spam analysis in milliseconds */
+    processing_time_ms: number;
+  };
 }

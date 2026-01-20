@@ -1154,4 +1154,60 @@ describe('app.config', () => {
       expect(config.emailAuth.enabled).toBe(false);
     });
   });
+
+  describe('buildSpamAnalysisConfig', () => {
+    it('should build with defaults', () => {
+      setMinimalEnv();
+      const config = require('./app.config').default();
+      expect(config.spamAnalysis).toEqual({
+        enabled: false,
+        rspamd: {
+          url: 'http://localhost:11333',
+          timeoutMs: 5000,
+          password: undefined,
+        },
+        inboxDefault: true,
+      });
+    });
+
+    it('should log when spam analysis is enabled', () => {
+      const mockLoggerLog = jest.fn();
+      jest.doMock('@nestjs/common', () => ({
+        ...jest.requireActual('@nestjs/common'),
+        Logger: jest.fn().mockImplementation(() => ({
+          log: mockLoggerLog,
+          error: jest.fn(),
+          warn: mockLoggerWarn,
+          debug: jest.fn(),
+          verbose: jest.fn(),
+        })),
+      }));
+
+      setMinimalEnv();
+      process.env.VSB_SPAM_ANALYSIS_ENABLED = 'true';
+      process.env.VSB_RSPAMD_URL = 'http://rspamd:11333';
+      require('./app.config').default();
+      expect(mockLoggerLog).toHaveBeenCalledWith('Spam analysis enabled - Rspamd URL: http://rspamd:11333');
+    });
+
+    it('should use provided values', () => {
+      setMinimalEnv();
+      process.env.VSB_SPAM_ANALYSIS_ENABLED = 'true';
+      process.env.VSB_RSPAMD_URL = 'http://rspamd:11333';
+      process.env.VSB_RSPAMD_TIMEOUT_MS = '10000';
+      process.env.VSB_RSPAMD_PASSWORD = 'secret';
+      process.env.VSB_SPAM_ANALYSIS_INBOX_DEFAULT = 'false';
+
+      const config = require('./app.config').default();
+      expect(config.spamAnalysis).toEqual({
+        enabled: true,
+        rspamd: {
+          url: 'http://rspamd:11333',
+          timeoutMs: 10000,
+          password: 'secret',
+        },
+        inboxDefault: false,
+      });
+    });
+  });
 });

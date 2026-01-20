@@ -1,6 +1,86 @@
 import { EncryptedPayload } from '../../shared/interfaces/encrypted-payload';
 
 /**
+ * Individual spam rule/symbol that was triggered during analysis.
+ */
+export interface SpamSymbol {
+  /**
+   * Rule identifier (e.g., 'MISSING_HEADERS', 'DKIM_SIGNED', 'SPF_ALLOW').
+   * Rspamd symbol names follow conventions:
+   * - Positive scores: spam indicators (e.g., 'FORGED_SENDER')
+   * - Negative scores: ham indicators (e.g., 'DKIM_SIGNED')
+   */
+  name: string;
+
+  /**
+   * Score contribution from this rule.
+   * Positive = increases spam score.
+   * Negative = decreases spam score (indicates legitimacy).
+   */
+  score: number;
+
+  /** Human-readable description of what this rule detects. */
+  description?: string;
+
+  /** Additional context or matched values (e.g., matched URLs for URL rules). */
+  options?: string[];
+}
+
+/**
+ * Result of spam analysis for an email.
+ */
+export interface SpamAnalysisResult {
+  /**
+   * Analysis status:
+   * - 'analyzed': Successfully analyzed by Rspamd
+   * - 'skipped': Analysis was skipped (disabled globally or per-inbox)
+   * - 'error': Analysis failed (Rspamd unavailable, timeout, etc.)
+   */
+  status: 'analyzed' | 'skipped' | 'error';
+
+  /**
+   * Overall spam score (positive = more spammy).
+   * Only present when status === 'analyzed'.
+   * Typical range: -10 to +15, but can vary.
+   */
+  score?: number;
+
+  /**
+   * Required score threshold for spam classification.
+   * Emails with score >= requiredScore are considered spam.
+   * Default Rspamd threshold is typically 6.0.
+   */
+  requiredScore?: number;
+
+  /**
+   * Recommended action from Rspamd based on score thresholds:
+   * - 'no action': Email is clean, deliver normally
+   * - 'greylist': Temporarily reject, retry later
+   * - 'add header': Add spam headers but deliver
+   * - 'rewrite subject': Modify subject to indicate spam
+   * - 'soft reject': Temporary rejection (4xx SMTP code)
+   * - 'reject': Permanent rejection (5xx SMTP code)
+   */
+  action?: 'no action' | 'greylist' | 'add header' | 'rewrite subject' | 'soft reject' | 'reject';
+
+  /** Whether the email is classified as spam (true when score >= requiredScore). */
+  isSpam?: boolean;
+
+  /** List of triggered spam rules/symbols with their scores. */
+  symbols?: SpamSymbol[];
+
+  /** Time taken for spam analysis in milliseconds. */
+  processingTimeMs?: number;
+
+  /**
+   * Additional information about the analysis.
+   * Contains error messages when status === 'error'.
+   * Contains skip reason when status === 'skipped'.
+   */
+  info?: string;
+}
+
+/**
  * Parsed and structured email content including headers, body, attachments, and authentication results.
  */
 export interface ParsedEmailContent {
@@ -87,6 +167,9 @@ export interface ParsedEmailContent {
       ip: string;
     };
   };
+
+  /** Spam analysis results - separate from authentication validations */
+  spamAnalysis?: SpamAnalysisResult;
 }
 
 /**
@@ -162,6 +245,9 @@ export interface InboxModel {
   /** Whether this inbox uses encryption */
   encrypted: boolean;
 
+  /** Whether email authentication checks (SPF/DKIM/DMARC/PTR) are enabled for this inbox */
+  emailAuth: boolean;
+
   /** Server's public signing key for verifying encrypted messages (only for encrypted inboxes) */
   serverSigPk?: string;
 
@@ -200,6 +286,9 @@ export interface ExportedInboxData {
 
   /** Whether this inbox uses encryption */
   encrypted: boolean;
+
+  /** Whether email authentication checks (SPF/DKIM/DMARC/PTR) are enabled for this inbox */
+  emailAuth: boolean;
 
   /** Server's ML-DSA-65 public key (base64url encoded, 1952 bytes decoded). Only for encrypted inboxes. */
   serverSigPk?: string;
@@ -273,6 +362,9 @@ export interface ServerInfo {
 
   /** Default value for webhook requireAuth filter when not specified */
   webhookRequireAuthDefault: boolean;
+
+  /** Whether spam analysis (Rspamd) is enabled on this server */
+  spamAnalysisEnabled: boolean;
 }
 
 /**

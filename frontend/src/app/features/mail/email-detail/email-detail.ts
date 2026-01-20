@@ -28,6 +28,8 @@ import { EmailHeadersComponent } from './email-headers/email-headers';
 import { EmailAuthResultsComponent } from './email-auth-results/email-auth-results';
 import { EmailAttachmentsComponent } from './email-attachments/email-attachments';
 import { EmailLinksComponent } from './email-links/email-links';
+import { EmailSpamAnalysisComponent } from './email-spam-analysis/email-spam-analysis';
+import { ServerInfoService } from '../services/server-info.service';
 import { SettingsManager, SanitizationLevel } from '../services/settings-manager';
 import { DateFormatter } from '../../../shared/utils/date-formatter';
 import { EmailHeaderFormatter, MailContentSanitizer, EmailDownloads, EmailScreenshot } from './helpers';
@@ -38,6 +40,7 @@ export enum EmailDetailTab {
   Text = 'text',
   Headers = 'headers',
   Auth = 'auth',
+  Spam = 'spam',
   Attachments = 'attachments',
   Links = 'links',
 }
@@ -56,6 +59,7 @@ export enum EmailDetailTab {
     EmailAuthResultsComponent,
     EmailAttachmentsComponent,
     EmailLinksComponent,
+    EmailSpamAnalysisComponent,
   ],
   templateUrl: './email-detail.html',
   styleUrl: './email-detail.scss',
@@ -86,6 +90,7 @@ export class EmailDetail implements OnInit, OnChanges {
   private readonly cdr = inject(ChangeDetectorRef);
   private readonly confirmationService = inject(ConfirmationService);
   private readonly api = inject(VaultSandboxApi);
+  private readonly serverInfoService = inject(ServerInfoService);
 
   /**
    * Currently active content tab.
@@ -419,6 +424,20 @@ export class EmailDetail implements OnInit, OnChanges {
   }
 
   /**
+   * Returns whether spam analysis is enabled on the server.
+   */
+  isSpamAnalysisEnabled(): boolean {
+    return this.serverInfoService.serverInfo()?.spamAnalysisEnabled ?? false;
+  }
+
+  /**
+   * Signals whether spam analysis data exists for this email.
+   */
+  hasSpamAnalysis(): boolean {
+    return Boolean(this.email?.parsedContent?.spamAnalysis);
+  }
+
+  /**
    * Ensures the active tab remains valid when content availability changes.
    */
   private ensureActiveTabIsValid(): void {
@@ -428,6 +447,9 @@ export class EmailDetail implements OnInit, OnChanges {
       EmailDetailTab.Headers,
       EmailDetailTab.Auth,
     ];
+    if (this.isSpamAnalysisEnabled()) {
+      availableTabs.push(EmailDetailTab.Spam);
+    }
     if (this.hasAttachments()) {
       availableTabs.push(EmailDetailTab.Attachments);
     }

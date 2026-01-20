@@ -63,3 +63,8 @@ export const DEFAULT_TLS_CIPHERS = [
 ].join(':');
 export const DEFAULT_TLS_HONOR_CIPHER_ORDER = true;
 export const DEFAULT_TLS_ECDH_CURVE = 'auto';
+
+// Spam Analysis defaults
+export const DEFAULT_SPAM_ANALYSIS_ENABLED = false;
+export const DEFAULT_RSPAMD_URL = 'http://localhost:11333';
+export const DEFAULT_RSPAMD_TIMEOUT_MS = 5000;

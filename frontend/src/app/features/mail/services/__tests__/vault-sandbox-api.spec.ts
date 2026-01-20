@@ -54,6 +54,7 @@ describe('VaultSandboxApi', () => {
         encryptionPolicy: 'always' as const,
         webhookEnabled: false,
         webhookRequireAuthDefault: true,
+        spamAnalysisEnabled: false,
       };
 
       service.getServerInfo().subscribe((response) => {
@@ -164,6 +165,26 @@ describe('VaultSandboxApi', () => {
       const req = httpMock.expectOne(`${baseUrl}/inboxes`);
       expect(req.request.body).toEqual({ clientKemPk: 'test-kem-pk', emailAuth: false });
       req.flush({ ...mockResponse, emailAuth: false });
+    });
+
+    it('should include spamAnalysis when provided as true', () => {
+      service.createInbox({ clientKemPk: 'test-kem-pk', spamAnalysis: true }).subscribe((response) => {
+        expect(response).toEqual(mockResponse);
+      });
+
+      const req = httpMock.expectOne(`${baseUrl}/inboxes`);
+      expect(req.request.body).toEqual({ clientKemPk: 'test-kem-pk', spamAnalysis: true });
+      req.flush(mockResponse);
+    });
+
+    it('should include spamAnalysis when provided as false', () => {
+      service.createInbox({ clientKemPk: 'test-kem-pk', spamAnalysis: false }).subscribe((response) => {
+        expect(response).toEqual(mockResponse);
+      });
+
+      const req = httpMock.expectOne(`${baseUrl}/inboxes`);
+      expect(req.request.body).toEqual({ clientKemPk: 'test-kem-pk', spamAnalysis: false });
+      req.flush(mockResponse);
     });
   });
 

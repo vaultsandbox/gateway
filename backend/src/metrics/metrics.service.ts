@@ -58,6 +58,13 @@ export class MetricsService {
     server: {
       uptime_seconds: 0,
     },
+    spam: {
+      analyzed_total: 0,
+      skipped_total: 0,
+      errors_total: 0,
+      spam_detected_total: 0,
+      processing_time_ms: 0,
+    },
   };
 
   /** Counter for tracking the number of email processing events */

@@ -210,6 +210,7 @@ export class InboxStorageMapper {
         expiresAt: inbox.expiresAt,
         inboxHash: inbox.inboxHash,
         encrypted: inbox.encrypted,
+        emailAuth: inbox.emailAuth,
       };
 
       if (inbox.encrypted && inbox.serverSigPk && inbox.secretKey) {
@@ -232,6 +233,7 @@ export class InboxStorageMapper {
         expiresAt: inbox.expiresAt,
         inboxHash: inbox.inboxHash,
         encrypted: inbox.encrypted,
+        emailAuth: inbox.emailAuth ?? /* istanbul ignore next */ true,
         emails: [],
       };
 
@@ -256,6 +258,7 @@ export class InboxStorageMapper {
       expiresAt: inbox.expiresAt,
       inboxHash: inbox.inboxHash,
       encrypted: inbox.encrypted,
+      emailAuth: inbox.emailAuth,
       exportedAt: new Date().toISOString(),
     };
 

@@ -38,6 +38,13 @@ export const METRIC_PATHS = {
 
   // Server
   SERVER_UPTIME_SECONDS: 'server.uptime_seconds',
+
+  // Spam Analysis
+  SPAM_ANALYZED_TOTAL: 'spam.analyzed_total',
+  SPAM_SKIPPED_TOTAL: 'spam.skipped_total',
+  SPAM_ERRORS_TOTAL: 'spam.errors_total',
+  SPAM_DETECTED_TOTAL: 'spam.spam_detected_total',
+  SPAM_PROCESSING_TIME_MS: 'spam.processing_time_ms',
 } as const;
 
 export type MetricPath = (typeof METRIC_PATHS)[keyof typeof METRIC_PATHS];

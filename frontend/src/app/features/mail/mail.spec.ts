@@ -32,6 +32,7 @@ class TestableServerInfoServiceStub implements Partial<ServerInfoService> {
     encryptionPolicy: 'always',
     webhookEnabled: false,
     webhookRequireAuthDefault: true,
+    spamAnalysisEnabled: false,
   });
 
   get serverInfo(): Signal<ServerInfo | null> {
@@ -130,6 +131,7 @@ describe('Mail', () => {
         encryptionPolicy: 'always',
         webhookEnabled: false,
         webhookRequireAuthDefault: true,
+        spamAnalysisEnabled: false,
       });
 
       const menuItems = component.topLeftMenuitems();
@@ -150,6 +152,7 @@ describe('Mail', () => {
         encryptionPolicy: 'always',
         webhookEnabled: false,
         webhookRequireAuthDefault: true,
+        spamAnalysisEnabled: false,
       });
 
       const menuItems = component.topLeftMenuitems();
@@ -178,6 +181,7 @@ describe('Mail', () => {
         encryptionPolicy: 'always',
         webhookEnabled: true,
         webhookRequireAuthDefault: true,
+        spamAnalysisEnabled: false,
       });
 
       const menuItems = component.topLeftMenuitems();
@@ -198,6 +202,7 @@ describe('Mail', () => {
         encryptionPolicy: 'always',
         webhookEnabled: false,
         webhookRequireAuthDefault: true,
+        spamAnalysisEnabled: false,
       });
 
       const menuItems = component.topLeftMenuitems();
@@ -220,6 +225,7 @@ describe('Mail', () => {
         encryptionPolicy: 'always',
         webhookEnabled: true,
         webhookRequireAuthDefault: true,
+        spamAnalysisEnabled: false,
       });
 
       const menuItems = component.topLeftMenuitems();
@@ -269,6 +275,7 @@ describe('Mail', () => {
         encryptionPolicy: 'always',
         webhookEnabled: false,
         webhookRequireAuthDefault: true,
+        spamAnalysisEnabled: false,
       });
 
       const menuItems = component.topLeftMenuitems();
@@ -370,6 +377,7 @@ describe('Mail', () => {
         expiresAt: new Date().toISOString(),
         inboxHash: 'inbox-hash-123',
         encrypted: true,
+        emailAuth: false,
         serverSigPk: 'sig-pk',
         secretKey: new Uint8Array(),
         emails: [],
@@ -416,6 +424,7 @@ describe('Mail', () => {
         expiresAt: new Date().toISOString(),
         inboxHash: 'inbox-hash-123',
         encrypted: true,
+        emailAuth: false,
         serverSigPk: 'sig-pk',
         secretKey: new Uint8Array(),
         emails: [],
@@ -435,6 +444,7 @@ describe('Mail', () => {
         expiresAt: new Date().toISOString(),
         inboxHash: 'inbox-hash-123',
         encrypted: true,
+        emailAuth: false,
         serverSigPk: 'sig-pk',
         secretKey: new Uint8Array(),
         emails: [],
@@ -590,6 +600,7 @@ describe('Mail', () => {
         expiresAt: new Date().toISOString(),
         inboxHash: 'inbox-hash-123',
         encrypted: true,
+        emailAuth: false,
         serverSigPk: 'sig-pk',
         secretKey: new Uint8Array(),
         emails: [],
@@ -767,6 +778,7 @@ describe('Mail', () => {
         expiresAt: new Date().toISOString(),
         inboxHash: 'inbox-hash-123',
         encrypted: true,
+        emailAuth: false,
         serverSigPk: 'sig-pk',
         secretKey: new Uint8Array(),
         emails: [

@@ -40,6 +40,13 @@ describe('MetricsDialog', () => {
     server: {
       uptime_seconds: 3600,
     },
+    spam: {
+      analyzed_total: 100,
+      skipped_total: 5,
+      errors_total: 2,
+      spam_detected_total: 10,
+      processing_time_ms: 150,
+    },
   };
 
   const mockStorageMetrics: StorageMetrics = {

@@ -34,6 +34,7 @@ describe('MailboxSidebar', () => {
     expiresAt: new Date().toISOString(),
     inboxHash: 'test-inbox-hash',
     encrypted: true,
+    emailAuth: false,
     serverSigPk: 'stub-server-sig',
     secretKey: new Uint8Array(),
     emails: [],
@@ -138,6 +139,7 @@ describe('MailboxSidebar', () => {
           encryptionPolicy: 'always' as const,
           webhookEnabled: false,
           webhookRequireAuthDefault: true,
+          spamAnalysisEnabled: false,
         }).asReadonly(),
       );
 
@@ -607,6 +609,7 @@ describe('MailboxSidebar', () => {
           encryptionPolicy: 'always' as const,
           webhookEnabled: false,
           webhookRequireAuthDefault: true,
+          spamAnalysisEnabled: false,
         }).asReadonly(),
       );
 
@@ -630,6 +633,7 @@ describe('MailboxSidebar', () => {
           encryptionPolicy: 'always' as const,
           webhookEnabled: false,
           webhookRequireAuthDefault: true,
+          spamAnalysisEnabled: false,
         }).asReadonly(),
       );
 

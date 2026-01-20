@@ -42,6 +42,7 @@ import type {
   ReverseDnsResult,
   DkimResult,
   DmarcResult,
+  SpamAnalysisResult,
 } from './interfaces/email-session.interface';
 import type { SmtpConfig } from './interfaces/smtp-config.interface';
 import type { EncryptedBodyPayload, AttachmentData } from './interfaces/encrypted-body.interface';
@@ -62,6 +63,7 @@ import { extractUrls } from './utils/url-extraction.utils';
 import { MetricsService } from '../metrics/metrics.service';
 import { METRIC_PATHS } from '../metrics/metrics.constants';
 import { DEFAULT_GATEWAY_MODE } from '../config/config.constants';
+import { SpamAnalysisService } from './spam-analysis.service';
 
 type ParsedEmailPayload = Omit<EncryptedBodyPayload, 'rawEmail'>;
 
@@ -114,7 +116,7 @@ export class SmtpHandlerService {
   /**
    * Constructor with conditional service injection based on gateway mode
    */
-  /* v8 ignore next 14 - false positive on constructor parameter properties */
+  /* v8 ignore next 15 - false positive on constructor parameter properties */
   constructor(
     private readonly configService: ConfigService,
     private readonly emailValidationService: EmailValidationService,
@@ -128,6 +130,7 @@ export class SmtpHandlerService {
     @Optional() private readonly httpService?: HttpService,
     @Optional() private readonly eventsService?: EventsService,
     @Optional() private readonly emailStorageService?: EmailStorageService,
+    @Optional() private readonly spamAnalysisService?: SpamAnalysisService,
   ) {
     this.config = this.configService.get<SmtpConfig>('vsb.smtp')!;
     const configuredGatewayMode =
@@ -421,6 +424,13 @@ export class SmtpHandlerService {
     // Use first recipient's inbox for email auth settings (multi-recipient emails use first inbox's settings)
     const primaryInbox = recipientContexts[0]?.inbox;
     const validationResults = await this.performEmailValidation(rawData, session, parsedHeaders, primaryInbox);
+
+    // Perform spam analysis (synchronous, blocks until complete)
+    const spamAnalysis = await this.performSpamAnalysis(rawDataWithReceived, session.id, primaryInbox);
+
+    // Track spam analysis metrics
+    this.trackSpamMetrics(spamAnalysis);
+
     const parsedPayload = this.buildParsedPayload(
       parsedMail,
       displayFrom,
@@ -428,6 +438,7 @@ export class SmtpHandlerService {
       to,
       validationResults,
       session,
+      spamAnalysis,
     );
     const rawPayload = rawDataWithReceived.toString('base64');
 
@@ -515,6 +526,7 @@ export class SmtpHandlerService {
       dkimResults,
       dmarcResult,
       reverseDnsResult,
+      spamAnalysis,
     };
   }
 
@@ -627,9 +639,30 @@ export class SmtpHandlerService {
   }
 
   /**
+   * Performs spam analysis using Rspamd if enabled.
+   *
+   * @param rawData - Raw email data (with Received header prepended)
+   * @param sessionId - SMTP session ID for logging
+   * @param inbox - Optional inbox for per-inbox spam analysis settings
+   * @returns Spam analysis result or undefined if service unavailable
+   */
+  private async performSpamAnalysis(
+    rawData: Buffer,
+    sessionId: string,
+    inbox?: Inbox,
+  ): Promise<SpamAnalysisResult | undefined> {
+    if (!this.spamAnalysisService) {
+      return undefined;
+    }
+
+    return this.spamAnalysisService.analyzeEmail(rawData, sessionId, inbox);
+  }
+
+  /**
    * Builds the parsed email payload that will be encrypted for the client.
    * @param displayFrom - The From header value for display purposes
    * @param envelopeFrom - The SMTP envelope sender (MAIL FROM) for SPF domain fallback
+   * @param spamAnalysis - Optional spam analysis results from Rspamd
    */
   /* v8 ignore start - optional chaining branches for undefined parsedMail properties */
   private buildParsedPayload(
@@ -639,6 +672,7 @@ export class SmtpHandlerService {
     to: string[],
     validationResults: EmailValidationResults,
     session: SMTPServerSession,
+    spamAnalysis?: SpamAnalysisResult,
   ): ParsedEmailPayload {
     const htmlContent = this.bufferToString(parsedMail?.html);
     const textContent = parsedMail?.text || null;
@@ -694,6 +728,18 @@ export class SmtpHandlerService {
           : undefined,
       },
       links: links.length > 0 ? links : undefined,
+      spamAnalysis: spamAnalysis
+        ? {
+            status: spamAnalysis.status,
+            score: spamAnalysis.score,
+            requiredScore: spamAnalysis.requiredScore,
+            action: spamAnalysis.action,
+            isSpam: spamAnalysis.isSpam,
+            symbols: spamAnalysis.symbols,
+            processingTimeMs: spamAnalysis.processingTimeMs,
+            info: spamAnalysis.info,
+          }
+        : undefined,
     };
   }
   /* v8 ignore stop */
@@ -866,6 +912,7 @@ export class SmtpHandlerService {
           cc:
             parsedMail?.cc?.value?.map((addr) => ({
               address: addr.address,
+              /* v8 ignore next - optional field */
               name: addr.name || undefined,
             })) || undefined,
           subject: parsedMail?.subject || '(no subject)',
@@ -1250,6 +1297,32 @@ export class SmtpHandlerService {
       this.metricsService.increment(METRIC_PATHS.AUTH_DMARC_PASS);
     } else if (email.dmarcResult?.status && email.dmarcResult.status !== 'none') {
       this.metricsService.increment(METRIC_PATHS.AUTH_DMARC_FAIL);
+    }
+  }
+
+  /**
+   * Tracks spam analysis metrics from spam analysis results
+   *
+   * Increments metric counters for spam analysis status.
+   * Only tracks results that have a defined status.
+   *
+   * @param spamAnalysis - Spam analysis result
+   */
+  private trackSpamMetrics(spamAnalysis: SpamAnalysisResult | undefined): void {
+    if (!spamAnalysis) return;
+
+    if (spamAnalysis.status === 'analyzed') {
+      this.metricsService.increment(METRIC_PATHS.SPAM_ANALYZED_TOTAL);
+      if (spamAnalysis.processingTimeMs) {
+        this.metricsService.increment(METRIC_PATHS.SPAM_PROCESSING_TIME_MS, spamAnalysis.processingTimeMs);
+      }
+      if (spamAnalysis.isSpam) {
+        this.metricsService.increment(METRIC_PATHS.SPAM_DETECTED_TOTAL);
+      }
+    } else if (spamAnalysis.status === 'error') {
+      this.metricsService.increment(METRIC_PATHS.SPAM_ERRORS_TOTAL);
+    } else if (spamAnalysis.status === 'skipped') {
+      this.metricsService.increment(METRIC_PATHS.SPAM_SKIPPED_TOTAL);
     }
   }
 }

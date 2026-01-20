@@ -36,6 +36,7 @@ export class InboxStorageService {
     inboxHash: string,
     encrypted: boolean,
     emailAuth: boolean,
+    spamAnalysis?: boolean,
   ): Inbox {
     // Normalize email to lowercase for case-insensitive lookups
     const normalizedEmail = emailAddress.toLowerCase();
@@ -59,6 +60,7 @@ export class InboxStorageService {
       inboxHash,
       encrypted,
       emailAuth,
+      spamAnalysis,
       createdAt: new Date(),
       expiresAt,
       emails: new Map(),

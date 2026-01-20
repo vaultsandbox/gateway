@@ -7,7 +7,13 @@
  * @module stored-email
  */
 
-import type { SpfResult, DkimResult, DmarcResult, ReverseDnsResult } from './email-session.interface';
+import type {
+  SpfResult,
+  DkimResult,
+  DmarcResult,
+  ReverseDnsResult,
+  SpamAnalysisResult,
+} from './email-session.interface';
 import type { ParsedMailSummary } from './parsed-email.interface';
 
 /**
@@ -92,6 +98,11 @@ export interface StoredEmailRecord {
      */
     reverseDns?: ReverseDnsResult;
   };
+
+  /**
+   * Spam analysis results from Rspamd
+   */
+  spamAnalysis?: SpamAnalysisResult;
 
   /**
    * Parsed email content (subject, body, attachments, etc.)

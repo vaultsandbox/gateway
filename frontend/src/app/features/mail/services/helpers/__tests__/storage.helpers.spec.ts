@@ -187,6 +187,7 @@ describe('storage.helpers', () => {
         expiresAt: '2024-12-31T23:59:59.000Z',
         inboxHash: 'hash123',
         encrypted: true,
+        emailAuth: false,
         serverSigPk: 'serverKey',
         secretKey: 'secretKey',
       };
@@ -202,6 +203,7 @@ describe('storage.helpers', () => {
           expiresAt: '2024-12-31T23:59:59.000Z',
           inboxHash: 'hash123',
           encrypted: false,
+          emailAuth: false,
         };
         expect(InboxStorageValidator.isStoredInboxRecord(plainRecord)).toBeTrue();
       });
@@ -270,6 +272,7 @@ describe('storage.helpers', () => {
         expiresAt: '2024-12-31T23:59:59.000Z',
         inboxHash: 'hash123',
         encrypted: true,
+        emailAuth: false,
         serverSigPk: 'serverKey',
         secretKey: 'secretKey',
       };
@@ -317,6 +320,7 @@ describe('storage.helpers', () => {
         expiresAt: '2024-12-31T23:59:59.000Z',
         inboxHash: 'hash123',
         encrypted: true,
+        emailAuth: false,
         serverSigPk: base64urlEncode(new Uint8Array(MLDSA_PUBLIC_KEY_SIZE)),
         secretKey: base64urlEncode(new Uint8Array(MLKEM_SECRET_KEY_SIZE)),
         exportedAt: '2024-01-01T00:00:00.000Z',
@@ -426,6 +430,7 @@ describe('storage.helpers', () => {
       expiresAt: '2024-12-31T23:59:59.000Z',
       inboxHash: 'hash123',
       encrypted: true,
+      emailAuth: false,
       serverSigPk: 'serverKey',
       secretKey: new Uint8Array([1, 2, 3, 4, 5]),
       emails: [],
@@ -475,6 +480,7 @@ describe('storage.helpers', () => {
             {
               version: 1,
               emailAddress: 'test@example.com',
+              emailAuth: false,
               expiresAt: '2024-12-31T23:59:59.000Z',
               inboxHash: 'hash123',
               encrypted: true,
@@ -510,6 +516,7 @@ describe('storage.helpers', () => {
               expiresAt: '2024-12-31T23:59:59.000Z',
               inboxHash: 'hash1',
               encrypted: true,
+              emailAuth: false,
               serverSigPk: 'serverKey1',
               secretKey: base64urlEncode(new Uint8Array([1])),
             },
@@ -519,6 +526,7 @@ describe('storage.helpers', () => {
               expiresAt: '2024-12-31T23:59:59.000Z',
               inboxHash: 'hash2',
               encrypted: true,
+              emailAuth: false,
               serverSigPk: 'serverKey2',
               secretKey: base64urlEncode(new Uint8Array([2])),
             },

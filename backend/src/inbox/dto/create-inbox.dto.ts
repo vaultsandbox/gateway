@@ -48,4 +48,12 @@ export class CreateInboxDto {
   @IsOptional()
   @IsBoolean()
   emailAuth?: boolean;
+
+  @ApiPropertyOptional({
+    description: 'Spam analysis (Rspamd) preference. Omit to use server default (VSB_SPAM_ANALYSIS_INBOX_DEFAULT).',
+    example: true,
+  })
+  @IsOptional()
+  @IsBoolean()
+  spamAnalysis?: boolean;
 }

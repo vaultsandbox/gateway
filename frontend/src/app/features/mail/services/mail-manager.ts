@@ -51,14 +51,16 @@ export class MailManager {
    * @param ttlSeconds Optional time-to-live override for the inbox.
    * @param encryption Optional encryption preference: 'encrypted' | 'plain'. Omit to use server default.
    * @param emailAuth Optional email auth preference: true/false. Omit to use server default.
+   * @param spamAnalysis Optional spam analysis preference: true/false. Omit to use server default.
    */
   createInbox(
     emailAddress?: string,
     ttlSeconds?: number,
     encryption?: 'encrypted' | 'plain',
     emailAuth?: boolean,
+    spamAnalysis?: boolean,
   ): Promise<{ created: boolean; email: string }> {
-    return this.inboxService.createInbox(emailAddress, ttlSeconds, encryption, emailAuth);
+    return this.inboxService.createInbox(emailAddress, ttlSeconds, encryption, emailAuth, spamAnalysis);
   }
 
   /**

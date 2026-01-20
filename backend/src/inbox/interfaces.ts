@@ -43,6 +43,7 @@ export interface Inbox {
   inboxHash: string; // base64url(SHA-256(clientKemPk or "plain:"+email)) for SSE + API references
   encrypted: boolean; // Whether this inbox uses encryption
   emailAuth: boolean; // Whether email authentication (SPF, DKIM, DMARC, PTR) is enabled
+  spamAnalysis?: boolean; // Whether spam analysis is enabled (undefined = use global default)
   createdAt: Date;
   expiresAt: Date;
   emails: Map<string, StoredEmail>; // Map<emailId, StoredEmail>

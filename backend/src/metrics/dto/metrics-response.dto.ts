@@ -192,6 +192,41 @@ export class ServerMetricsDto {
 }
 
 /**
+ * Spam analysis metrics
+ */
+export class SpamMetricsDto {
+  @ApiProperty({
+    description: 'Total number of emails successfully analyzed for spam',
+    example: 980,
+  })
+  analyzed_total: number;
+
+  @ApiProperty({
+    description: 'Total number of emails where spam analysis was skipped',
+    example: 44,
+  })
+  skipped_total: number;
+
+  @ApiProperty({
+    description: 'Total number of spam analysis errors',
+    example: 2,
+  })
+  errors_total: number;
+
+  @ApiProperty({
+    description: 'Total number of emails classified as spam',
+    example: 15,
+  })
+  spam_detected_total: number;
+
+  @ApiProperty({
+    description: 'Total processing time for spam analysis in milliseconds',
+    example: 4500,
+  })
+  processing_time_ms: number;
+}
+
+/**
  * Response for GET /api/metrics endpoint
  * Contains all system metrics tracked by the application
  */
@@ -237,4 +272,10 @@ export class MetricsResponseDto {
     type: ServerMetricsDto,
   })
   server: ServerMetricsDto;
+
+  @ApiProperty({
+    description: 'Spam analysis metrics',
+    type: SpamMetricsDto,
+  })
+  spam: SpamMetricsDto;
 }

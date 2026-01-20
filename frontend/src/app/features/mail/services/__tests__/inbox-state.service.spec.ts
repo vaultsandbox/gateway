@@ -52,6 +52,7 @@ describe('InboxStateService', () => {
     expiresAt: new Date().toISOString(),
     inboxHash: 'hash-123',
     encrypted: true,
+    emailAuth: false,
     serverSigPk: 'server-sig-pk',
     secretKey: new Uint8Array(32),
     emails: [],

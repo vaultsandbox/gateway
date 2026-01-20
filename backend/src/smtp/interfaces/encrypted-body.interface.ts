@@ -205,6 +205,27 @@ export interface EncryptedBodyPayload {
    */
   links?: string[];
 
+  // Spam Analysis Results
+  /**
+   * Spam analysis results from Rspamd (when enabled)
+   * Contains score, triggered rules, and recommended action
+   */
+  spamAnalysis?: {
+    status: 'analyzed' | 'skipped' | 'error';
+    score?: number;
+    requiredScore?: number;
+    action?: 'no action' | 'greylist' | 'add header' | 'rewrite subject' | 'soft reject' | 'reject';
+    isSpam?: boolean;
+    symbols?: Array<{
+      name: string;
+      score: number;
+      description?: string;
+      options?: string[];
+    }>;
+    processingTimeMs?: number;
+    info?: string;
+  };
+
   // Raw email for .eml download
   /**
    * Complete RFC 5322 email (base64 encoded for JSON safety)

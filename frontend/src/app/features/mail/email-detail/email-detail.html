@@ -118,6 +118,33 @@
               </div>
             </p-tab>
 
+            @if (isSpamAnalysisEnabled()) {
+              <p-tab value="spam">
+                <div class="flex items-center gap-2">
+                  <i class="pi pi-flag"></i>
+                  <span>Spam</span>
+                  @if (hasSpamAnalysis() && email.parsedContent!.spamAnalysis!.status === 'analyzed') {
+                    @if (email.parsedContent!.spamAnalysis!.isSpam) {
+                      <span
+                        class="text-xs bg-red-100 dark:bg-red-900 text-red-800 dark:text-red-200 px-2 py-0.5 rounded"
+                      >
+                        {{ email.parsedContent!.spamAnalysis!.score!.toFixed(1) }}
+                      </span>
+                    } @else if (
+                      email.parsedContent!.spamAnalysis!.score !== undefined &&
+                      email.parsedContent!.spamAnalysis!.score >= 3
+                    ) {
+                      <span
+                        class="text-xs bg-yellow-100 dark:bg-yellow-900 text-yellow-800 dark:text-yellow-200 px-2 py-0.5 rounded"
+                      >
+                        {{ email.parsedContent!.spamAnalysis!.score!.toFixed(1) }}
+                      </span>
+                    }
+                  }
+                </div>
+              </p-tab>
+            }
+
             @if (hasAttachments()) {
               <p-tab value="attachments">
                 <div class="flex items-center gap-2">
@@ -202,6 +229,14 @@
                 <app-email-auth-results [authResults]="email.parsedContent.authResults" />
               </div>
             </p-tabpanel>
+
+            @if (isSpamAnalysisEnabled()) {
+              <p-tabpanel value="spam">
+                <div class="h-full overflow-auto">
+                  <app-email-spam-analysis [spamAnalysis]="email.parsedContent.spamAnalysis" />
+                </div>
+              </p-tabpanel>
+            }
 
             @if (hasAttachments()) {
               <p-tabpanel value="attachments">

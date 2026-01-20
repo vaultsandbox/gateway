@@ -1,5 +1,7 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 
+import type { SpamSymbol, SpamAnalysisResult } from '../../smtp/interfaces/email-session.interface';
+
 /**
  * DTO for encrypted payload structure used in email encryption
  */
@@ -175,6 +177,12 @@ export class ServerInfoResponseDto {
     example: true,
   })
   webhookRequireAuthDefault: boolean;
+
+  @ApiProperty({
+    description: 'Whether spam analysis (Rspamd) is enabled on this server',
+    example: false,
+  })
+  spamAnalysisEnabled: boolean;
 }
 
 /**
@@ -211,6 +219,12 @@ export class CreateInboxResponseDto {
     example: true,
   })
   emailAuth: boolean;
+
+  @ApiPropertyOptional({
+    description: 'Whether spam analysis (Rspamd) is enabled for this inbox. Omitted means using server default.',
+    example: true,
+  })
+  spamAnalysis?: boolean;
 
   @ApiPropertyOptional({
     description:
@@ -322,6 +336,60 @@ export class RawEmailResponseDto {
     type: EncryptedPayloadDto,
   })
   encryptedRaw: EncryptedPayloadDto;
+}
+
+/**
+ * Spam symbol DTO for individual triggered rules
+ */
+export class SpamSymbolDto implements SpamSymbol {
+  @ApiProperty({ description: 'Rule/symbol name', example: 'MISSING_HEADERS' })
+  name: string;
+
+  @ApiProperty({ description: 'Score contribution', example: 1.5 })
+  score: number;
+
+  @ApiPropertyOptional({ description: 'Description', example: 'Missing important headers' })
+  description?: string;
+
+  @ApiPropertyOptional({ description: 'Additional options', type: [String] })
+  options?: string[];
+}
+
+/**
+ * Spam analysis result DTO
+ */
+export class SpamAnalysisDto implements SpamAnalysisResult {
+  @ApiProperty({
+    description: 'Analysis status',
+    enum: ['analyzed', 'skipped', 'error'],
+    example: 'analyzed',
+  })
+  status: 'analyzed' | 'skipped' | 'error';
+
+  @ApiPropertyOptional({ description: 'Overall spam score', example: 3.5 })
+  score?: number;
+
+  @ApiPropertyOptional({ description: 'Required score threshold', example: 6.0 })
+  requiredScore?: number;
+
+  @ApiPropertyOptional({
+    description: 'Recommended action',
+    enum: ['no action', 'greylist', 'add header', 'rewrite subject', 'soft reject', 'reject'],
+    example: 'no action',
+  })
+  action?: 'no action' | 'greylist' | 'add header' | 'rewrite subject' | 'soft reject' | 'reject';
+
+  @ApiPropertyOptional({ description: 'Whether classified as spam', example: false })
+  isSpam?: boolean;
+
+  @ApiPropertyOptional({ description: 'Triggered rules', type: [SpamSymbolDto] })
+  symbols?: SpamSymbolDto[];
+
+  @ApiPropertyOptional({ description: 'Processing time in ms', example: 45 })
+  processingTimeMs?: number;
+
+  @ApiPropertyOptional({ description: 'Error or skip reason' })
+  info?: string;
 }
 
 /**

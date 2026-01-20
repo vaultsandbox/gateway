@@ -43,6 +43,7 @@ export class VaultSandboxApi {
    * @param options.emailAddress - Optional: domain only (e.g., "example.com") or full email (e.g., "alias@example.com")
    * @param options.encryption - Optional: 'encrypted' | 'plain'. Omit to use server default.
    * @param options.emailAuth - Optional: true/false to enable/disable email auth checks. Omit to use server default.
+   * @param options.spamAnalysis - Optional: true/false to enable/disable spam analysis. Omit to use server default.
    */
   createInbox(options: {
     clientKemPk?: string;
@@ -50,6 +51,7 @@ export class VaultSandboxApi {
     emailAddress?: string;
     encryption?: 'encrypted' | 'plain';
     emailAuth?: boolean;
+    spamAnalysis?: boolean;
   }): Observable<CreateInboxResponse> {
     const body: {
       clientKemPk?: string;
@@ -57,12 +59,14 @@ export class VaultSandboxApi {
       emailAddress?: string;
       encryption?: 'encrypted' | 'plain';
       emailAuth?: boolean;
+      spamAnalysis?: boolean;
     } = {};
     if (options.clientKemPk) body.clientKemPk = options.clientKemPk;
     if (options.ttl !== undefined) body.ttl = options.ttl;
     if (options.emailAddress) body.emailAddress = options.emailAddress;
     if (options.encryption) body.encryption = options.encryption;
     if (options.emailAuth !== undefined) body.emailAuth = options.emailAuth;
+    if (options.spamAnalysis !== undefined) body.spamAnalysis = options.spamAnalysis;
 
     return this.http.post<CreateInboxResponse>(`${this.baseUrl}/inboxes`, body);
   }

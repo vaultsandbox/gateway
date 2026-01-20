@@ -55,7 +55,7 @@ FROM dhi.io/node:24@sha256:e805d972f53c2db92cab8c56242ba8609736e461ef16d4073d52d
 # OCI metadata labels
 LABEL org.opencontainers.image.title="VaultSandbox Gateway (Hardened)" \
       org.opencontainers.image.description="Secure receive-only SMTP server with automatic TLS certificate management - Hardened build" \
-      org.opencontainers.image.version="0.8.0" \
+      org.opencontainers.image.version="0.8.5" \
       org.opencontainers.image.authors="Antero" \
       org.opencontainers.image.licenses="Apache-2.0" \
       org.opencontainers.image.source="https://github.com/vaultsandbox/gateway"

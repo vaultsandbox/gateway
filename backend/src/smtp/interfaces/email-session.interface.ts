@@ -27,6 +27,46 @@ export interface ReverseDnsResult {
   info?: string;
 }
 
+export interface SpamSymbol {
+  /** Rule/symbol name */
+  name: string;
+
+  /** Score contribution */
+  score: number;
+
+  /** Human-readable description */
+  description?: string;
+
+  /** Additional context */
+  options?: string[];
+}
+
+export interface SpamAnalysisResult {
+  /** Analysis status */
+  status: 'analyzed' | 'skipped' | 'error';
+
+  /** Overall spam score (positive = more spammy) */
+  score?: number;
+
+  /** Required score threshold */
+  requiredScore?: number;
+
+  /** Recommended action from Rspamd */
+  action?: 'no action' | 'greylist' | 'add header' | 'rewrite subject' | 'soft reject' | 'reject';
+
+  /** Whether classified as spam */
+  isSpam?: boolean;
+
+  /** Triggered rules with scores */
+  symbols?: SpamSymbol[];
+
+  /** Processing time in milliseconds */
+  processingTimeMs?: number;
+
+  /** Error or skip reason */
+  info?: string;
+}
+
 export interface ReceivedEmail {
   from?: string;
   to: string[];
@@ -38,4 +78,5 @@ export interface ReceivedEmail {
   dkimResults?: DkimResult[];
   dmarcResult?: DmarcResult;
   reverseDnsResult?: ReverseDnsResult;
+  spamAnalysis?: SpamAnalysisResult;
 }
