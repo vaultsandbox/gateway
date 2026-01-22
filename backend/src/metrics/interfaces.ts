@@ -121,4 +121,23 @@ export interface Metrics {
     /** Total processing time for spam analysis in milliseconds */
     processing_time_ms: number;
   };
+
+  /**
+   * @property {object} chaos - Chaos engineering metrics
+   * @description Tracks chaos engineering events and their effects.
+   */
+  chaos: {
+    /** Total number of chaos events applied */
+    events_total: number;
+    /** Total latency injected in milliseconds */
+    latency_injected_ms: number;
+    /** Total number of chaos errors returned */
+    errors_returned_total: number;
+    /** Total number of connections dropped by chaos */
+    connections_dropped_total: number;
+    /** Total number of greylist rejections by chaos */
+    greylist_rejections_total: number;
+    /** Total number of emails blackholed by chaos */
+    blackhole_total: number;
+  };
 }

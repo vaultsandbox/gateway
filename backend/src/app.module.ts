@@ -20,14 +20,17 @@ import { SecurityHeadersMiddleware } from './server/security-headers.middleware'
 import { EventsModule } from './events/events.module';
 import { SseConsoleModule } from './sse-console/sse-console.module';
 import { ThrottlerModule, ThrottlerGuard } from '@nestjs/throttler';
-import { DEFAULT_GATEWAY_MODE } from './config/config.constants';
+import { DEFAULT_GATEWAY_MODE, DEFAULT_CHAOS_ENABLED } from './config/config.constants';
+import { parseOptionalBoolean } from './config/config.parsers';
 import { TestModule } from './test/test.module';
 import { ProxyModule } from './proxy/proxy.module';
 import { WebhookModule } from './webhook/webhook.module';
+import { ChaosModule } from './chaos/chaos.module';
 
 // Conditional module loading based on gateway mode
 const gatewayMode = process.env.VSB_GATEWAY_MODE || DEFAULT_GATEWAY_MODE;
 const isDevelopment = process.env.VSB_SDK_DEVELOPMENT === 'true';
+const chaosEnabled = parseOptionalBoolean(process.env.VSB_CHAOS_ENABLED, DEFAULT_CHAOS_ENABLED);
 
 @Module({
   imports: [
@@ -62,8 +65,11 @@ const isDevelopment = process.env.VSB_SDK_DEVELOPMENT === 'true';
     CryptoModule,
     MetricsModule,
     SseConsoleModule, // Always import, enabled/disabled via config
-    // Conditionally import InboxModule, EventsModule, ProxyModule, and WebhookModule only in local mode
-    ...(gatewayMode === 'local' ? [InboxModule, EventsModule, ProxyModule, WebhookModule] : []),
+    // Conditionally import InboxModule, EventsModule, ProxyModule, WebhookModule only in local mode
+    // ChaosModule is only imported when chaos is enabled (VSB_CHAOS_ENABLED=true)
+    ...(gatewayMode === 'local'
+      ? [InboxModule, EventsModule, ProxyModule, WebhookModule, ...(chaosEnabled ? [ChaosModule] : [])]
+      : []),
     // Conditionally import TestModule only in local mode with VSB_SDK_DEVELOPMENT=true
     ...(gatewayMode === 'local' && isDevelopment ? [TestModule] : []),
   ],

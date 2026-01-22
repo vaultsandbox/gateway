@@ -65,6 +65,14 @@ export class MetricsService {
       spam_detected_total: 0,
       processing_time_ms: 0,
     },
+    chaos: {
+      events_total: 0,
+      latency_injected_ms: 0,
+      errors_returned_total: 0,
+      connections_dropped_total: 0,
+      greylist_rejections_total: 0,
+      blackhole_total: 0,
+    },
   };
 
   /** Counter for tracking the number of email processing events */

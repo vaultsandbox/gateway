@@ -79,6 +79,39 @@ describe('InboxStorageService', () => {
     });
   });
 
+  describe('updateChaosConfig', () => {
+    it('should update chaos config on existing inbox', () => {
+      service.createInbox('user@test.com', 'kem', new Date('2025-01-01'), 'hash1', true, false);
+      const chaosConfig = { enabled: true, latency: { enabled: true, minMs: 100, maxMs: 500 } };
+
+      const inbox = service.updateChaosConfig('user@test.com', chaosConfig);
+
+      expect(inbox.chaos).toEqual(chaosConfig);
+    });
+
+    it('should clear chaos config when undefined', () => {
+      const chaosConfig = { enabled: true, latency: { enabled: true, minMs: 100, maxMs: 500 } };
+      service.createInbox('user@test.com', 'kem', new Date('2025-01-01'), 'hash1', true, false, false, chaosConfig);
+
+      const inbox = service.updateChaosConfig('user@test.com', undefined);
+
+      expect(inbox.chaos).toBeUndefined();
+    });
+
+    it('should throw NotFoundException when inbox not found', () => {
+      expect(() => service.updateChaosConfig('nonexistent@test.com', { enabled: true })).toThrow(NotFoundException);
+    });
+
+    it('should perform case-insensitive email lookup', () => {
+      service.createInbox('user@test.com', 'kem', new Date('2025-01-01'), 'hash1', true, false);
+      const chaosConfig = { enabled: true };
+
+      const inbox = service.updateChaosConfig('USER@TEST.COM', chaosConfig);
+
+      expect(inbox.chaos).toEqual(chaosConfig);
+    });
+  });
+
   describe('getAllInboxes', () => {
     it('should return all inboxes', () => {
       service.createInbox('user1@test.com', 'kem1', new Date('2025-01-01'), 'hash1');

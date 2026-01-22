@@ -337,6 +337,63 @@
                 }
               </div>
 
+              <!-- Chaos Mode Metrics (shown only when chaos is enabled) -->
+              @if (metrics.chaos) {
+                <div
+                  class="bg-orange-50 dark:bg-orange-900/20 p-4 rounded-lg border border-orange-200 dark:border-orange-700"
+                >
+                  <div
+                    class="flex items-center gap-2 text-base font-semibold text-orange-900 dark:text-orange-100 mb-3"
+                  >
+                    <i class="pi pi-bolt text-orange-600 dark:text-orange-400"></i>
+                    <span>Chaos Mode Active</span>
+                    <i
+                      class="pi pi-info-circle text-orange-500 text-sm"
+                      pTooltip="Chaos mode injects random failures, latency, and other issues to test system resilience."
+                      tooltipPosition="top"
+                    ></i>
+                  </div>
+                  <div class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3">
+                    <div>
+                      <div class="text-xs text-orange-700 dark:text-orange-300">Total Events</div>
+                      <div class="text-xl font-bold text-orange-900 dark:text-orange-100">
+                        {{ metrics.chaos.events_total }}
+                      </div>
+                    </div>
+                    <div>
+                      <div class="text-xs text-orange-700 dark:text-orange-300">Latency Injected</div>
+                      <div class="text-xl font-bold text-orange-900 dark:text-orange-100">
+                        {{ formatProcessingTime(metrics.chaos.latency_injected_ms) }}
+                      </div>
+                    </div>
+                    <div>
+                      <div class="text-xs text-orange-700 dark:text-orange-300">Errors Returned</div>
+                      <div class="text-xl font-bold text-orange-900 dark:text-orange-100">
+                        {{ metrics.chaos.errors_returned_total }}
+                      </div>
+                    </div>
+                    <div>
+                      <div class="text-xs text-orange-700 dark:text-orange-300">Dropped Connections</div>
+                      <div class="text-xl font-bold text-orange-900 dark:text-orange-100">
+                        {{ metrics.chaos.connections_dropped_total }}
+                      </div>
+                    </div>
+                    <div>
+                      <div class="text-xs text-orange-700 dark:text-orange-300">Greylist Rejections</div>
+                      <div class="text-xl font-bold text-orange-900 dark:text-orange-100">
+                        {{ metrics.chaos.greylist_rejections_total }}
+                      </div>
+                    </div>
+                    <div>
+                      <div class="text-xs text-orange-700 dark:text-orange-300">Blackholed</div>
+                      <div class="text-xl font-bold text-orange-900 dark:text-orange-100">
+                        {{ metrics.chaos.blackhole_total }}
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              }
+
               <!-- TLS Certificate -->
               <div
                 class="bg-surface-50 dark:bg-surface-800 p-4 rounded-lg border border-surface-200 dark:border-surface-700"

@@ -612,6 +612,7 @@ describe('EmailDetail', () => {
         webhookEnabled: true,
         webhookRequireAuthDefault: false,
         spamAnalysisEnabled: true,
+        chaosEnabled: false,
       });
 
       expect(component.isSpamAnalysisEnabled()).toBeTrue();
@@ -631,6 +632,7 @@ describe('EmailDetail', () => {
         webhookEnabled: true,
         webhookRequireAuthDefault: false,
         spamAnalysisEnabled: false,
+        chaosEnabled: false,
       });
 
       expect(component.isSpamAnalysisEnabled()).toBeFalse();
@@ -672,6 +674,117 @@ describe('EmailDetail', () => {
     });
   });
 
+  describe('getAuthFailureCount', () => {
+    it('should return 0 when no email', () => {
+      component.email = null;
+
+      expect(component.getAuthFailureCount()).toBe(0);
+    });
+
+    it('should return 0 when no authResults', () => {
+      component.email = createMockEmail({
+        parsedContent: createMockParsedContent({ authResults: undefined }),
+      });
+
+      expect(component.getAuthFailureCount()).toBe(0);
+    });
+
+    it('should return 0 when all results pass', () => {
+      component.email = createMockEmail({
+        parsedContent: createMockParsedContent({
+          authResults: {
+            spf: { result: 'pass', domain: 'example.com', details: '' },
+            dkim: [{ result: 'pass', domain: 'example.com', selector: 'default', signature: '' }],
+            dmarc: { result: 'pass', policy: 'none', domain: 'example.com', aligned: true },
+            reverseDns: { result: 'pass', hostname: 'mail.example.com', ip: '1.2.3.4' },
+          },
+        }),
+      });
+
+      expect(component.getAuthFailureCount()).toBe(0);
+    });
+
+    it('should count SPF failure', () => {
+      component.email = createMockEmail({
+        parsedContent: createMockParsedContent({
+          authResults: {
+            spf: { result: 'fail', domain: 'example.com', details: '' },
+          },
+        }),
+      });
+
+      expect(component.getAuthFailureCount()).toBe(1);
+    });
+
+    it('should count DKIM failures', () => {
+      component.email = createMockEmail({
+        parsedContent: createMockParsedContent({
+          authResults: {
+            dkim: [
+              { result: 'fail', domain: 'example.com', selector: 's1', signature: '' },
+              { result: 'pass', domain: 'example.com', selector: 's2', signature: '' },
+              { result: 'fail', domain: 'other.com', selector: 's3', signature: '' },
+            ],
+          },
+        }),
+      });
+
+      expect(component.getAuthFailureCount()).toBe(2);
+    });
+
+    it('should count DMARC failure', () => {
+      component.email = createMockEmail({
+        parsedContent: createMockParsedContent({
+          authResults: {
+            dmarc: { result: 'fail', policy: 'reject', domain: 'example.com', aligned: false },
+          },
+        }),
+      });
+
+      expect(component.getAuthFailureCount()).toBe(1);
+    });
+
+    it('should count reverseDns failure', () => {
+      component.email = createMockEmail({
+        parsedContent: createMockParsedContent({
+          authResults: {
+            reverseDns: { result: 'fail', hostname: '', ip: '1.2.3.4' },
+          },
+        }),
+      });
+
+      expect(component.getAuthFailureCount()).toBe(1);
+    });
+
+    it('should count all failures together', () => {
+      component.email = createMockEmail({
+        parsedContent: createMockParsedContent({
+          authResults: {
+            spf: { result: 'fail', domain: 'example.com', details: '' },
+            dkim: [{ result: 'fail', domain: 'example.com', selector: 'default', signature: '' }],
+            dmarc: { result: 'fail', policy: 'reject', domain: 'example.com', aligned: false },
+            reverseDns: { result: 'fail', hostname: '', ip: '1.2.3.4' },
+          },
+        }),
+      });
+
+      expect(component.getAuthFailureCount()).toBe(4);
+    });
+
+    it('should be case-insensitive for result comparison', () => {
+      component.email = createMockEmail({
+        parsedContent: createMockParsedContent({
+          authResults: {
+            spf: { result: 'FAIL', domain: 'example.com', details: '' },
+            dkim: [{ result: 'Fail', domain: 'example.com', selector: 'default', signature: '' }],
+          },
+        }),
+      });
+
+      expect(component.getAuthFailureCount()).toBe(2);
+    });
+  });
+
   describe('ensureActiveTabIsValid with spam analysis', () => {
     it('should include Spam tab when spam analysis is enabled', () => {
       serverInfoStub.setServerInfo({
@@ -687,6 +800,7 @@ describe('EmailDetail', () => {
         webhookEnabled: true,
         webhookRequireAuthDefault: false,
         spamAnalysisEnabled: true,
+        chaosEnabled: false,
       });
 
       component.email = createMockEmail();

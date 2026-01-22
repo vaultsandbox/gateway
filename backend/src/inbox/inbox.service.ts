@@ -4,6 +4,7 @@ import {
   BadRequestException,
   ForbiddenException,
   InternalServerErrorException,
+  Optional,
 } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { EventEmitter2 } from '@nestjs/event-emitter';
@@ -13,6 +14,7 @@ import { Inbox, StoredEmail, isEncryptedEmail } from './interfaces';
 import { randomBytes, createHash } from 'crypto';
 import { MetricsService } from '../metrics/metrics.service';
 import { METRIC_PATHS } from '../metrics/metrics.constants';
+import { ChaosService } from '../chaos/chaos.service';
 import {
   DEFAULT_LOCAL_INBOX_ALIAS_RANDOM_BYTES,
   DEFAULT_LOCAL_INBOX_MAX_TTL,
@@ -91,17 +93,19 @@ export class InboxService {
   private readonly aliasRandomBytes: number;
   private readonly emailAuthInboxDefault: boolean;
   private readonly spamAnalysisInboxDefault: boolean;
+  private readonly chaosEnabled: boolean;
 
   /**
    * Constructor
    */
-  /* v8 ignore next 6 - false positive on constructor parameter properties */
+  /* v8 ignore next 7 - false positive on constructor parameter properties */
   constructor(
     private readonly storageService: InboxStorageService,
     private readonly cryptoService: CryptoService,
     private readonly configService: ConfigService,
     private readonly metricsService: MetricsService,
     private readonly eventEmitter: EventEmitter2,
+    @Optional() private readonly chaosService?: ChaosService,
   ) {
     this.defaultTtl = this.configService.get<number>('vsb.local.inboxDefaultTtl', DEFAULT_LOCAL_INBOX_TTL);
     this.maxTtl = this.configService.get<number>('vsb.local.inboxMaxTtl', DEFAULT_LOCAL_INBOX_MAX_TTL);
@@ -125,8 +129,11 @@ export class InboxService {
     const domains = this.getAllowedDomains();
     this.allowedDomain = domains[0];
 
+    // Check if chaos engineering is enabled
+    this.chaosEnabled = this.configService.get<boolean>('vsb.chaos.enabled', false);
+
     this.logger.log(
-      `InboxService initialized: defaultTTL=${this.defaultTtl}s, maxTTL=${this.maxTtl}s, domain=${this.allowedDomain}, aliasRandomBytes=${this.aliasRandomBytes}, emailAuthDefault=${this.emailAuthInboxDefault}`,
+      `InboxService initialized: defaultTTL=${this.defaultTtl}s, maxTTL=${this.maxTtl}s, domain=${this.allowedDomain}, aliasRandomBytes=${this.aliasRandomBytes}, emailAuthDefault=${this.emailAuthInboxDefault}, chaosEnabled=${this.chaosEnabled}`,
     );
   }
 
@@ -143,6 +150,7 @@ export class InboxService {
    * @param encryption - Optional encryption preference ('encrypted' | 'plain')
    * @param emailAuth - Optional email authentication preference (default: config value)
    * @param spamAnalysis - Optional spam analysis preference (default: config value)
+   * @param chaos - Optional chaos configuration (only processed if VSB_CHAOS_ENABLED=true)
    */
   createInbox(
     clientKemPk?: string,
@@ -151,6 +159,8 @@ export class InboxService {
     encryption?: 'encrypted' | 'plain',
     emailAuth?: boolean,
     spamAnalysis?: boolean,
+
+    chaos?: Record<string, any>,
   ): { inbox: Inbox; serverSigPk?: string } {
     // 1. Determine effective encryption state using server policy and inbox preference
     const policy = this.configService.get<EncryptionPolicy>('vsb.crypto.encryptionPolicy', EncryptionPolicy.ENABLED);
@@ -216,7 +226,11 @@ export class InboxService {
     // Determine effective spamAnalysis value (use provided value or default from config)
     const effectiveSpamAnalysis = spamAnalysis ?? this.spamAnalysisInboxDefault;
 
-    // Create inbox with encryption, emailAuth, and spamAnalysis flags
+    // Normalize chaos config (only if chaos is globally enabled)
+    const normalizedChaos =
+      this.chaosEnabled && chaos && this.chaosService ? this.chaosService.normalizeConfig(chaos) : undefined;
+
+    // Create inbox with encryption, emailAuth, spamAnalysis, and chaos flags
     const inbox = this.storageService.createInbox(
       finalEmailAddress,
       encrypted ? clientKemPk : undefined,
@@ -225,6 +239,7 @@ export class InboxService {
       encrypted,
       effectiveEmailAuth,
       effectiveSpamAnalysis,
+      normalizedChaos,
     );
 
     // Get server signing public key (only for encrypted inboxes)
@@ -459,6 +474,7 @@ export class InboxService {
       webhookEnabled,
       webhookRequireAuthDefault,
       spamAnalysisEnabled,
+      chaosEnabled: this.chaosEnabled,
     };
   }
 

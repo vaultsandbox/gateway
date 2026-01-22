@@ -126,6 +126,7 @@ describe('InboxController', () => {
         undefined,
         undefined,
         undefined,
+        undefined, // chaos
       );
     });
 
@@ -149,6 +150,7 @@ describe('InboxController', () => {
         undefined,
         undefined,
         undefined,
+        undefined, // chaos
       );
     });
   });

@@ -13,16 +13,18 @@
         />
       </div>
 
-      <div class="flex gap-2">
-        <p-button
-          [icon]="isTakingScreenshot ? 'pi pi-spinner pi-spin' : 'pi pi-camera'"
-          [text]="true"
-          severity="secondary"
-          (onClick)="downloadScreenshot()"
-          [disabled]="isTakingScreenshot || !email.parsedContent || isRenderingContent"
-          pTooltip="Save screenshot"
-          tooltipPosition="bottom"
-        />
+      <div class="flex gap-2 shrink-0">
+        @if (activeTab === 'html') {
+          <p-button
+            [icon]="isTakingScreenshot ? 'pi pi-spinner pi-spin' : 'pi pi-camera'"
+            [text]="true"
+            severity="secondary"
+            (onClick)="downloadScreenshot()"
+            [disabled]="isTakingScreenshot || !email.parsedContent || isRenderingContent"
+            pTooltip="Save screenshot"
+            tooltipPosition="bottom"
+          />
+        }
         <p-button
           [icon]="isDownloadingRaw ? 'pi pi-spinner pi-spin' : 'pi pi-download'"
           [text]="true"
@@ -115,6 +117,11 @@
               <div class="flex items-center gap-2">
                 <i class="pi pi-shield"></i>
                 <span>Authentication</span>
+                @if (getAuthFailureCount() > 0) {
+                  <span class="text-xs bg-red-100 dark:bg-red-900 text-red-800 dark:text-red-200 px-2 py-0.5 rounded">
+                    {{ getAuthFailureCount() }}
+                  </span>
+                }
               </div>
             </p-tab>
 
@@ -206,9 +213,10 @@
             <p-tabpanel value="text">
               <div class="h-full overflow-auto p-4">
                 @if (hasText()) {
-                  <pre class="whitespace-pre-wrap font-sans text-sm text-surface-900 dark:text-surface-100">{{
-                    email.parsedContent!.text
-                  }}</pre>
+                  <pre
+                    class="whitespace-pre-wrap break-all font-sans text-sm text-surface-900 dark:text-surface-100 max-w-full overflow-x-hidden"
+                    >{{ email.parsedContent!.text }}</pre
+                  >
                 } @else {
                   <div class="text-center py-12 text-surface-400">
                     <i class="pi pi-align-left text-4xl mb-3 block"></i>

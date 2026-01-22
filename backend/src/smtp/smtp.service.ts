@@ -14,6 +14,7 @@ import { METRIC_PATHS } from '../metrics/metrics.constants';
 import { SmtpRateLimiterService, RateLimitExceededError } from './smtp-rate-limiter.service';
 import { normalizeIp } from './utils/email.utils';
 import { SseConsoleService } from '../sse-console/sse-console.service';
+import { ChaosDropError } from '../chaos/chaos-error';
 
 /**
  * Extended SMTP Server Options
@@ -385,7 +386,40 @@ export class SmtpService implements OnModuleInit, OnModuleDestroy {
         this.handler
           .handleData(stream, session)
           .then(() => callback())
-          .catch((error) => callback(error as Error));
+          .catch((error) => {
+            // Handle chaos connection drop by closing the socket directly
+            if (error instanceof ChaosDropError) {
+              this.logger.log(`Chaos connection drop: graceful=${error.graceful} session=${session.id}`);
+              // Find the connection for this session from the server's connections Set
+              // smtp-server tracks all connections in server.connections
+              const serverWithConnections = this.server as unknown as {
+                connections?: Set<{ session: { id: string }; _socket?: Socket }>;
+              };
+              let socket: Socket | undefined;
+              if (serverWithConnections.connections) {
+                for (const conn of serverWithConnections.connections) {
+                  if (conn.session?.id === session.id && conn._socket) {
+                    socket = conn._socket;
+                    break;
+                  }
+                }
+              }
+              if (socket) {
+                if (error.graceful) {
+                  // Graceful close: send FIN
+                  socket.end();
+                } else {
+                  // Abrupt close: send RST
+                  socket.destroy();
+                }
+              } /* v8 ignore next 3 - defensive check, socket always present */ else {
+                this.logger.warn(`Could not access socket for chaos drop, session=${session.id}`);
+              }
+              // Don't call callback - connection is being closed
+              return;
+            }
+            callback(error as Error);
+          });
       },
 
       // Connection Close

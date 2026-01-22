@@ -1,5 +1,5 @@
 import { CommonModule } from '@angular/common';
-import { Component, inject, signal, computed, effect } from '@angular/core';
+import { Component, inject, signal, computed, effect, ViewChild } from '@angular/core';
 import { BadgeModule } from 'primeng/badge';
 import { StyleClassModule } from 'primeng/styleclass';
 import { ButtonModule } from 'primeng/button';
@@ -22,6 +22,9 @@ import { ServerInfoService } from './services/server-info.service';
 import { WebhookListDialog } from './webhooks/webhook-list-dialog/webhook-list-dialog';
 import { WebhookScope } from './webhooks/interfaces/webhook.interfaces';
 import { InboxModel } from './interfaces';
+import { ChaosConfigDialog } from './chaos/chaos-config-dialog/chaos-config-dialog';
+import { ChaosService } from './chaos/services/chaos.service';
+import { firstValueFrom } from 'rxjs';
 
 /**
  * Main mail application component that manages inbox display, email viewing, and application settings.
@@ -47,6 +50,7 @@ import { InboxModel } from './interfaces';
     MetricsDialog,
     SseConsoleDialog,
     WebhookListDialog,
+    ChaosConfigDialog,
   ],
   templateUrl: './mail.html',
   styleUrl: './mail.scss',
@@ -59,8 +63,14 @@ export class Mail {
   private readonly vsToast = inject(VsToast);
   private readonly settingsManager = inject(SettingsManager);
   private readonly serverInfoService = inject(ServerInfoService);
+  private readonly chaosService = inject(ChaosService);
+
+  @ViewChild(MailboxSidebar) private mailboxSidebar!: MailboxSidebar;
 
   private isDarkMode = signal(this.vsThemeManagerService.isDarkMode());
+
+  /** Tracks chaos status for the currently selected inbox */
+  selectedInboxChaosEnabled = signal(false);
 
   /** Currently selected inbox from the mail manager */
   selectedInbox = this.mailManager.selectedInbox;
@@ -87,6 +97,12 @@ export class Mail {
   /** The scope for the webhooks dialog (global or inbox-specific) */
   webhookScope = signal<WebhookScope>({ type: 'global' });
 
+  /** Controls visibility of the chaos configuration dialog */
+  showChaosDialog = signal(false);
+
+  /** The inbox for the chaos configuration dialog */
+  chaosInbox = signal<InboxModel | null>(null);
+
   /**
    * Date format string based on user's time format preference.
    * Returns either 24-hour format (M/d/yy, HH:mm) or 12-hour format (M/d/yy, h:mm a).
@@ -100,6 +116,17 @@ export class Mail {
     effect(() => {
       if (!this.selectedEmail()) {
         this.viewMode.set('list');
+      }
+    });
+
+    // Load chaos status when selected inbox changes
+    effect(() => {
+      const inbox = this.selectedInbox();
+      const serverInfo = this.serverInfoService.serverInfo();
+      if (inbox && serverInfo?.chaosEnabled) {
+        this.loadChaosStatus(inbox.emailAddress);
+      } else {
+        this.selectedInboxChaosEnabled.set(false);
       }
     });
   }
@@ -149,6 +176,9 @@ export class Mail {
           ]
         : []),
       {
+        separator: true,
+      },
+      {
         label: 'Settings',
         icon: 'pi pi-fw pi-cog',
         command: () => this.openSettingsDialog(),
@@ -157,6 +187,12 @@ export class Mail {
         label: isDark ? 'Light Mode' : 'Dark Mode',
         icon: isDark ? 'pi pi-fw pi-sun' : 'pi pi-fw pi-moon',
         command: () => this.switchTheme(),
+      },
+      {
+        label: 'Docs',
+        icon: 'pi pi-fw pi-external-link',
+        url: 'https://vaultsandbox.dev',
+        target: '_blank',
       },
       {
         separator: true,
@@ -297,6 +333,113 @@ export class Mail {
     this.webhookScope.set({ type: 'inbox', email: inbox.emailAddress });
     this.showWebhooksDialog.set(true);
   }
+
+  /**
+   * Opens the chaos configuration dialog for a specific inbox.
+   * @param inbox - The inbox to configure chaos for
+   */
+  openInboxChaosDialog(inbox: InboxModel): void {
+    this.chaosInbox.set(inbox);
+    this.showChaosDialog.set(true);
+  }
+
+  /**
+   * Handles closing of the chaos configuration dialog.
+   */
+  onChaosDialogClosed(): void {
+    this.showChaosDialog.set(false);
+    this.chaosInbox.set(null);
+  }
+
+  /**
+   * Handles chaos status change from the chaos config dialog.
+   * @param enabled - Whether chaos is now enabled for the inbox
+   */
+  onChaosStatusChanged(enabled: boolean): void {
+    const inbox = this.chaosInbox();
+    if (inbox && this.mailboxSidebar) {
+      this.mailboxSidebar.updateInboxChaosStatus(inbox.emailAddress, enabled);
+    }
+    // Also update local tracking if this is the selected inbox
+    if (inbox && inbox.inboxHash === this.selectedInbox()?.inboxHash) {
+      this.selectedInboxChaosEnabled.set(enabled);
+    }
+  }
+
+  /**
+   * Loads chaos status for the given email address.
+   * @param emailAddress - The email address to check chaos status for
+   */
+  private async loadChaosStatus(emailAddress: string): Promise<void> {
+    try {
+      const config = await firstValueFrom(this.chaosService.get(emailAddress));
+      this.selectedInboxChaosEnabled.set(config.enabled);
+    } catch {
+      // 404 means no config exists - inbox has no chaos enabled
+      this.selectedInboxChaosEnabled.set(false);
+    }
+  }
+
+  /**
+   * Opens webhooks dialog for the currently selected inbox.
+   */
+  openSelectedInboxWebhooks(): void {
+    const inbox = this.selectedInbox();
+    if (inbox) {
+      this.openInboxWebhooksDialog(inbox);
+    }
+  }
+
+  /**
+   * Opens chaos dialog for the currently selected inbox.
+   */
+  openSelectedInboxChaos(): void {
+    const inbox = this.selectedInbox();
+    if (inbox) {
+      this.openInboxChaosDialog(inbox);
+    }
+  }
+
+  /**
+   * Whether webhooks feature is enabled on the server.
+   */
+  webhookEnabled = computed(() => this.serverInfoService.serverInfo()?.webhookEnabled ?? false);
+
+  /**
+   * Whether chaos feature is enabled on the server.
+   */
+  chaosEnabled = computed(() => this.serverInfoService.serverInfo()?.chaosEnabled ?? false);
+
+  /**
+   * Menu items for the mobile action menu (collapsed buttons).
+   */
+  mobileMenuItems = computed<MenuItem[]>(() => {
+    const items: MenuItem[] = [
+      {
+        label: 'Refresh',
+        icon: 'pi pi-refresh',
+        command: () => this.handleRefresh(),
+      },
+    ];
+
+    if (this.webhookEnabled()) {
+      items.push({
+        label: 'Webhooks',
+        icon: 'pi pi-bolt',
+        command: () => this.openSelectedInboxWebhooks(),
+      });
+    }
+
+    if (this.chaosEnabled()) {
+      items.push({
+        label: 'Chaos',
+        icon: 'pi pi-exclamation-triangle',
+        command: () => this.openSelectedInboxChaos(),
+      });
+    }
+
+    return items;
+  });
 
   /**
    * Opens a new console dialog.

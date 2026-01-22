@@ -9,6 +9,9 @@ import { ConfirmationService } from 'primeng/api';
 import { HttpClientTestingModule } from '@angular/common/http/testing';
 import { SettingsManager, SanitizationLevel } from './services/settings-manager';
 import { ServerInfoService } from './services/server-info.service';
+import { ChaosService } from './chaos/services/chaos.service';
+import { ChaosConfigResponse } from './chaos/interfaces/chaos.interfaces';
+import { of, throwError } from 'rxjs';
 import {
   MailManagerStub,
   VaultSandboxStub,
@@ -17,6 +20,39 @@ import {
   SettingsManagerStub,
 } from '../../../testing/mail-testing.mocks';
 import { InboxModel, ServerInfo } from './interfaces';
+
+// Stub for ChaosService
+class ChaosServiceStub implements Partial<ChaosService> {
+  private response: ChaosConfigResponse = { enabled: false };
+  private error: Error | null = null;
+
+  setResponse(response: ChaosConfigResponse): void {
+    this.response = response;
+    this.error = null;
+  }
+
+  setError(error: Error): void {
+    this.error = error;
+  }
+
+  get(emailAddress: string) {
+    void emailAddress;
+    if (this.error) {
+      return throwError(() => this.error);
+    }
+    return of(this.response);
+  }
+
+  set(emailAddress: string, config: ChaosConfigResponse) {
+    void emailAddress;
+    return of(config);
+  }
+
+  disable(emailAddress: string) {
+    void emailAddress;
+    return of(void 0);
+  }
+}
 
 // Testable stub that allows modifying serverInfo
 class TestableServerInfoServiceStub implements Partial<ServerInfoService> {
@@ -33,6 +69,7 @@ class TestableServerInfoServiceStub implements Partial<ServerInfoService> {
     webhookEnabled: false,
     webhookRequireAuthDefault: true,
     spamAnalysisEnabled: false,
+    chaosEnabled: false,
   });
 
   get serverInfo(): Signal<ServerInfo | null> {
@@ -57,6 +94,7 @@ describe('Mail', () => {
   let vsToastStub: VsToastStub;
   let settingsManagerStub: SettingsManagerStub;
   let serverInfoServiceStub: TestableServerInfoServiceStub;
+  let chaosServiceStub: ChaosServiceStub;
 
   beforeEach(async () => {
     mailManagerStub = new MailManagerStub();
@@ -65,6 +103,7 @@ describe('Mail', () => {
     vsToastStub = new VsToastStub();
     settingsManagerStub = new SettingsManagerStub();
     serverInfoServiceStub = new TestableServerInfoServiceStub();
+    chaosServiceStub = new ChaosServiceStub();
 
     await TestBed.configureTestingModule({
       imports: [Mail, HttpClientTestingModule],
@@ -77,6 +116,7 @@ describe('Mail', () => {
         { provide: VsToast, useValue: vsToastStub },
         { provide: SettingsManager, useValue: settingsManagerStub },
         { provide: ServerInfoService, useValue: serverInfoServiceStub },
+        { provide: ChaosService, useValue: chaosServiceStub },
       ],
     }).compileComponents();
 
@@ -132,6 +172,7 @@ describe('Mail', () => {
         webhookEnabled: false,
         webhookRequireAuthDefault: true,
         spamAnalysisEnabled: false,
+        chaosEnabled: false,
       });
 
       const menuItems = component.topLeftMenuitems();
@@ -153,6 +194,7 @@ describe('Mail', () => {
         webhookEnabled: false,
         webhookRequireAuthDefault: true,
         spamAnalysisEnabled: false,
+        chaosEnabled: false,
       });
 
       const menuItems = component.topLeftMenuitems();
@@ -182,6 +224,7 @@ describe('Mail', () => {
         webhookEnabled: true,
         webhookRequireAuthDefault: true,
         spamAnalysisEnabled: false,
+        chaosEnabled: false,
       });
 
       const menuItems = component.topLeftMenuitems();
@@ -203,6 +246,7 @@ describe('Mail', () => {
         webhookEnabled: false,
         webhookRequireAuthDefault: true,
         spamAnalysisEnabled: false,
+        chaosEnabled: false,
       });
 
       const menuItems = component.topLeftMenuitems();
@@ -226,6 +270,7 @@ describe('Mail', () => {
         webhookEnabled: true,
         webhookRequireAuthDefault: true,
         spamAnalysisEnabled: false,
+        chaosEnabled: false,
       });
 
       const menuItems = component.topLeftMenuitems();
@@ -276,6 +321,7 @@ describe('Mail', () => {
         webhookEnabled: false,
         webhookRequireAuthDefault: true,
         spamAnalysisEnabled: false,
+        chaosEnabled: false,
       });
 
       const menuItems = component.topLeftMenuitems();
@@ -810,6 +856,560 @@ describe('Mail', () => {
 
       // The effect should set viewMode back to 'list'
       expect(component.viewMode()).toBe('list');
+    });
+  });
+
+  describe('openInboxChaosDialog', () => {
+    it('should set chaosInbox and show chaos dialog', () => {
+      const mockInbox: InboxModel = {
+        emailAddress: 'test@example.com',
+        expiresAt: new Date().toISOString(),
+        inboxHash: 'inbox-hash-123',
+        encrypted: true,
+        emailAuth: false,
+        serverSigPk: 'sig-pk',
+        secretKey: new Uint8Array(),
+        emails: [],
+      };
+
+      expect(component.showChaosDialog()).toBe(false);
+      expect(component.chaosInbox()).toBeNull();
+
+      component.openInboxChaosDialog(mockInbox);
+
+      expect(component.chaosInbox()).toBe(mockInbox);
+      expect(component.showChaosDialog()).toBe(true);
+    });
+  });
+
+  describe('onChaosDialogClosed', () => {
+    it('should hide dialog and clear chaosInbox', () => {
+      const mockInbox: InboxModel = {
+        emailAddress: 'test@example.com',
+        expiresAt: new Date().toISOString(),
+        inboxHash: 'inbox-hash-123',
+        encrypted: true,
+        emailAuth: false,
+        serverSigPk: 'sig-pk',
+        secretKey: new Uint8Array(),
+        emails: [],
+      };
+
+      // First open the dialog
+      component.openInboxChaosDialog(mockInbox);
+      expect(component.showChaosDialog()).toBe(true);
+      expect(component.chaosInbox()).toBe(mockInbox);
+
+      // Then close it
+      component.onChaosDialogClosed();
+
+      expect(component.showChaosDialog()).toBe(false);
+      expect(component.chaosInbox()).toBeNull();
+    });
+  });
+
+  describe('onChaosStatusChanged', () => {
+    it('should do nothing when chaosInbox is null', () => {
+      component.onChaosStatusChanged(true);
+      // Should not throw
+      expect(component.selectedInboxChaosEnabled()).toBe(false);
+    });
+
+    it('should update selectedInboxChaosEnabled when chaos inbox matches selected inbox', () => {
+      const mockInbox: InboxModel = {
+        emailAddress: 'test@example.com',
+        expiresAt: new Date().toISOString(),
+        inboxHash: 'inbox-hash-123',
+        encrypted: true,
+        emailAuth: false,
+        serverSigPk: 'sig-pk',
+        secretKey: new Uint8Array(),
+        emails: [],
+      };
+      mailManagerStub.setInboxes([mockInbox]);
+      component.openInboxChaosDialog(mockInbox);
+
+      component.onChaosStatusChanged(true);
+
+      expect(component.selectedInboxChaosEnabled()).toBe(true);
+    });
+
+    it('should not update selectedInboxChaosEnabled when chaos inbox does not match selected inbox', () => {
+      const mockInbox1: InboxModel = {
+        emailAddress: 'test1@example.com',
+        expiresAt: new Date().toISOString(),
+        inboxHash: 'inbox-hash-1',
+        encrypted: true,
+        emailAuth: false,
+        serverSigPk: 'sig-pk',
+        secretKey: new Uint8Array(),
+        emails: [],
+      };
+      const mockInbox2: InboxModel = {
+        emailAddress: 'test2@example.com',
+        expiresAt: new Date().toISOString(),
+        inboxHash: 'inbox-hash-2',
+        encrypted: true,
+        emailAuth: false,
+        serverSigPk: 'sig-pk',
+        secretKey: new Uint8Array(),
+        emails: [],
+      };
+      mailManagerStub.setInboxes([mockInbox1]);
+      component.openInboxChaosDialog(mockInbox2);
+
+      component.onChaosStatusChanged(true);
+
+      // Should remain false since the chaos inbox doesn't match selected inbox
+      expect(component.selectedInboxChaosEnabled()).toBe(false);
+    });
+  });
+
+  describe('openSelectedInboxWebhooks', () => {
+    it('should open webhooks dialog for the selected inbox', () => {
+      const mockInbox: InboxModel = {
+        emailAddress: 'test@example.com',
+        expiresAt: new Date().toISOString(),
+        inboxHash: 'inbox-hash-123',
+        encrypted: true,
+        emailAuth: false,
+        serverSigPk: 'sig-pk',
+        secretKey: new Uint8Array(),
+        emails: [],
+      };
+      mailManagerStub.setInboxes([mockInbox]);
+
+      spyOn(component, 'openInboxWebhooksDialog');
+
+      component.openSelectedInboxWebhooks();
+
+      expect(component.openInboxWebhooksDialog).toHaveBeenCalledWith(mockInbox);
+    });
+
+    it('should do nothing when no inbox is selected', () => {
+      spyOn(component, 'openInboxWebhooksDialog');
+
+      component.openSelectedInboxWebhooks();
+
+      expect(component.openInboxWebhooksDialog).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('openSelectedInboxChaos', () => {
+    it('should open chaos dialog for the selected inbox', () => {
+      const mockInbox: InboxModel = {
+        emailAddress: 'test@example.com',
+        expiresAt: new Date().toISOString(),
+        inboxHash: 'inbox-hash-123',
+        encrypted: true,
+        emailAuth: false,
+        serverSigPk: 'sig-pk',
+        secretKey: new Uint8Array(),
+        emails: [],
+      };
+      mailManagerStub.setInboxes([mockInbox]);
+
+      spyOn(component, 'openInboxChaosDialog');
+
+      component.openSelectedInboxChaos();
+
+      expect(component.openInboxChaosDialog).toHaveBeenCalledWith(mockInbox);
+    });
+
+    it('should do nothing when no inbox is selected', () => {
+      spyOn(component, 'openInboxChaosDialog');
+
+      component.openSelectedInboxChaos();
+
+      expect(component.openInboxChaosDialog).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('webhookEnabled', () => {
+    it('should return true when webhookEnabled is true in serverInfo', () => {
+      serverInfoServiceStub.setServerInfo({
+        serverSigPk: 'stub',
+        algs: { kem: 'ml-kem', sig: 'ml-dsa', aead: 'aes-gcm', kdf: 'hkdf' },
+        context: 'stub',
+        maxTtl: 86400,
+        defaultTtl: 3600,
+        sseConsole: false,
+        allowClearAllInboxes: true,
+        allowedDomains: [],
+        encryptionPolicy: 'always',
+        webhookEnabled: true,
+        webhookRequireAuthDefault: true,
+        spamAnalysisEnabled: false,
+        chaosEnabled: false,
+      });
+
+      expect(component.webhookEnabled()).toBe(true);
+    });
+
+    it('should return false when webhookEnabled is false in serverInfo', () => {
+      serverInfoServiceStub.setServerInfo({
+        serverSigPk: 'stub',
+        algs: { kem: 'ml-kem', sig: 'ml-dsa', aead: 'aes-gcm', kdf: 'hkdf' },
+        context: 'stub',
+        maxTtl: 86400,
+        defaultTtl: 3600,
+        sseConsole: false,
+        allowClearAllInboxes: true,
+        allowedDomains: [],
+        encryptionPolicy: 'always',
+        webhookEnabled: false,
+        webhookRequireAuthDefault: true,
+        spamAnalysisEnabled: false,
+        chaosEnabled: false,
+      });
+
+      expect(component.webhookEnabled()).toBe(false);
+    });
+
+    it('should return false when serverInfo is null', () => {
+      serverInfoServiceStub.setServerInfo(null);
+
+      expect(component.webhookEnabled()).toBe(false);
+    });
+  });
+
+  describe('chaosEnabled', () => {
+    it('should return true when chaosEnabled is true in serverInfo', () => {
+      serverInfoServiceStub.setServerInfo({
+        serverSigPk: 'stub',
+        algs: { kem: 'ml-kem', sig: 'ml-dsa', aead: 'aes-gcm', kdf: 'hkdf' },
+        context: 'stub',
+        maxTtl: 86400,
+        defaultTtl: 3600,
+        sseConsole: false,
+        allowClearAllInboxes: true,
+        allowedDomains: [],
+        encryptionPolicy: 'always',
+        webhookEnabled: false,
+        webhookRequireAuthDefault: true,
+        spamAnalysisEnabled: false,
+        chaosEnabled: true,
+      });
+
+      expect(component.chaosEnabled()).toBe(true);
+    });
+
+    it('should return false when chaosEnabled is false in serverInfo', () => {
+      serverInfoServiceStub.setServerInfo({
+        serverSigPk: 'stub',
+        algs: { kem: 'ml-kem', sig: 'ml-dsa', aead: 'aes-gcm', kdf: 'hkdf' },
+        context: 'stub',
+        maxTtl: 86400,
+        defaultTtl: 3600,
+        sseConsole: false,
+        allowClearAllInboxes: true,
+        allowedDomains: [],
+        encryptionPolicy: 'always',
+        webhookEnabled: false,
+        webhookRequireAuthDefault: true,
+        spamAnalysisEnabled: false,
+        chaosEnabled: false,
+      });
+
+      expect(component.chaosEnabled()).toBe(false);
+    });
+
+    it('should return false when serverInfo is null', () => {
+      serverInfoServiceStub.setServerInfo(null);
+
+      expect(component.chaosEnabled()).toBe(false);
+    });
+  });
+
+  describe('mobileMenuItems', () => {
+    it('should include only Refresh when webhooks and chaos are disabled', () => {
+      serverInfoServiceStub.setServerInfo({
+        serverSigPk: 'stub',
+        algs: { kem: 'ml-kem', sig: 'ml-dsa', aead: 'aes-gcm', kdf: 'hkdf' },
+        context: 'stub',
+        maxTtl: 86400,
+        defaultTtl: 3600,
+        sseConsole: false,
+        allowClearAllInboxes: true,
+        allowedDomains: [],
+        encryptionPolicy: 'always',
+        webhookEnabled: false,
+        webhookRequireAuthDefault: true,
+        spamAnalysisEnabled: false,
+        chaosEnabled: false,
+      });
+
+      const menuItems = component.mobileMenuItems();
+
+      expect(menuItems.length).toBe(1);
+      expect(menuItems[0].label).toBe('Refresh');
+    });
+
+    it('should include Webhooks when webhookEnabled is true', () => {
+      serverInfoServiceStub.setServerInfo({
+        serverSigPk: 'stub',
+        algs: { kem: 'ml-kem', sig: 'ml-dsa', aead: 'aes-gcm', kdf: 'hkdf' },
+        context: 'stub',
+        maxTtl: 86400,
+        defaultTtl: 3600,
+        sseConsole: false,
+        allowClearAllInboxes: true,
+        allowedDomains: [],
+        encryptionPolicy: 'always',
+        webhookEnabled: true,
+        webhookRequireAuthDefault: true,
+        spamAnalysisEnabled: false,
+        chaosEnabled: false,
+      });
+
+      const menuItems = component.mobileMenuItems();
+
+      expect(menuItems.length).toBe(2);
+      expect(menuItems[0].label).toBe('Refresh');
+      expect(menuItems[1].label).toBe('Webhooks');
+    });
+
+    it('should include Chaos when chaosEnabled is true', () => {
+      serverInfoServiceStub.setServerInfo({
+        serverSigPk: 'stub',
+        algs: { kem: 'ml-kem', sig: 'ml-dsa', aead: 'aes-gcm', kdf: 'hkdf' },
+        context: 'stub',
+        maxTtl: 86400,
+        defaultTtl: 3600,
+        sseConsole: false,
+        allowClearAllInboxes: true,
+        allowedDomains: [],
+        encryptionPolicy: 'always',
+        webhookEnabled: false,
+        webhookRequireAuthDefault: true,
+        spamAnalysisEnabled: false,
+        chaosEnabled: true,
+      });
+
+      const menuItems = component.mobileMenuItems();
+
+      expect(menuItems.length).toBe(2);
+      expect(menuItems[0].label).toBe('Refresh');
+      expect(menuItems[1].label).toBe('Chaos');
+    });
+
+    it('should include all items when both webhooks and chaos are enabled', () => {
+      serverInfoServiceStub.setServerInfo({
+        serverSigPk: 'stub',
+        algs: { kem: 'ml-kem', sig: 'ml-dsa', aead: 'aes-gcm', kdf: 'hkdf' },
+        context: 'stub',
+        maxTtl: 86400,
+        defaultTtl: 3600,
+        sseConsole: false,
+        allowClearAllInboxes: true,
+        allowedDomains: [],
+        encryptionPolicy: 'always',
+        webhookEnabled: true,
+        webhookRequireAuthDefault: true,
+        spamAnalysisEnabled: false,
+        chaosEnabled: true,
+      });
+
+      const menuItems = component.mobileMenuItems();
+
+      expect(menuItems.length).toBe(3);
+      expect(menuItems[0].label).toBe('Refresh');
+      expect(menuItems[1].label).toBe('Webhooks');
+      expect(menuItems[2].label).toBe('Chaos');
+    });
+
+    it('should execute Refresh menu command', () => {
+      spyOn(component, 'handleRefresh');
+
+      const menuItems = component.mobileMenuItems();
+      const refreshItem = menuItems.find((item) => item.label === 'Refresh');
+      refreshItem?.command?.({} as never);
+
+      expect(component.handleRefresh).toHaveBeenCalled();
+    });
+
+    it('should execute Webhooks menu command', () => {
+      serverInfoServiceStub.setServerInfo({
+        serverSigPk: 'stub',
+        algs: { kem: 'ml-kem', sig: 'ml-dsa', aead: 'aes-gcm', kdf: 'hkdf' },
+        context: 'stub',
+        maxTtl: 86400,
+        defaultTtl: 3600,
+        sseConsole: false,
+        allowClearAllInboxes: true,
+        allowedDomains: [],
+        encryptionPolicy: 'always',
+        webhookEnabled: true,
+        webhookRequireAuthDefault: true,
+        spamAnalysisEnabled: false,
+        chaosEnabled: false,
+      });
+
+      spyOn(component, 'openSelectedInboxWebhooks');
+
+      const menuItems = component.mobileMenuItems();
+      const webhooksItem = menuItems.find((item) => item.label === 'Webhooks');
+      webhooksItem?.command?.({} as never);
+
+      expect(component.openSelectedInboxWebhooks).toHaveBeenCalled();
+    });
+
+    it('should execute Chaos menu command', () => {
+      serverInfoServiceStub.setServerInfo({
+        serverSigPk: 'stub',
+        algs: { kem: 'ml-kem', sig: 'ml-dsa', aead: 'aes-gcm', kdf: 'hkdf' },
+        context: 'stub',
+        maxTtl: 86400,
+        defaultTtl: 3600,
+        sseConsole: false,
+        allowClearAllInboxes: true,
+        allowedDomains: [],
+        encryptionPolicy: 'always',
+        webhookEnabled: false,
+        webhookRequireAuthDefault: true,
+        spamAnalysisEnabled: false,
+        chaosEnabled: true,
+      });
+
+      spyOn(component, 'openSelectedInboxChaos');
+
+      const menuItems = component.mobileMenuItems();
+      const chaosItem = menuItems.find((item) => item.label === 'Chaos');
+      chaosItem?.command?.({} as never);
+
+      expect(component.openSelectedInboxChaos).toHaveBeenCalled();
+    });
+  });
+
+  describe('chaos status effect', () => {
+    it('should load chaos status when inbox selected and chaos is enabled', async () => {
+      chaosServiceStub.setResponse({ enabled: true });
+      serverInfoServiceStub.setServerInfo({
+        serverSigPk: 'stub',
+        algs: { kem: 'ml-kem', sig: 'ml-dsa', aead: 'aes-gcm', kdf: 'hkdf' },
+        context: 'stub',
+        maxTtl: 86400,
+        defaultTtl: 3600,
+        sseConsole: false,
+        allowClearAllInboxes: true,
+        allowedDomains: [],
+        encryptionPolicy: 'always',
+        webhookEnabled: false,
+        webhookRequireAuthDefault: true,
+        spamAnalysisEnabled: false,
+        chaosEnabled: true,
+      });
+
+      const mockInbox: InboxModel = {
+        emailAddress: 'test@example.com',
+        expiresAt: new Date().toISOString(),
+        inboxHash: 'inbox-hash-123',
+        encrypted: true,
+        emailAuth: false,
+        serverSigPk: 'sig-pk',
+        secretKey: new Uint8Array(),
+        emails: [],
+      };
+
+      mailManagerStub.setInboxes([mockInbox]);
+      fixture.detectChanges();
+      await fixture.whenStable();
+
+      expect(component.selectedInboxChaosEnabled()).toBe(true);
+    });
+
+    it('should set chaos to false when inbox selected but chaos feature is disabled', async () => {
+      serverInfoServiceStub.setServerInfo({
+        serverSigPk: 'stub',
+        algs: { kem: 'ml-kem', sig: 'ml-dsa', aead: 'aes-gcm', kdf: 'hkdf' },
+        context: 'stub',
+        maxTtl: 86400,
+        defaultTtl: 3600,
+        sseConsole: false,
+        allowClearAllInboxes: true,
+        allowedDomains: [],
+        encryptionPolicy: 'always',
+        webhookEnabled: false,
+        webhookRequireAuthDefault: true,
+        spamAnalysisEnabled: false,
+        chaosEnabled: false,
+      });
+
+      const mockInbox: InboxModel = {
+        emailAddress: 'test@example.com',
+        expiresAt: new Date().toISOString(),
+        inboxHash: 'inbox-hash-123',
+        encrypted: true,
+        emailAuth: false,
+        serverSigPk: 'sig-pk',
+        secretKey: new Uint8Array(),
+        emails: [],
+      };
+
+      mailManagerStub.setInboxes([mockInbox]);
+      fixture.detectChanges();
+      await fixture.whenStable();
+
+      expect(component.selectedInboxChaosEnabled()).toBe(false);
+    });
+
+    it('should set chaos to false when no inbox is selected', async () => {
+      serverInfoServiceStub.setServerInfo({
+        serverSigPk: 'stub',
+        algs: { kem: 'ml-kem', sig: 'ml-dsa', aead: 'aes-gcm', kdf: 'hkdf' },
+        context: 'stub',
+        maxTtl: 86400,
+        defaultTtl: 3600,
+        sseConsole: false,
+        allowClearAllInboxes: true,
+        allowedDomains: [],
+        encryptionPolicy: 'always',
+        webhookEnabled: false,
+        webhookRequireAuthDefault: true,
+        spamAnalysisEnabled: false,
+        chaosEnabled: true,
+      });
+
+      fixture.detectChanges();
+      await fixture.whenStable();
+
+      expect(component.selectedInboxChaosEnabled()).toBe(false);
+    });
+
+    it('should set chaos to false when API returns 404', async () => {
+      chaosServiceStub.setError({ name: 'HttpErrorResponse', message: 'Not Found' } as Error);
+      serverInfoServiceStub.setServerInfo({
+        serverSigPk: 'stub',
+        algs: { kem: 'ml-kem', sig: 'ml-dsa', aead: 'aes-gcm', kdf: 'hkdf' },
+        context: 'stub',
+        maxTtl: 86400,
+        defaultTtl: 3600,
+        sseConsole: false,
+        allowClearAllInboxes: true,
+        allowedDomains: [],
+        encryptionPolicy: 'always',
+        webhookEnabled: false,
+        webhookRequireAuthDefault: true,
+        spamAnalysisEnabled: false,
+        chaosEnabled: true,
+      });
+
+      const mockInbox: InboxModel = {
+        emailAddress: 'test@example.com',
+        expiresAt: new Date().toISOString(),
+        inboxHash: 'inbox-hash-123',
+        encrypted: true,
+        emailAuth: false,
+        serverSigPk: 'sig-pk',
+        secretKey: new Uint8Array(),
+        emails: [],
+      };
+
+      mailManagerStub.setInboxes([mockInbox]);
+      fixture.detectChanges();
+      await fixture.whenStable();
+
+      expect(component.selectedInboxChaosEnabled()).toBe(false);
     });
   });
 });

@@ -24,6 +24,9 @@ VaultSandbox Gateway is a **secure, receive-only SMTP server** designed for QA/t
 - **Configurable Retention**: Defaults to 7 days (easily adjusted)
 - **Multi-Node Support**: Optional distributed coordination for clusters
 - **Quantum-Safe Crypto**: ML-KEM-768 and ML-DSA-65 for backend mode
+- **[Spam Analysis](https://vaultsandbox.dev/gateway/spam-analysis/)**: SpamAssassin-style scoring and detection
+- **[Webhooks](https://vaultsandbox.dev/gateway/webhooks/)**: HTTP notifications for email events
+- **[Chaos Engineering](https://vaultsandbox.dev/gateway/chaos-engineering/)**: Test email pipeline resilience
 
 ### 📦 Monorepo Components
 

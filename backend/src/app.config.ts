@@ -40,6 +40,7 @@ import {
   DEFAULT_SPAM_ANALYSIS_ENABLED,
   DEFAULT_RSPAMD_URL,
   DEFAULT_RSPAMD_TIMEOUT_MS,
+  DEFAULT_CHAOS_ENABLED,
 } from './config/config.constants';
 import {
   parseOptionalBoolean,
@@ -788,6 +789,27 @@ function buildSpamAnalysisConfig() {
 }
 
 /**
+ * Build Chaos Configuration
+ *
+ * Configures chaos engineering features for testing email delivery failure scenarios.
+ * When disabled globally, all chaos configuration is ignored and chaos API endpoints return 403.
+ *
+ * Optional environment variables:
+ * - VSB_CHAOS_ENABLED: Master switch for chaos features (default: false)
+ */
+function buildChaosConfig() {
+  const enabled = parseOptionalBoolean(process.env.VSB_CHAOS_ENABLED, DEFAULT_CHAOS_ENABLED);
+
+  if (enabled) {
+    logger.log('Chaos engineering features enabled');
+  }
+
+  return {
+    enabled,
+  };
+}
+
+/**
  * Register Config VSB
  */
 export default registerAs('vsb', () => {
@@ -807,5 +829,6 @@ export default registerAs('vsb', () => {
     emailAuth: buildEmailAuthConfig(),
     webhook: gatewayMode === 'local' ? buildWebhookConfig() : undefined,
     spamAnalysis: gatewayMode === 'local' ? buildSpamAnalysisConfig() : undefined,
+    chaos: gatewayMode === 'local' ? buildChaosConfig() : undefined,
   };
 });

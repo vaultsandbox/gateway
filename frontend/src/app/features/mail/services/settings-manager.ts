@@ -46,6 +46,9 @@ export class SettingsManager {
       }
 
       const settings = JSON.parse(stored);
+      if (settings === null) {
+        return defaults;
+      }
       const validLevels = Object.values(SanitizationLevel);
       const validTimeFormats: TimeFormat[] = ['12h', '24h'];
       const validTtlUnits: TtlUnit[] = ['minutes', 'hours', 'days'];

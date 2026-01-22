@@ -45,6 +45,14 @@ export const METRIC_PATHS = {
   SPAM_ERRORS_TOTAL: 'spam.errors_total',
   SPAM_DETECTED_TOTAL: 'spam.spam_detected_total',
   SPAM_PROCESSING_TIME_MS: 'spam.processing_time_ms',
+
+  // Chaos Engineering
+  CHAOS_EVENTS_TOTAL: 'chaos.events_total',
+  CHAOS_LATENCY_INJECTED_MS: 'chaos.latency_injected_ms',
+  CHAOS_ERRORS_RETURNED_TOTAL: 'chaos.errors_returned_total',
+  CHAOS_CONNECTIONS_DROPPED_TOTAL: 'chaos.connections_dropped_total',
+  CHAOS_GREYLIST_REJECTIONS_TOTAL: 'chaos.greylist_rejections_total',
+  CHAOS_BLACKHOLE_TOTAL: 'chaos.blackhole_total',
 } as const;
 
 export type MetricPath = (typeof METRIC_PATHS)[keyof typeof METRIC_PATHS];

@@ -68,3 +68,6 @@ export const DEFAULT_TLS_ECDH_CURVE = 'auto';
 export const DEFAULT_SPAM_ANALYSIS_ENABLED = false;
 export const DEFAULT_RSPAMD_URL = 'http://localhost:11333';
 export const DEFAULT_RSPAMD_TIMEOUT_MS = 5000;
+
+// Chaos Engineering defaults
+export const DEFAULT_CHAOS_ENABLED = false;

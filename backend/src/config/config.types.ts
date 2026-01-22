@@ -103,4 +103,7 @@ export interface VsbConfiguration {
     };
     inboxDefault: boolean;
   };
+  chaos?: {
+    enabled: boolean;
+  };
 }

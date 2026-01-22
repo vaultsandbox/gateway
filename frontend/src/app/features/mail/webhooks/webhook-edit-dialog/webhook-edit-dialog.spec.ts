@@ -177,6 +177,7 @@ describe('WebhookEditDialog', () => {
         webhookEnabled: true,
         webhookRequireAuthDefault: true,
         spamAnalysisEnabled: false,
+        chaosEnabled: false,
       });
       componentRef.setInput('webhook', null);
       fixture.detectChanges();

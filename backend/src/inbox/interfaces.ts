@@ -1,4 +1,5 @@
 import { EncryptedPayload } from '../crypto/interfaces';
+import type { InboxChaosConfig } from '../chaos/interfaces/chaos-config.interface';
 
 // Base fields shared by both encrypted and plain email storage modes
 interface StoredEmailBase {
@@ -44,6 +45,7 @@ export interface Inbox {
   encrypted: boolean; // Whether this inbox uses encryption
   emailAuth: boolean; // Whether email authentication (SPF, DKIM, DMARC, PTR) is enabled
   spamAnalysis?: boolean; // Whether spam analysis is enabled (undefined = use global default)
+  chaos?: InboxChaosConfig; // Chaos engineering configuration (only when VSB_CHAOS_ENABLED=true)
   createdAt: Date;
   expiresAt: Date;
   emails: Map<string, StoredEmail>; // Map<emailId, StoredEmail>

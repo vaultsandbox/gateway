@@ -23,9 +23,11 @@
           >
             <i
               [class]="
-                mailManager.selectedInbox()?.inboxHash === inbox.inboxHash
-                  ? 'pi pi-inbox text-base! leading-none! text-primary-600 dark:text-primary-400'
-                  : 'pi pi-inbox text-base! leading-none! text-surface-500 dark:text-surface-400'
+                isChaosActive(inbox.emailAddress)
+                  ? 'pi pi-exclamation-triangle text-base! leading-none! text-red-500 dark:text-red-400'
+                  : mailManager.selectedInbox()?.inboxHash === inbox.inboxHash
+                    ? 'pi pi-inbox text-base! leading-none! text-primary-600 dark:text-primary-400'
+                    : 'pi pi-inbox text-base! leading-none! text-surface-500 dark:text-surface-400'
               "
             ></i>
             <span

@@ -438,6 +438,36 @@ export class EmailDetail implements OnInit, OnChanges {
   }
 
   /**
+   * Counts the number of authentication failures (SPF, DKIM, DMARC, Reverse DNS).
+   */
+  getAuthFailureCount(): number {
+    const authResults = this.email?.parsedContent?.authResults;
+    if (!authResults) {
+      return 0;
+    }
+
+    let failures = 0;
+
+    if (authResults.spf?.result?.toLowerCase() === 'fail') {
+      failures++;
+    }
+
+    if (authResults.dkim) {
+      failures += authResults.dkim.filter((d) => d.result?.toLowerCase() === 'fail').length;
+    }
+
+    if (authResults.dmarc?.result?.toLowerCase() === 'fail') {
+      failures++;
+    }
+
+    if (authResults.reverseDns?.result === 'fail') {
+      failures++;
+    }
+
+    return failures;
+  }
+
+  /**
    * Ensures the active tab remains valid when content availability changes.
    */
   private ensureActiveTabIsValid(): void {

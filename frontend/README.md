@@ -16,6 +16,8 @@ A modern Angular web application providing a rich user interface for the VaultSa
 - **Custom Inboxes**: Create and manage multiple virtual inboxes
 - **Real-Time Updates**: Server-Sent Events (SSE) for live email notifications
 - **Gateway Metrics**: Monitor SMTP server performance and health
+- **Spam Analysis Display**: Visual spam scores and detection results
+- **Chaos Engineering Controls**: Configure and trigger chaos scenarios
 - **Dark/Light Theme**: Automatic theme switching based on system preferences
 - **Quantum-Safe Decryption**: Support for ML-KEM-768 encrypted email payloads
 - **Responsive Design**: Mobile-friendly interface built with PrimeNG and Tailwind CSS

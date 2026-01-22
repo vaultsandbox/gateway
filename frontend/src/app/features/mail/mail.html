@@ -3,7 +3,10 @@
     id="app-vs-sidebar"
     class="bg-surface-0 dark:bg-surface-900 h-screen hidden lg:block shrink-0 absolute lg:static left-0 top-0 z-10 border-r border-surface-200 dark:border-surface-700 select-none w-[340px]"
   >
-    <app-mailbox-sidebar (openInboxWebhooks)="openInboxWebhooksDialog($event)"></app-mailbox-sidebar>
+    <app-mailbox-sidebar
+      (openInboxWebhooks)="openInboxWebhooksDialog($event)"
+      (openInboxChaos)="openInboxChaosDialog($event)"
+    ></app-mailbox-sidebar>
   </div>
   <div class="flex flex-col relative flex-auto min-h-0">
     <div
@@ -26,43 +29,85 @@
         @if (selectedInbox()) {
           <div class="flex items-center gap-2 min-w-0">
             <div class="flex flex-col min-w-0">
-              <span class="truncate max-w-[200px] sm:max-w-[260px] md:max-w-none">{{
-                selectedInbox()!.emailAddress
-              }}</span>
+              <span
+                class="truncate max-w-[200px] sm:max-w-[260px] md:max-w-none cursor-pointer hover:text-primary transition-colors relative overflow-hidden rounded px-1 -mx-1"
+                tabindex="0"
+                role="button"
+                (click)="copyToClipboard(selectedInbox()!.emailAddress)"
+                (keydown.enter)="copyToClipboard(selectedInbox()!.emailAddress)"
+                (keydown.space)="copyToClipboard(selectedInbox()!.emailAddress)"
+                pRipple
+              >
+                {{ selectedInbox()!.emailAddress }}
+              </span>
               <span
                 class="text-xs text-surface-500 dark:text-surface-400 truncate max-w-[200px] sm:max-w-[260px] md:max-w-none"
               >
                 Expires: {{ selectedInbox()!.expiresAt | date: dateFormat() }}
               </span>
             </div>
+            <!-- Desktop buttons -->
+            <div class="hidden sm:flex items-center gap-1">
+              <button
+                pButton
+                [text]="true"
+                [rounded]="true"
+                severity="secondary"
+                size="small"
+                (click)="handleRefresh()"
+                pRipple
+                pTooltip="Refresh emails"
+                tooltipPosition="bottom"
+                class="action-ripple"
+              >
+                <i pButtonIcon class="pi pi-refresh"></i>
+              </button>
+              @if (webhookEnabled()) {
+                <button
+                  pButton
+                  [text]="true"
+                  [rounded]="true"
+                  severity="secondary"
+                  size="small"
+                  (click)="openSelectedInboxWebhooks()"
+                  pRipple
+                  pTooltip="Webhooks"
+                  tooltipPosition="bottom"
+                  class="action-ripple"
+                >
+                  <i pButtonIcon class="pi pi-bolt"></i>
+                </button>
+              }
+              @if (chaosEnabled()) {
+                <button
+                  pButton
+                  [text]="true"
+                  [rounded]="true"
+                  [severity]="selectedInboxChaosEnabled() ? 'danger' : 'secondary'"
+                  size="small"
+                  (click)="openSelectedInboxChaos()"
+                  pRipple
+                  pTooltip="Chaos"
+                  tooltipPosition="bottom"
+                  class="action-ripple"
+                >
+                  <i pButtonIcon class="pi pi-exclamation-triangle"></i>
+                </button>
+              }
+            </div>
+            <!-- Mobile menu button -->
             <button
               pButton
               [text]="true"
               [rounded]="true"
-              severity="secondary"
+              [severity]="selectedInboxChaosEnabled() ? 'danger' : 'secondary'"
               size="small"
-              (click)="copyToClipboard(selectedInbox()!.emailAddress)"
-              pRipple
-              pTooltip="Copy email address"
-              tooltipPosition="bottom"
-              class="copy-ripple"
+              (click)="mobileMenu.toggle($event)"
+              class="sm:hidden action-ripple"
             >
-              <i pButtonIcon class="pi pi-copy"></i>
+              <i pButtonIcon class="pi pi-chevron-down"></i>
             </button>
-            <button
-              pButton
-              [text]="true"
-              [rounded]="true"
-              severity="secondary"
-              size="small"
-              (click)="handleRefresh()"
-              pRipple
-              pTooltip="Refresh emails"
-              tooltipPosition="bottom"
-              class="refresh-ripple"
-            >
-              <i pButtonIcon class="pi pi-refresh"></i>
-            </button>
+            <p-menu #mobileMenu [popup]="true" [model]="mobileMenuItems()" appendTo="body"></p-menu>
           </div>
         } @else {
           <div class="text-surface-400">No inbox selected</div>
@@ -118,5 +163,14 @@
       [scope]="webhookScope()"
       (closed)="showWebhooksDialog.set(false)"
     ></app-webhook-list-dialog>
+  }
+
+  <!-- Chaos Configuration Dialog -->
+  @if (showChaosDialog() && chaosInbox()) {
+    <app-chaos-config-dialog
+      [inbox]="chaosInbox()!"
+      (closed)="onChaosDialogClosed()"
+      (statusChanged)="onChaosStatusChanged($event)"
+    ></app-chaos-config-dialog>
   }
 </div>

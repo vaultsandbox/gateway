@@ -30,6 +30,9 @@ Set **just 1 environment variable** (VSX DNS) or **2 variables** (custom domain)
 - **Local Mode**: In-memory email storage with configurable TTL (defaults to 7 days)
 - **Web Interface**: Angular frontend served at `/app` endpoint
 - **Health Monitoring**: Built-in health checks and status endpoints
+- **[Spam Analysis](https://vaultsandbox.dev/gateway/spam-analysis/)**: SpamAssassin-style scoring and detection
+- **[Webhooks](https://vaultsandbox.dev/gateway/webhooks/)**: HTTP notifications for email events
+- **[Chaos Engineering](https://vaultsandbox.dev/gateway/chaos-engineering/)**: Test email pipeline resilience
 
 ## Monorepo Structure
 

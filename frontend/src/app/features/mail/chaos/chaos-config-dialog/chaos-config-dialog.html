@@ -1,0 +1,230 @@
+<p-dialog
+  [(visible)]="dialogVisible"
+  (visibleChange)="onVisibleChange($event)"
+  [modal]="true"
+  [style]="{ width: '700px', maxWidth: '95vw' }"
+  [draggable]="false"
+  [resizable]="false"
+  position="top"
+>
+  <ng-template pTemplate="header">
+    <div class="flex items-baseline gap-3">
+      <span class="font-semibold text-xl">Chaos Configuration</span>
+      <span class="text-gray-500 font-mono text-xs hidden md:inline">{{ inbox().emailAddress }}</span>
+    </div>
+  </ng-template>
+
+  <!-- Loading State -->
+  @if (loading()) {
+    <div class="flex flex-col items-center justify-center py-12">
+      <p-progressSpinner class="w-12 h-12" strokeWidth="4" />
+      <p class="text-gray-500 mt-4">Loading configuration...</p>
+    </div>
+  }
+
+  <!-- Error State -->
+  @if (error() && !loading()) {
+    <div class="flex flex-col items-center justify-center py-12 text-red-500">
+      <i class="pi pi-exclamation-circle text-4xl mb-4"></i>
+      <p>{{ error() }}</p>
+      <p-button label="Retry" icon="pi pi-refresh" [text]="true" (onClick)="loadConfig()" class="mt-4" />
+    </div>
+  }
+
+  <!-- Configuration Form -->
+  @if (!loading() && !error()) {
+    <div class="flex flex-col gap-6">
+      <!-- Master Enable Toggle & Expiration Date -->
+      <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <div class="flex items-center gap-4 p-4 bg-surface-50 dark:bg-surface-800 rounded-lg">
+          <p-toggleSwitch [(ngModel)]="enabled" inputId="chaos-enabled" />
+          <label for="chaos-enabled" class="font-semibold cursor-pointer">Enable Chaos</label>
+        </div>
+
+        <div class="flex flex-col gap-2 p-4 bg-surface-50 dark:bg-surface-800 rounded-lg">
+          <span class="text-sm text-gray-600 dark:text-gray-400">Auto-disable after</span>
+          <p-datepicker
+            [(ngModel)]="expiresAt"
+            [showTime]="true"
+            [showIcon]="true"
+            [minDate]="minExpirationDate"
+            dateFormat="yy-mm-dd"
+            placeholder="No expiration"
+            [showButtonBar]="true"
+            appendTo="body"
+          />
+        </div>
+      </div>
+
+      <!-- Chaos Types (ordered by execution priority) -->
+      <div class="flex flex-col gap-2">
+        <!-- 1. Connection Drop (most disruptive) -->
+        <div class="border border-surface-200 dark:border-surface-700 rounded-lg overflow-hidden">
+          <div class="flex items-center justify-between p-3 bg-surface-50 dark:bg-surface-800">
+            <div class="flex items-center gap-2">
+              <i class="pi pi-times-circle text-red-500"></i>
+              <span class="font-medium">Connection Drop</span>
+            </div>
+            <p-toggleSwitch [(ngModel)]="connectionDropEnabled" />
+          </div>
+          @if (connectionDropEnabled()) {
+            <div class="flex flex-col gap-4 p-4 border-t border-surface-200 dark:border-surface-700">
+              <div class="flex flex-col gap-2">
+                <span class="text-sm text-gray-600 dark:text-gray-400"
+                  >Probability: {{ connectionDropProbability() }}%</span
+                >
+                <p-slider [(ngModel)]="connectionDropProbability" [min]="0" [max]="100" />
+              </div>
+              <div class="flex items-center gap-4">
+                <p-checkbox [(ngModel)]="connectionDropGraceful" [binary]="true" inputId="connection-drop-graceful" />
+                <label for="connection-drop-graceful" class="cursor-pointer">Graceful close (FIN vs RST)</label>
+              </div>
+            </div>
+          }
+        </div>
+
+        <!-- 2. Greylisting -->
+        <div class="border border-surface-200 dark:border-surface-700 rounded-lg overflow-hidden">
+          <div class="flex items-center justify-between p-3 bg-surface-50 dark:bg-surface-800">
+            <div class="flex items-center gap-2">
+              <i class="pi pi-history text-purple-500"></i>
+              <span class="font-medium">Greylisting</span>
+            </div>
+            <p-toggleSwitch [(ngModel)]="greylistEnabled" />
+          </div>
+          @if (greylistEnabled()) {
+            <div class="flex flex-col gap-4 p-4 border-t border-surface-200 dark:border-surface-700">
+              <div class="grid grid-cols-2 gap-4">
+                <div class="flex flex-col gap-2">
+                  <span class="text-sm text-gray-600 dark:text-gray-400">Retry Window (ms)</span>
+                  <p-inputNumber [(ngModel)]="greylistRetryWindowMs" [min]="0" suffix=" ms" />
+                </div>
+                <div class="flex flex-col gap-2">
+                  <span class="text-sm text-gray-600 dark:text-gray-400">Max Attempts</span>
+                  <p-inputNumber [(ngModel)]="greylistMaxAttempts" [min]="1" />
+                </div>
+              </div>
+              <div class="flex flex-col gap-2">
+                <span class="text-sm text-gray-600 dark:text-gray-400">Track By</span>
+                <p-select
+                  [(ngModel)]="greylistTrackBy"
+                  [options]="trackByOptions"
+                  optionLabel="label"
+                  optionValue="value"
+                />
+              </div>
+            </div>
+          }
+        </div>
+
+        <!-- 3. Random Errors -->
+        <div class="border border-surface-200 dark:border-surface-700 rounded-lg overflow-hidden">
+          <div class="flex items-center justify-between p-3 bg-surface-50 dark:bg-surface-800">
+            <div class="flex items-center gap-2">
+              <i class="pi pi-exclamation-triangle text-orange-500"></i>
+              <span class="font-medium">Random Errors</span>
+            </div>
+            <p-toggleSwitch [(ngModel)]="randomErrorEnabled" />
+          </div>
+          @if (randomErrorEnabled()) {
+            <div class="flex flex-col gap-4 p-4 border-t border-surface-200 dark:border-surface-700">
+              <div class="flex flex-col gap-2">
+                <span class="text-sm text-gray-600 dark:text-gray-400">Error Rate: {{ randomErrorRate() }}%</span>
+                <p-slider [(ngModel)]="randomErrorRate" [min]="0" [max]="100" />
+              </div>
+              <div class="flex flex-col gap-2">
+                <span class="text-sm text-gray-600 dark:text-gray-400">Error Types</span>
+                <p-multiselect
+                  [(ngModel)]="randomErrorTypes"
+                  [options]="errorTypeOptions"
+                  optionLabel="label"
+                  optionValue="value"
+                  placeholder="Select error types"
+                />
+              </div>
+            </div>
+          }
+        </div>
+
+        <!-- 4. Blackhole -->
+        <div class="border border-surface-200 dark:border-surface-700 rounded-lg overflow-hidden">
+          <div class="flex items-center justify-between p-3 bg-surface-50 dark:bg-surface-800">
+            <div class="flex items-center gap-2">
+              <i class="pi pi-ban text-gray-500"></i>
+              <span class="font-medium">Blackhole</span>
+            </div>
+            <p-toggleSwitch [(ngModel)]="blackholeEnabled" />
+          </div>
+          @if (blackholeEnabled()) {
+            <div class="flex flex-col gap-4 p-4 border-t border-surface-200 dark:border-surface-700">
+              <div
+                class="p-3 bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-800 rounded text-sm text-yellow-700 dark:text-yellow-400"
+              >
+                <i class="pi pi-info-circle mr-2"></i>
+                Emails will be accepted but silently discarded (not stored).
+              </div>
+              <div class="flex items-center gap-4">
+                <p-checkbox [(ngModel)]="blackholeTriggerWebhooks" [binary]="true" inputId="blackhole-webhooks" />
+                <label for="blackhole-webhooks" class="cursor-pointer">Still trigger webhooks</label>
+              </div>
+            </div>
+          }
+        </div>
+
+        <!-- 5. Latency Injection (least disruptive) -->
+        <div class="border border-surface-200 dark:border-surface-700 rounded-lg overflow-hidden">
+          <div class="flex items-center justify-between p-3 bg-surface-50 dark:bg-surface-800">
+            <div class="flex items-center gap-2">
+              <i class="pi pi-clock text-blue-500"></i>
+              <span class="font-medium">Latency Injection</span>
+            </div>
+            <p-toggleSwitch [(ngModel)]="latencyEnabled" />
+          </div>
+          @if (latencyEnabled()) {
+            <div class="flex flex-col gap-4 p-4 border-t border-surface-200 dark:border-surface-700">
+              <div class="grid grid-cols-2 gap-4">
+                <div class="flex flex-col gap-2">
+                  <span class="text-sm text-gray-600 dark:text-gray-400">Min Delay (ms)</span>
+                  <p-inputNumber [(ngModel)]="latencyMinDelayMs" [min]="0" [max]="latencyMaxDelayMs()" suffix=" ms" />
+                </div>
+                <div class="flex flex-col gap-2">
+                  <span class="text-sm text-gray-600 dark:text-gray-400">Max Delay (ms)</span>
+                  <p-inputNumber
+                    [(ngModel)]="latencyMaxDelayMs"
+                    [min]="latencyMinDelayMs()"
+                    [max]="60000"
+                    suffix=" ms"
+                  />
+                </div>
+              </div>
+              <div class="flex items-center gap-4">
+                <p-checkbox [(ngModel)]="latencyJitter" [binary]="true" inputId="latency-jitter" />
+                <label for="latency-jitter" class="cursor-pointer">Randomize delay (jitter)</label>
+              </div>
+              <div class="flex flex-col gap-2">
+                <span class="text-sm text-gray-600 dark:text-gray-400">Probability: {{ latencyProbability() }}%</span>
+                <p-slider [(ngModel)]="latencyProbability" [min]="0" [max]="100" />
+              </div>
+            </div>
+          }
+        </div>
+      </div>
+
+      <!-- Action Buttons -->
+      <div class="flex justify-between items-center pt-4 border-t border-surface-200 dark:border-surface-700">
+        <p-button
+          label="Disable All"
+          icon="pi pi-ban"
+          severity="danger"
+          [text]="true"
+          (onClick)="confirmDisableAll()"
+          [loading]="saving()"
+        />
+        <div class="flex gap-2">
+          <p-button label="Cancel" severity="secondary" [text]="true" (onClick)="cancel()" [disabled]="saving()" />
+          <p-button label="Save" icon="pi pi-check" (onClick)="saveConfig()" [loading]="saving()" />
+        </div>
+      </div>
+    </div>
+  }
+</p-dialog>

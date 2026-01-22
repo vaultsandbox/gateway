@@ -1,4 +1,4 @@
-import { Component, inject, model, ViewChild, signal, computed, output } from '@angular/core';
+import { Component, inject, model, ViewChild, signal, computed, output, effect } from '@angular/core';
 import { Badge } from 'primeng/badge';
 import { VsLogo } from '../../../shared/components/vs-logo/vs-logo';
 import { ButtonModule } from 'primeng/button';
@@ -16,6 +16,7 @@ import { ServerInfoService } from '../services/server-info.service';
 import { SettingsManager } from '../services/settings-manager';
 import { RippleModule } from 'primeng/ripple';
 import { TOAST_DURATION_MS } from '../../../shared/constants/app.constants';
+import { ChaosService } from '../chaos/services/chaos.service';
 
 @Component({
   selector: 'app-mailbox-sidebar',
@@ -33,6 +34,7 @@ export class MailboxSidebar {
   private readonly api = inject(VaultSandboxApi);
   private readonly serverInfoService = inject(ServerInfoService);
   private readonly settingsManager = inject(SettingsManager);
+  private readonly chaosService = inject(ChaosService);
 
   @ViewChild('cm') contextMenu!: ContextMenu;
   protected menuItems: MenuItem[] = [];
@@ -41,6 +43,12 @@ export class MailboxSidebar {
 
   /** Emits when the user requests to manage webhooks for an inbox */
   openInboxWebhooks = output<InboxModel>();
+
+  /** Emits when the user requests to configure chaos for an inbox */
+  openInboxChaos = output<InboxModel>();
+
+  /** Track which inboxes have chaos enabled (email -> enabled) */
+  private inboxChaosStatus = signal<Record<string, boolean>>({});
 
   /**
    * Builds the "create inbox" menu with options gated by server configuration.
@@ -60,10 +68,36 @@ export class MailboxSidebar {
   });
 
   /**
-   * Constructor
+   * Constructor - sets up effect to load chaos status when server info becomes available
    */
   constructor() {
-    // Server info is fetched at app initialization via APP_INITIALIZER
+    // Load chaos status for all inboxes when chaos is enabled on the server
+    effect(() => {
+      const serverInfo = this.serverInfoService.serverInfo();
+      if (serverInfo?.chaosEnabled) {
+        this.loadAllChaosStatuses();
+      }
+    });
+  }
+
+  /**
+   * Loads chaos status for all inboxes.
+   * Silently ignores 404 errors (no chaos config exists).
+   */
+  private async loadAllChaosStatuses(): Promise<void> {
+    const statusUpdates: Record<string, boolean> = {};
+    for (const inbox of this.mailManager.inboxes) {
+      try {
+        const config = await firstValueFrom(this.chaosService.get(inbox.emailAddress));
+        statusUpdates[inbox.emailAddress] = config.enabled;
+      } catch (err) {
+        // 404 means no config exists - inbox has no chaos enabled
+        if ((err as { status?: number })?.status === 404) {
+          statusUpdates[inbox.emailAddress] = false;
+        }
+      }
+    }
+    this.inboxChaosStatus.update((current) => ({ ...current, ...statusUpdates }));
   }
 
   /**
@@ -129,25 +163,37 @@ export class MailboxSidebar {
     event.preventDefault();
     this.selectedInboxForMenu = inbox;
 
+    const serverInfo = this.serverInfoService.serverInfo();
+
     // Build menu items dynamically
     this.menuItems = [
+      {
+        label: 'Webhooks',
+        icon: 'pi pi-bolt',
+        command: () => this.openInboxWebhooks.emit(this.selectedInboxForMenu!),
+      },
+      // Conditionally add Chaos menu item when chaos is enabled on server
+      ...(serverInfo?.chaosEnabled
+        ? [
+            {
+              label: 'Chaos',
+              icon: 'pi pi-exclamation-triangle',
+              command: () => this.openInboxChaos.emit(this.selectedInboxForMenu!),
+            },
+          ]
+        : []),
       {
         label: 'Export Inbox',
         icon: 'pi pi-download',
         command: () => this.exportInbox(this.selectedInboxForMenu!),
       },
       {
-        label: 'Webhooks',
-        icon: 'pi pi-bolt',
-        command: () => this.openInboxWebhooks.emit(this.selectedInboxForMenu!),
+        separator: true,
       },
       {
         label: 'Forget Inbox',
         icon: 'pi pi-eye-slash',
         command: () => this.forgetInbox(this.selectedInboxForMenu!),
-      },
-      {
-        separator: true,
       },
       {
         label: 'Delete All Emails',
@@ -323,5 +369,23 @@ export class MailboxSidebar {
    */
   openCustomInboxDialog() {
     this.showCustomInboxDialog.set(true);
+  }
+
+  /**
+   * Updates the chaos status for an inbox.
+   * @param emailAddress The inbox email address
+   * @param enabled Whether chaos is enabled for the inbox
+   */
+  updateInboxChaosStatus(emailAddress: string, enabled: boolean): void {
+    this.inboxChaosStatus.update((current) => ({ ...current, [emailAddress]: enabled }));
+  }
+
+  /**
+   * Checks if chaos is enabled for an inbox.
+   * @param emailAddress The inbox email address
+   * @returns Whether chaos is enabled for the inbox
+   */
+  isChaosActive(emailAddress: string): boolean {
+    return this.inboxChaosStatus()[emailAddress] ?? false;
   }
 }

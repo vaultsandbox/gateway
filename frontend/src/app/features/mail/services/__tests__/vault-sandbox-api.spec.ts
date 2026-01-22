@@ -55,6 +55,7 @@ describe('VaultSandboxApi', () => {
         webhookEnabled: false,
         webhookRequireAuthDefault: true,
         spamAnalysisEnabled: false,
+        chaosEnabled: false,
       };
 
       service.getServerInfo().subscribe((response) => {

@@ -351,6 +351,7 @@ describe('InboxService', () => {
         true, // encrypted
         true, // emailAuth
         true, // spamAnalysis
+        undefined, // chaos
       );
     });
 
@@ -408,6 +409,7 @@ describe('InboxService', () => {
         true, // encrypted
         true, // emailAuth
         true, // spamAnalysis
+        undefined, // chaos
       );
     });
 
@@ -440,6 +442,7 @@ describe('InboxService', () => {
         true, // encrypted
         true, // emailAuth
         true, // spamAnalysis
+        undefined, // chaos
       );
     });
 
@@ -478,6 +481,7 @@ describe('InboxService', () => {
         true, // encrypted
         true, // emailAuth
         true, // spamAnalysis
+        undefined, // chaos
       );
     });
 
@@ -492,6 +496,7 @@ describe('InboxService', () => {
         true, // encrypted
         true, // emailAuth
         true, // spamAnalysis
+        undefined, // chaos
       );
     });
 
@@ -708,6 +713,7 @@ describe('InboxService', () => {
         sseConsole: false,
         allowClearAllInboxes: true,
         allowedDomains: ['vaultsandbox.test', 'example.com'],
+        chaosEnabled: false,
         encryptionPolicy: 'always',
         webhookEnabled: true,
         webhookRequireAuthDefault: false,

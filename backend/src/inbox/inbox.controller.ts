@@ -13,6 +13,7 @@ import {
   HttpStatus,
   NotFoundException,
   Logger,
+  Optional,
 } from '@nestjs/common';
 import {
   ApiTags,
@@ -38,6 +39,10 @@ import {
   RawEmailResponseDto,
   ClearAllInboxesResponseDto,
 } from './dto/response.dto';
+import { ChaosService } from '../chaos/chaos.service';
+import { ChaosEnabledGuard } from '../chaos/chaos.guard';
+import { CreateChaosConfigDto } from '../chaos/dto/chaos-config.dto';
+import { ChaosConfigResponseDto } from '../chaos/dto/chaos-response.dto';
 
 @ApiTags('Inbox')
 @ApiSecurity('api-key')
@@ -45,8 +50,11 @@ import {
 export class InboxController {
   private readonly logger = new Logger(InboxController.name);
 
-  /* v8 ignore next - false positive on constructor parameter property */
-  constructor(private readonly inboxService: InboxService) {}
+  /* v8 ignore next 4 - false positive on constructor parameter properties */
+  constructor(
+    private readonly inboxService: InboxService,
+    @Optional() private readonly chaosService?: ChaosService,
+  ) {}
 
   /**
    * GET /api/check-key
@@ -100,7 +108,7 @@ export class InboxController {
   /* v8 ignore next - decorator metadata evaluation */
   createInbox(@Body() createInboxDto: CreateInboxDto): CreateInboxResponseDto {
     this.logger.debug(
-      `POST /api/inboxes (encryption=${createInboxDto.encryption || 'default'}, emailAuth=${createInboxDto.emailAuth ?? 'default'}, spamAnalysis=${createInboxDto.spamAnalysis ?? 'default'})`,
+      `POST /api/inboxes (encryption=${createInboxDto.encryption || 'default'}, emailAuth=${createInboxDto.emailAuth ?? 'default'}, spamAnalysis=${createInboxDto.spamAnalysis ?? 'default'}, chaos=${createInboxDto.chaos?.enabled ?? 'default'})`,
     );
 
     const { inbox, serverSigPk } = this.inboxService.createInbox(
@@ -110,6 +118,7 @@ export class InboxController {
       createInboxDto.encryption,
       createInboxDto.emailAuth,
       createInboxDto.spamAnalysis,
+      createInboxDto.chaos,
     );
 
     return {
@@ -119,6 +128,7 @@ export class InboxController {
       encrypted: inbox.encrypted,
       emailAuth: inbox.emailAuth,
       spamAnalysis: inbox.spamAnalysis,
+      chaos: inbox.chaos,
       ...(serverSigPk && { serverSigPk }),
     };
   }
@@ -319,5 +329,101 @@ export class InboxController {
     const removed = this.inboxService.clearAllInboxes();
 
     return { deleted: removed };
+  }
+
+  /**
+   * GET /api/inboxes/:emailAddress/chaos
+   * Get chaos configuration for an inbox
+   * Requires X-API-Key header and VSB_CHAOS_ENABLED=true
+   */
+  @Get('inboxes/:emailAddress/chaos')
+  @UseGuards(ApiKeyGuard, ChaosEnabledGuard)
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({
+    summary: 'Get chaos configuration',
+    description: 'Returns the chaos engineering configuration for an inbox. Requires VSB_CHAOS_ENABLED=true.',
+  })
+  @ApiParam({ name: 'emailAddress', description: 'The email address of the inbox.' })
+  @ApiOkResponse({ type: ChaosConfigResponseDto, description: 'The chaos configuration for the inbox.' })
+  @ApiResponse({ status: 401, description: 'Unauthorized, API key is missing or invalid.' })
+  @ApiResponse({ status: 403, description: 'Forbidden, chaos engineering is disabled globally.' })
+  @ApiResponse({ status: 404, description: 'Inbox not found.' })
+  /* v8 ignore next - decorator metadata evaluation */
+  getChaosConfig(@Param('emailAddress') emailAddress: string): ChaosConfigResponseDto {
+    this.logger.debug(`GET /api/inboxes/${emailAddress}/chaos`);
+
+    const inbox = this.inboxService.getInboxByEmail(emailAddress);
+    if (!inbox) {
+      throw new NotFoundException(`Inbox not found: ${emailAddress}`);
+    }
+
+    // Return chaos config or default disabled config
+    return inbox.chaos ?? { enabled: false };
+  }
+
+  /**
+   * POST /api/inboxes/:emailAddress/chaos
+   * Set chaos configuration for an inbox
+   * Requires X-API-Key header and VSB_CHAOS_ENABLED=true
+   */
+  @Post('inboxes/:emailAddress/chaos')
+  @UseGuards(ApiKeyGuard, ChaosEnabledGuard)
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({
+    summary: 'Set chaos configuration',
+    description: 'Updates the chaos engineering configuration for an inbox. Requires VSB_CHAOS_ENABLED=true.',
+  })
+  @ApiParam({ name: 'emailAddress', description: 'The email address of the inbox.' })
+  @ApiOkResponse({ type: ChaosConfigResponseDto, description: 'The updated chaos configuration.' })
+  @ApiResponse({ status: 401, description: 'Unauthorized, API key is missing or invalid.' })
+  @ApiResponse({ status: 403, description: 'Forbidden, chaos engineering is disabled globally.' })
+  @ApiResponse({ status: 404, description: 'Inbox not found.' })
+  /* v8 ignore next 4 - decorator metadata evaluation */
+  setChaosConfig(
+    @Param('emailAddress') emailAddress: string,
+    @Body() chaosConfig: CreateChaosConfigDto,
+  ): ChaosConfigResponseDto {
+    this.logger.debug(`POST /api/inboxes/${emailAddress}/chaos (enabled=${chaosConfig.enabled})`);
+
+    const inbox = this.inboxService.getInboxByEmail(emailAddress);
+    if (!inbox) {
+      throw new NotFoundException(`Inbox not found: ${emailAddress}`);
+    }
+
+    // Normalize and update chaos config
+    const normalizedConfig = this.chaosService!.normalizeConfig(chaosConfig);
+    this.inboxService['storageService'].updateChaosConfig(emailAddress, normalizedConfig);
+
+    return normalizedConfig;
+  }
+
+  /**
+   * DELETE /api/inboxes/:emailAddress/chaos
+   * Disable all chaos for an inbox
+   * Requires X-API-Key header and VSB_CHAOS_ENABLED=true
+   */
+  @Delete('inboxes/:emailAddress/chaos')
+  @UseGuards(ApiKeyGuard, ChaosEnabledGuard)
+  @HttpCode(HttpStatus.NO_CONTENT)
+  @ApiOperation({
+    summary: 'Disable chaos',
+    description: 'Disables all chaos engineering features for an inbox. Requires VSB_CHAOS_ENABLED=true.',
+  })
+  @ApiParam({ name: 'emailAddress', description: 'The email address of the inbox.' })
+  @ApiNoContentResponse({ description: 'Chaos disabled successfully.' })
+  @ApiResponse({ status: 401, description: 'Unauthorized, API key is missing or invalid.' })
+  @ApiResponse({ status: 403, description: 'Forbidden, chaos engineering is disabled globally.' })
+  @ApiResponse({ status: 404, description: 'Inbox not found.' })
+  disableChaos(@Param('emailAddress') emailAddress: string): void {
+    this.logger.debug(`DELETE /api/inboxes/${emailAddress}/chaos`);
+
+    const inbox = this.inboxService.getInboxByEmail(emailAddress);
+    if (!inbox) {
+      throw new NotFoundException(`Inbox not found: ${emailAddress}`);
+    }
+
+    // Set chaos.enabled = false
+    this.inboxService['storageService'].updateChaosConfig(emailAddress, { enabled: false });
+    return;
   }
 }

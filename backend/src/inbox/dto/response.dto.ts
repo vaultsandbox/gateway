@@ -1,6 +1,7 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 
 import type { SpamSymbol, SpamAnalysisResult } from '../../smtp/interfaces/email-session.interface';
+import type { InboxChaosConfig } from '../../chaos/interfaces/chaos-config.interface';
 
 /**
  * DTO for encrypted payload structure used in email encryption
@@ -183,6 +184,12 @@ export class ServerInfoResponseDto {
     example: false,
   })
   spamAnalysisEnabled: boolean;
+
+  @ApiProperty({
+    description: 'Whether chaos engineering is enabled on this server',
+    example: false,
+  })
+  chaosEnabled: boolean;
 }
 
 /**
@@ -225,6 +232,11 @@ export class CreateInboxResponseDto {
     example: true,
   })
   spamAnalysis?: boolean;
+
+  @ApiPropertyOptional({
+    description: 'Chaos engineering configuration. Only present when VSB_CHAOS_ENABLED=true and chaos was configured.',
+  })
+  chaos?: InboxChaosConfig;
 
   @ApiPropertyOptional({
     description:

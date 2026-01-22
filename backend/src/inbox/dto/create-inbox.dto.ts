@@ -1,5 +1,7 @@
-import { IsString, IsOptional, IsInt, MaxLength, IsIn, IsBoolean } from 'class-validator';
+import { IsString, IsOptional, IsInt, MaxLength, IsIn, IsBoolean, ValidateNested } from 'class-validator';
+import { Type } from 'class-transformer';
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
+import { CreateChaosConfigDto } from '../../chaos/dto/chaos-config.dto';
 
 export class CreateInboxDto {
   @ApiPropertyOptional({
@@ -56,4 +58,12 @@ export class CreateInboxDto {
   @IsOptional()
   @IsBoolean()
   spamAnalysis?: boolean;
+
+  @ApiPropertyOptional({
+    description: 'Chaos engineering configuration. Only processed when VSB_CHAOS_ENABLED=true. Defaults to disabled.',
+  })
+  @IsOptional()
+  @ValidateNested()
+  @Type(() => CreateChaosConfigDto)
+  chaos?: CreateChaosConfigDto;
 }

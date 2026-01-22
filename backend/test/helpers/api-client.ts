@@ -7,11 +7,44 @@ export interface ApiClientOptions {
   basePath?: string;
 }
 
+export interface ChaosConfig {
+  enabled: boolean;
+  expiresAt?: string;
+  latency?: {
+    enabled: boolean;
+    minDelayMs?: number;
+    maxDelayMs?: number;
+    jitter?: boolean;
+    probability?: number;
+  };
+  connectionDrop?: {
+    enabled: boolean;
+    probability?: number;
+    graceful?: boolean;
+  };
+  randomError?: {
+    enabled: boolean;
+    errorRate?: number;
+    errorTypes?: ('temporary' | 'permanent')[];
+  };
+  greylist?: {
+    enabled: boolean;
+    retryWindowMs?: number;
+    maxAttempts?: number;
+    trackBy?: 'ip' | 'sender' | 'ip_sender';
+  };
+  blackhole?: {
+    enabled: boolean;
+    triggerWebhooks?: boolean;
+  };
+}
+
 export interface CreateInboxBody {
   clientKemPk?: string;
   ttl?: number;
   emailAddress?: string;
   encryption?: 'encrypted' | 'plain';
+  chaos?: ChaosConfig;
 }
 
 export interface AuthOptions {
@@ -225,6 +258,22 @@ export class ApiClient {
 
   rotateInboxWebhookSecret(email: string, id: string) {
     return this.post(`/inboxes/${encodeURIComponent(email)}/webhooks/${encodeURIComponent(id)}/rotate-secret`);
+  }
+
+  // ============================================
+  // Inbox Chaos Configuration
+  // ============================================
+
+  getChaosConfig(emailAddress: string) {
+    return this.get(`/inboxes/${encodeURIComponent(emailAddress)}/chaos`);
+  }
+
+  setChaosConfig(emailAddress: string, config: ChaosConfig) {
+    return this.post(`/inboxes/${encodeURIComponent(emailAddress)}/chaos`).send(config);
+  }
+
+  disableChaos(emailAddress: string) {
+    return this.delete(`/inboxes/${encodeURIComponent(emailAddress)}/chaos`);
   }
 }
 

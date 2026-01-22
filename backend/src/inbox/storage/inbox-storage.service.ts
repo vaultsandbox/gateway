@@ -2,6 +2,7 @@ import { Injectable, Logger, NotFoundException, ConflictException } from '@nestj
 import { createHash } from 'crypto';
 import { Inbox, StoredEmail } from '../interfaces';
 import type { IWebhookStorageService } from '../../webhook/interfaces/webhook.interface';
+import type { InboxChaosConfig } from '../../chaos/interfaces/chaos-config.interface';
 
 // Interface for EmailStorageService to avoid circular dependency
 interface IEmailStorageService {
@@ -37,6 +38,7 @@ export class InboxStorageService {
     encrypted: boolean,
     emailAuth: boolean,
     spamAnalysis?: boolean,
+    chaos?: InboxChaosConfig,
   ): Inbox {
     // Normalize email to lowercase for case-insensitive lookups
     const normalizedEmail = emailAddress.toLowerCase();
@@ -61,6 +63,7 @@ export class InboxStorageService {
       encrypted,
       emailAuth,
       spamAnalysis,
+      chaos,
       createdAt: new Date(),
       expiresAt,
       emails: new Map(),
@@ -82,6 +85,21 @@ export class InboxStorageService {
   getInbox(emailAddress: string): Inbox | undefined {
     // Normalize email to lowercase for case-insensitive lookups
     return this.inboxes.get(emailAddress.toLowerCase());
+  }
+
+  /**
+   * Update chaos configuration for an inbox
+   */
+  updateChaosConfig(emailAddress: string, chaos: InboxChaosConfig | undefined): Inbox {
+    const normalizedEmail = emailAddress.toLowerCase();
+    const inbox = this.inboxes.get(normalizedEmail);
+    if (!inbox) {
+      throw new NotFoundException(`Inbox not found: ${normalizedEmail}`);
+    }
+
+    inbox.chaos = chaos;
+    this.logger.log(`Chaos config ${chaos?.enabled ? 'enabled' : 'disabled'} for inbox ${normalizedEmail}`);
+    return inbox;
   }
 
   /**

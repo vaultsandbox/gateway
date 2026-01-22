@@ -73,7 +73,39 @@ export class SmtpTestClient {
 
   private async send(connection: SMTPConnection, envelope: Envelope, message: Buffer): Promise<SendResponse> {
     return new Promise<SendResponse>((resolve, reject) => {
+      let settled = false;
+
+      // Handle connection close events (for chaos connection drop testing)
+      const onClose = () => {
+        if (!settled) {
+          settled = true;
+          reject(new Error('Connection closed unexpectedly'));
+        }
+      };
+
+      const onError = (err: Error) => {
+        if (!settled) {
+          settled = true;
+          reject(err);
+        }
+      };
+
+      // Listen for connection events
+      connection.on('close', onClose);
+      connection.on('error', onError);
+      connection.on('end', onClose);
+
       connection.send(envelope, message, (error: Error | null, info: SendResponse) => {
+        // Clean up listeners
+        connection.off('close', onClose);
+        connection.off('error', onError);
+        connection.off('end', onClose);
+
+        if (settled) {
+          return; // Already handled by event
+        }
+        settled = true;
+
         if (error) {
           reject(error);
           return;

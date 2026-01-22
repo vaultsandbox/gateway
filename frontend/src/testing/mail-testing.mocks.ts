@@ -401,6 +401,7 @@ export class ServerInfoServiceStub implements Partial<ServerInfoService> {
     webhookEnabled: true,
     webhookRequireAuthDefault: false,
     spamAnalysisEnabled: false,
+    chaosEnabled: false,
   });
 
   get serverInfo() {
@@ -449,6 +450,7 @@ export class VaultSandboxApiStub implements Partial<VaultSandboxApi> {
       webhookEnabled: true,
       webhookRequireAuthDefault: false,
       spamAnalysisEnabled: false,
+      chaosEnabled: false,
     });
   }
 

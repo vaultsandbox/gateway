@@ -9,6 +9,7 @@ import { ServerInfoService } from '../services/server-info.service';
 import { SettingsManager } from '../services/settings-manager';
 import { VsToast } from '../../../shared/services/vs-toast';
 import { MailManagerStub, ServerInfoServiceStub, SettingsManagerStub } from '../../../../testing/mail-testing.mocks';
+import { ChaosService } from '../chaos/services/chaos.service';
 import { InboxModel, EmailItemModel } from '../interfaces';
 import { TOAST_DURATION_MS } from '../../../shared/constants/app.constants';
 import { SanitizationLevel } from '../services/settings-manager';
@@ -48,6 +49,9 @@ describe('MailboxSidebar', () => {
 
     toastSpy = jasmine.createSpyObj('VsToast', ['showSuccess', 'showError', 'showWarning', 'showInfo']);
 
+    const chaosServiceSpy = jasmine.createSpyObj('ChaosService', ['get']);
+    chaosServiceSpy.get.and.returnValue(throwError(() => ({ status: 404 })));
+
     await TestBed.configureTestingModule({
       imports: [MailboxSidebar],
       providers: [
@@ -58,6 +62,7 @@ describe('MailboxSidebar', () => {
         { provide: ServerInfoService, useClass: ServerInfoServiceStub },
         { provide: SettingsManager, useClass: SettingsManagerStub },
         { provide: VsToast, useValue: toastSpy },
+        { provide: ChaosService, useValue: chaosServiceSpy },
       ],
     }).compileComponents();
 
@@ -140,6 +145,7 @@ describe('MailboxSidebar', () => {
           webhookEnabled: false,
           webhookRequireAuthDefault: true,
           spamAnalysisEnabled: false,
+          chaosEnabled: false,
         }).asReadonly(),
       );
 
@@ -248,10 +254,10 @@ describe('MailboxSidebar', () => {
       component.onInboxRightClick(event, inbox);
 
       const menuItems = (component as unknown as { menuItems: { label?: string; separator?: boolean }[] }).menuItems;
-      expect(menuItems[0].label).toBe('Export Inbox');
-      expect(menuItems[1].label).toBe('Webhooks');
-      expect(menuItems[2].label).toBe('Forget Inbox');
-      expect(menuItems[3].separator).toBe(true);
+      expect(menuItems[0].label).toBe('Webhooks');
+      expect(menuItems[1].label).toBe('Export Inbox');
+      expect(menuItems[2].separator).toBe(true);
+      expect(menuItems[3].label).toBe('Forget Inbox');
       expect(menuItems[4].label).toBe('Delete All Emails');
       expect(menuItems[5].label).toBe('Delete Inbox');
     });
@@ -277,7 +283,7 @@ describe('MailboxSidebar', () => {
       component.onInboxRightClick(event, inbox);
 
       const menuItems = (component as unknown as { menuItems: { command?: () => void }[] }).menuItems;
-      menuItems[0].command?.(); // Export Inbox
+      menuItems[1].command?.(); // Export Inbox
 
       expect(exportSpy).toHaveBeenCalledWith(inbox);
     });
@@ -290,7 +296,7 @@ describe('MailboxSidebar', () => {
       component.onInboxRightClick(event, inbox);
 
       const menuItems = (component as unknown as { menuItems: { command?: () => void }[] }).menuItems;
-      menuItems[1].command?.(); // Webhooks
+      menuItems[0].command?.(); // Webhooks
 
       expect(webhooksSpy).toHaveBeenCalledWith(inbox);
     });
@@ -303,7 +309,7 @@ describe('MailboxSidebar', () => {
       component.onInboxRightClick(event, inbox);
 
       const menuItems = (component as unknown as { menuItems: { command?: () => void }[] }).menuItems;
-      menuItems[2].command?.(); // Forget Inbox (index 2, after Webhooks at 1)
+      menuItems[3].command?.(); // Forget Inbox (index 3, after separator at 2)
 
       expect(forgetSpy).toHaveBeenCalledWith(inbox);
     });
@@ -610,6 +616,7 @@ describe('MailboxSidebar', () => {
           webhookEnabled: false,
           webhookRequireAuthDefault: true,
           spamAnalysisEnabled: false,
+          chaosEnabled: false,
         }).asReadonly(),
       );
 
@@ -634,6 +641,7 @@ describe('MailboxSidebar', () => {
           webhookEnabled: false,
           webhookRequireAuthDefault: true,
           spamAnalysisEnabled: false,
+          chaosEnabled: false,
         }).asReadonly(),
       );
 
@@ -661,6 +669,204 @@ describe('MailboxSidebar', () => {
         component as unknown as { createInboxMenuItems: () => { disabled: boolean }[] }
       ).createInboxMenuItems();
       expect(menuItems[0].disabled).toBe(true);
+    });
+  });
+
+  describe('chaos functionality', () => {
+    let chaosServiceSpy: jasmine.SpyObj<ChaosService>;
+
+    beforeEach(() => {
+      chaosServiceSpy = TestBed.inject(ChaosService) as jasmine.SpyObj<ChaosService>;
+    });
+
+    describe('constructor effect', () => {
+      it('loads chaos statuses when chaos is enabled on server info change', async () => {
+        const inbox = createMockInbox({ emailAddress: 'test@example.com', inboxHash: 'hash1' });
+        mailManager.setInboxes([inbox]);
+
+        chaosServiceSpy.get.and.returnValue(of({ enabled: true, delayMs: 0, errorRate: 0, timeout: false }));
+
+        // Trigger the effect by enabling chaos via the stub's setServerInfo method
+        serverInfoService.setServerInfo({
+          serverSigPk: 'stub',
+          algs: { kem: 'ml-kem', sig: 'ml-dsa', aead: 'aes-gcm', kdf: 'hkdf' },
+          context: 'stub',
+          maxTtl: 86400,
+          defaultTtl: 3600,
+          sseConsole: false,
+          allowClearAllInboxes: true,
+          allowedDomains: [],
+          encryptionPolicy: 'always',
+          webhookEnabled: false,
+          webhookRequireAuthDefault: true,
+          spamAnalysisEnabled: false,
+          chaosEnabled: true,
+        });
+
+        // Need to trigger change detection for the effect to run
+        fixture.detectChanges();
+        await fixture.whenStable();
+
+        expect(chaosServiceSpy.get).toHaveBeenCalledWith('test@example.com');
+      });
+    });
+
+    describe('loadAllChaosStatuses', () => {
+      it('loads chaos status for all inboxes when chaos is enabled', async () => {
+        const inbox1 = createMockInbox({ emailAddress: 'inbox1@example.com', inboxHash: 'hash1' });
+        const inbox2 = createMockInbox({ emailAddress: 'inbox2@example.com', inboxHash: 'hash2' });
+        mailManager.setInboxes([inbox1, inbox2]);
+
+        chaosServiceSpy.get.and.callFake((email: string) => {
+          if (email === 'inbox1@example.com') {
+            return of({ enabled: true, delayMs: 0, errorRate: 0, timeout: false });
+          }
+          return of({ enabled: false, delayMs: 0, errorRate: 0, timeout: false });
+        });
+
+        // Call the private method directly
+        await (component as unknown as { loadAllChaosStatuses: () => Promise<void> }).loadAllChaosStatuses();
+
+        expect(chaosServiceSpy.get).toHaveBeenCalledWith('inbox1@example.com');
+        expect(chaosServiceSpy.get).toHaveBeenCalledWith('inbox2@example.com');
+        expect(component.isChaosActive('inbox1@example.com')).toBe(true);
+        expect(component.isChaosActive('inbox2@example.com')).toBe(false);
+      });
+
+      it('handles 404 errors when no chaos config exists', async () => {
+        const inbox = createMockInbox({ emailAddress: 'test@example.com', inboxHash: 'hash1' });
+        mailManager.setInboxes([inbox]);
+
+        chaosServiceSpy.get.and.returnValue(throwError(() => ({ status: 404 })));
+
+        await (component as unknown as { loadAllChaosStatuses: () => Promise<void> }).loadAllChaosStatuses();
+
+        expect(component.isChaosActive('test@example.com')).toBe(false);
+      });
+
+      it('ignores non-404 errors silently', async () => {
+        const inbox = createMockInbox({ emailAddress: 'test@example.com', inboxHash: 'hash1' });
+        mailManager.setInboxes([inbox]);
+
+        chaosServiceSpy.get.and.returnValue(throwError(() => ({ status: 500 })));
+
+        await (component as unknown as { loadAllChaosStatuses: () => Promise<void> }).loadAllChaosStatuses();
+
+        // Non-404 errors are ignored, so the status remains undefined/false
+        expect(component.isChaosActive('test@example.com')).toBe(false);
+      });
+    });
+
+    describe('onInboxRightClick with chaos enabled', () => {
+      let contextMenuSpy: jasmine.SpyObj<{ show: jasmine.Spy }>;
+
+      beforeEach(() => {
+        contextMenuSpy = jasmine.createSpyObj('ContextMenu', ['show']);
+        (component as unknown as { contextMenu: typeof contextMenuSpy }).contextMenu = contextMenuSpy;
+      });
+
+      it('includes Chaos menu item when chaos is enabled on server', () => {
+        spyOnProperty(serverInfoService, 'serverInfo').and.returnValue(
+          signal({
+            serverSigPk: 'stub',
+            algs: { kem: 'ml-kem', sig: 'ml-dsa', aead: 'aes-gcm', kdf: 'hkdf' },
+            context: 'stub',
+            maxTtl: 86400,
+            defaultTtl: 3600,
+            sseConsole: false,
+            allowClearAllInboxes: true,
+            allowedDomains: [],
+            encryptionPolicy: 'always' as const,
+            webhookEnabled: false,
+            webhookRequireAuthDefault: true,
+            spamAnalysisEnabled: false,
+            chaosEnabled: true,
+          }).asReadonly(),
+        );
+
+        const event = jasmine.createSpyObj('MouseEvent', ['preventDefault']);
+        const inbox = createMockInbox();
+
+        component.onInboxRightClick(event, inbox);
+
+        const menuItems = (component as unknown as { menuItems: { label?: string }[] }).menuItems;
+        const chaosItem = menuItems.find((item) => item.label === 'Chaos');
+        expect(chaosItem).toBeDefined();
+      });
+
+      it('emits openInboxChaos when Chaos menu item is clicked', () => {
+        spyOnProperty(serverInfoService, 'serverInfo').and.returnValue(
+          signal({
+            serverSigPk: 'stub',
+            algs: { kem: 'ml-kem', sig: 'ml-dsa', aead: 'aes-gcm', kdf: 'hkdf' },
+            context: 'stub',
+            maxTtl: 86400,
+            defaultTtl: 3600,
+            sseConsole: false,
+            allowClearAllInboxes: true,
+            allowedDomains: [],
+            encryptionPolicy: 'always' as const,
+            webhookEnabled: false,
+            webhookRequireAuthDefault: true,
+            spamAnalysisEnabled: false,
+            chaosEnabled: true,
+          }).asReadonly(),
+        );
+
+        const event = jasmine.createSpyObj('MouseEvent', ['preventDefault']);
+        const inbox = createMockInbox();
+        const chaosSpy = spyOn(component.openInboxChaos, 'emit');
+
+        component.onInboxRightClick(event, inbox);
+
+        const menuItems = (component as unknown as { menuItems: { label?: string; command?: () => void }[] }).menuItems;
+        const chaosItem = menuItems.find((item) => item.label === 'Chaos');
+        chaosItem?.command?.();
+
+        expect(chaosSpy).toHaveBeenCalledWith(inbox);
+      });
+    });
+
+    describe('updateInboxChaosStatus', () => {
+      it('updates the chaos status for an inbox to enabled', () => {
+        component.updateInboxChaosStatus('test@example.com', true);
+
+        expect(component.isChaosActive('test@example.com')).toBe(true);
+      });
+
+      it('updates the chaos status for an inbox to disabled', () => {
+        // First enable
+        component.updateInboxChaosStatus('test@example.com', true);
+        expect(component.isChaosActive('test@example.com')).toBe(true);
+
+        // Then disable
+        component.updateInboxChaosStatus('test@example.com', false);
+        expect(component.isChaosActive('test@example.com')).toBe(false);
+      });
+
+      it('preserves existing chaos statuses when updating one', () => {
+        component.updateInboxChaosStatus('inbox1@example.com', true);
+        component.updateInboxChaosStatus('inbox2@example.com', false);
+
+        expect(component.isChaosActive('inbox1@example.com')).toBe(true);
+        expect(component.isChaosActive('inbox2@example.com')).toBe(false);
+      });
+    });
+
+    describe('isChaosActive', () => {
+      it('returns false for unknown inbox', () => {
+        expect(component.isChaosActive('unknown@example.com')).toBe(false);
+      });
+
+      it('returns true for inbox with chaos enabled', () => {
+        component.updateInboxChaosStatus('test@example.com', true);
+        expect(component.isChaosActive('test@example.com')).toBe(true);
+      });
+
+      it('returns false for inbox with chaos disabled', () => {
+        component.updateInboxChaosStatus('test@example.com', false);
+        expect(component.isChaosActive('test@example.com')).toBe(false);
+      });
     });
   });
 });

@@ -64,6 +64,8 @@ import { MetricsService } from '../metrics/metrics.service';
 import { METRIC_PATHS } from '../metrics/metrics.constants';
 import { DEFAULT_GATEWAY_MODE } from '../config/config.constants';
 import { SpamAnalysisService } from './spam-analysis.service';
+import { ChaosService } from '../chaos/chaos.service';
+import { ChaosSmtpError, ChaosDropError } from '../chaos/chaos-error';
 
 type ParsedEmailPayload = Omit<EncryptedBodyPayload, 'rawEmail'>;
 
@@ -116,7 +118,7 @@ export class SmtpHandlerService {
   /**
    * Constructor with conditional service injection based on gateway mode
    */
-  /* v8 ignore next 15 - false positive on constructor parameter properties */
+  /* v8 ignore next 16 - false positive on constructor parameter properties */
   constructor(
     private readonly configService: ConfigService,
     private readonly emailValidationService: EmailValidationService,
@@ -131,6 +133,7 @@ export class SmtpHandlerService {
     @Optional() private readonly eventsService?: EventsService,
     @Optional() private readonly emailStorageService?: EmailStorageService,
     @Optional() private readonly spamAnalysisService?: SpamAnalysisService,
+    @Optional() private readonly chaosService?: ChaosService,
   ) {
     this.config = this.configService.get<SmtpConfig>('vsb.smtp')!;
     const configuredGatewayMode =
@@ -423,6 +426,13 @@ export class SmtpHandlerService {
     const recipientContexts = this.resolveRecipientInboxes(to, inboxService);
     // Use first recipient's inbox for email auth settings (multi-recipient emails use first inbox's settings)
     const primaryInbox = recipientContexts[0]?.inbox;
+
+    // Chaos evaluation point - evaluates configured chaos types and applies actions
+    // Pass sender info for greylist tracking
+    /* v8 ignore next - normalizeIp always returns valid string for IPv4/IPv6 */
+    const senderIp = normalizeIp(session.remoteAddress) || session.remoteAddress;
+    const chaosResult = this.evaluateChaos(primaryInbox, session.id, senderIp, envelopeFrom);
+
     const validationResults = await this.performEmailValidation(rawData, session, parsedHeaders, primaryInbox);
 
     // Perform spam analysis (synchronous, blocks until complete)
@@ -442,6 +452,11 @@ export class SmtpHandlerService {
     );
     const rawPayload = rawDataWithReceived.toString('base64');
 
+    // Check for blackhole mode - skip storage if enabled
+    const isBlackhole = chaosResult?.result.action === 'blackhole';
+    const blackholeTriggerWebhooks =
+      chaosResult?.result.action === 'blackhole' ? chaosResult.result.triggerWebhooks : false;
+
     for (const recipientContext of recipientContexts) {
       const emailId = randomUUID();
       const metadataPayload = this.buildMetadataPayload(
@@ -457,6 +472,29 @@ export class SmtpHandlerService {
         recipientContext.recipientAddress !== recipientContext.baseEmail
           ? ` (alias of ${recipientContext.baseEmail})`
           : '';
+
+      // Blackhole mode: skip storage and optionally webhooks
+      if (isBlackhole) {
+        /* v8 ignore next 2 - displayFrom always set from parsed email headers */
+        this.logger.log(
+          `Email ${emailId} blackholed for ${recipientContext.recipientAddress}${aliasInfo} (session=${session.id}) from '${displayFrom ?? 'unknown'}' (${stream.byteLength} bytes)`,
+        );
+
+        // Optionally emit webhook events even in blackhole mode
+        if (blackholeTriggerWebhooks) {
+          this.emitEmailWebhookEvents(
+            emailId,
+            recipientContext.inbox,
+            recipientContext.recipientAddress,
+            parsedMail,
+            displayFrom,
+            to,
+            validationResults,
+            receivedAt,
+          );
+        }
+        continue; // Skip storage for this recipient
+      }
 
       if (recipientContext.inbox.encrypted) {
         // Encrypted inbox: encrypt and store
@@ -515,6 +553,14 @@ export class SmtpHandlerService {
     }
 
     const { spfResult, dkimResults, dmarcResult, reverseDnsResult } = validationResults;
+
+    // Apply chaos latency delay before returning (simulates slow server response)
+    if (chaosResult?.result.action === 'delay') {
+      const delayMs = chaosResult.result.delayMs;
+      this.logger.debug(`Applying chaos latency delay: ${delayMs}ms for session ${session.id}`);
+      await this.delay(delayMs);
+    }
+
     return {
       from: displayFrom,
       to,
@@ -528,6 +574,82 @@ export class SmtpHandlerService {
       reverseDnsResult,
       spamAnalysis,
     };
+  }
+
+  /**
+   * Evaluates chaos configuration for an inbox and applies immediate actions.
+   *
+   * This method evaluates the chaos configuration and:
+   * - For 'error' actions: throws a ChaosSmtpError immediately
+   * - For 'drop' actions: throws a ChaosDropError immediately
+   * - For 'delay' actions: returns the result so delay can be applied later
+   * - For 'blackhole' actions: returns the result so storage can be skipped
+   * - For 'continue' actions: returns the result (no action needed)
+   *
+   * @param inbox - The inbox to evaluate chaos for
+   * @param sessionId - SMTP session ID for logging
+   * @param senderIp - Sender's IP address (for greylist tracking)
+   * @param senderEmail - Sender's email address (for greylist tracking)
+   * @returns ChaosEvaluationResult or undefined if chaos not applicable
+   * @throws ChaosSmtpError for error actions
+   * @throws ChaosDropError for drop actions
+   */
+  private evaluateChaos(
+    inbox: Inbox | undefined,
+    sessionId: string,
+    senderIp?: string,
+    senderEmail?: string,
+  ): import('../chaos/interfaces/chaos-config.interface').ChaosEvaluationResult | undefined {
+    if (!this.chaosService || !inbox?.chaos?.enabled) {
+      return undefined;
+    }
+
+    // Build greylist context if sender info is available
+    const greylistContext =
+      senderIp && senderEmail
+        ? {
+            senderIp,
+            senderEmail,
+          }
+        : /* v8 ignore next - senderIp always provided by caller */ undefined;
+
+    const chaosResult = this.chaosService.evaluate(inbox.chaos, sessionId, inbox.emailAddress, greylistContext);
+
+    // Handle immediate actions (error and drop throw, delay is returned)
+    switch (chaosResult.result.action) {
+      case 'error':
+        this.logger.log(
+          `Chaos error triggered: ${chaosResult.result.code} ${chaosResult.result.enhanced} ` +
+            `for inbox=${inbox.emailAddress} session=${sessionId}`,
+        );
+        throw new ChaosSmtpError(chaosResult.result.code, chaosResult.result.enhanced, chaosResult.result.message);
+
+      case 'drop':
+        this.logger.log(
+          `Chaos connection drop triggered: graceful=${chaosResult.result.graceful} ` +
+            `for inbox=${inbox.emailAddress} session=${sessionId}`,
+        );
+        throw new ChaosDropError(chaosResult.result.graceful);
+
+      case 'delay':
+        this.logger.debug(
+          `Chaos latency scheduled: ${chaosResult.result.delayMs}ms ` +
+            `for inbox=${inbox.emailAddress} session=${sessionId}`,
+        );
+        return chaosResult;
+
+      default:
+        return chaosResult;
+    }
+  }
+
+  /**
+   * Delays execution for the specified number of milliseconds.
+   *
+   * @param ms - Number of milliseconds to delay
+   */
+  private delay(ms: number): Promise<void> {
+    return new Promise((resolve) => setTimeout(resolve, ms));
   }
 
   /**

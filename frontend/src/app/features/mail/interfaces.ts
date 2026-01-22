@@ -365,6 +365,9 @@ export interface ServerInfo {
 
   /** Whether spam analysis (Rspamd) is enabled on this server */
   spamAnalysisEnabled: boolean;
+
+  /** Whether chaos engineering is enabled on this server */
+  chaosEnabled: boolean;
 }
 
 /**

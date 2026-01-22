@@ -46,6 +46,14 @@ export interface Metrics {
     spam_detected_total: number;
     processing_time_ms: number;
   };
+  chaos?: {
+    events_total: number;
+    latency_injected_ms: number;
+    errors_returned_total: number;
+    connections_dropped_total: number;
+    greylist_rejections_total: number;
+    blackhole_total: number;
+  };
 }
 
 export interface AuthPassRate {
