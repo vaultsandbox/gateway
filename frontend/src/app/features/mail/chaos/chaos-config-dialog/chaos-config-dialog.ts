@@ -1,4 +1,4 @@
-import { Component, Output, EventEmitter, OnInit, inject, signal, input, computed, effect } from '@angular/core';
+import { Component, Output, EventEmitter, OnInit, inject, signal, input } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { DialogModule } from 'primeng/dialog';
@@ -97,25 +97,21 @@ export class ChaosConfigDialog extends BaseDialog implements OnInit {
   blackholeEnabled = signal<boolean>(false);
   blackholeTriggerWebhooks = signal<boolean>(false);
 
-  // Computed: check if any chaos type is enabled
-  private anyChaosTypeEnabled = computed(
-    () =>
+  /** Called when any item toggle changes - syncs main enabled state */
+  onItemToggleChange(): void {
+    const anyEnabled =
       this.connectionDropEnabled() ||
       this.greylistEnabled() ||
       this.randomErrorEnabled() ||
       this.blackholeEnabled() ||
-      this.latencyEnabled(),
-  );
+      this.latencyEnabled();
 
-  // Effect: sync global enabled with individual chaos types
-  private syncGlobalEnabled = effect(() => {
-    const anyEnabled = this.anyChaosTypeEnabled();
     if (anyEnabled && !this.enabled()) {
       this.enabled.set(true);
-    } else if (!anyEnabled && this.enabled()) {
+    } else if (!anyEnabled) {
       this.enabled.set(false);
     }
-  });
+  }
 
   // Select options
   readonly errorTypeOptions: SelectOption<SmtpErrorType>[] = [

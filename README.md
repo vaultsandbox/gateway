@@ -8,11 +8,9 @@
 
 # Gateway
 
-Welcome to the VaultSandbox Gateway project! This is the central repository for the gateway, which is composed of a backend service and a frontend web application.
+**[VaultSandbox](https://vaultsandbox.com)** is a self-hosted SMTP testing gateway designed to replicate production email behavior—including TLS, DNS, authentication, and spam scoring—so your email tests reflect real-world conditions.
 
-## Project Overview
-
-VaultSandbox Gateway is a **secure, receive-only SMTP server** designed for QA/testing environments. It accepts incoming emails, validates them (SPF, DKIM, DMARC, reverse DNS), and stores them with configurable retention. The gateway includes automatic TLS certificate management via Let's Encrypt and a modern web interface for email inspection.
+This repository contains the Gateway: the core backend service and web interface for receiving, validating, and inspecting test emails.
 
 ### 🎯 Key Features
 
@@ -23,7 +21,7 @@ VaultSandbox Gateway is a **secure, receive-only SMTP server** designed for QA/t
 - **Web Interface**: Modern Angular UI at `/app` endpoint
 - **Configurable Retention**: Defaults to 7 days (easily adjusted)
 - **Multi-Node Support**: Optional distributed coordination for clusters
-- **Quantum-Safe Crypto**: ML-KEM-768 and ML-DSA-65 for backend mode
+- **Encryption**: Secure in-memory storage
 - **[Spam Analysis](https://vaultsandbox.dev/gateway/spam-analysis/)**: SpamAssassin-style scoring and detection
 - **[Webhooks](https://vaultsandbox.dev/gateway/webhooks/)**: HTTP notifications for email events
 - **[Chaos Engineering](https://vaultsandbox.dev/gateway/chaos-engineering/)**: Test email pipeline resilience
@@ -90,6 +88,8 @@ docker compose exec gateway cat /app/data/.api-key; echo
 
 You can also find your domain by entering your IP at [vsx.email](https://vsx.email).
 
+**Total setup time: ~5 minutes**
+
 ### Option 2: Custom Domain
 
 **Use your own domain** for branding, compliance, or existing infrastructure. Requires DNS configuration pointing to your server.
@@ -125,9 +125,49 @@ docker compose up -d
 docker compose exec gateway cat /app/data/.api-key; echo
 ```
 
-**Total setup time: ~5 minutes**
+### What You Get (Public Deployment)
 
-### Local Development
+After starting the gateway, you have:
+
+✅ SMTP server accepting emails on port 25
+✅ Automatic TLS certificates from Let's Encrypt
+✅ Web UI at `https://your-domain/app`
+✅ REST API with auto-generated API key
+✅ 7-day email retention (configurable)
+✅ Full email authentication validation (SPF, DKIM, DMARC)
+
+### Option 3: Local Development
+
+```yaml
+# docker-compose.yml
+services:
+  vaultsandbox:
+    image: vaultsandbox/gateway:latest
+    ports:
+      - '127.0.0.1:2525:25'
+      - '127.0.0.1:8080:80'
+    volumes:
+      - vsb_data:/app/data
+
+volumes:
+  vsb_data:
+```
+
+```bash
+docker compose up -d
+
+# Retrieve auto-generated API key
+docker compose exec vaultsandbox cat /app/data/.api-key; echo
+```
+
+### What You Get (Local)
+
+✅ SMTP server on `localhost:2525` (no TLS)
+✅ Web UI at `http://localhost:8080/app`
+✅ REST API at `http://localhost:8080/api`
+✅ 7-day email retention (configurable)
+
+### Development Environment Setup
 
 ```bash
 # Clone the repository
@@ -145,17 +185,6 @@ cd frontend
 npm install
 npm start  # Runs on http://localhost:4200
 ```
-
-### What You Get
-
-After starting the gateway, you have:
-
-✅ SMTP server accepting emails on port 25
-✅ Automatic TLS certificates from Let's Encrypt
-✅ Web UI at `https://your-domain/app`
-✅ REST API with auto-generated API key
-✅ 7-day email retention (configurable)
-✅ Full email authentication validation (SPF, DKIM, DMARC)
 
 ## Architecture
 

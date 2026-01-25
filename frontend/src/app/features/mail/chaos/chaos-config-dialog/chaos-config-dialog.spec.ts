@@ -517,33 +517,30 @@ describe('ChaosConfigDialog', () => {
     });
   });
 
-  describe('syncGlobalEnabled effect', () => {
+  describe('onItemToggleChange', () => {
     beforeEach(async () => {
       fixture.detectChanges();
       await fixture.whenStable();
     });
 
-    it('auto-enables global enabled when a chaos type is enabled', async () => {
+    it('enables global enabled when a chaos type is enabled', () => {
       expect(component.enabled()).toBeFalse();
 
       component.latencyEnabled.set(true);
-      fixture.detectChanges();
-      await fixture.whenStable();
+      component.onItemToggleChange();
 
       expect(component.enabled()).toBeTrue();
     });
 
-    it('auto-disables global enabled when all chaos types are disabled', async () => {
-      // First enable a chaos type to set enabled to true
+    it('disables global enabled when all chaos types are disabled', () => {
+      // First enable a chaos type
       component.connectionDropEnabled.set(true);
-      fixture.detectChanges();
-      await fixture.whenStable();
+      component.onItemToggleChange();
       expect(component.enabled()).toBeTrue();
 
       // Now disable it
       component.connectionDropEnabled.set(false);
-      fixture.detectChanges();
-      await fixture.whenStable();
+      component.onItemToggleChange();
 
       expect(component.enabled()).toBeFalse();
     });

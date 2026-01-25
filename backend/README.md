@@ -6,24 +6,12 @@
 
 # Gateway - Backend
 
-A secure, receive-only SMTP server built with NestJS for QA/testing environments. Accepts incoming emails, validates them (SPF, DKIM, DMARC, reverse DNS), and stores them with configurable retention. Includes automatic TLS certificate management via Let's Encrypt and an Angular web interface.
+A secure, receive-only SMTP server built with NestJS for QA/testing environments. Accepts incoming emails, validates them (SPF, DKIM, DMARC, reverse DNS), and stores them with configurable retention. Includes automatic TLS certificate management via Let's Encrypt.
 
-## 🚀 What You Get
-
-Set **just 1 environment variable** (VSX DNS) or **2 variables** (custom domain) and get:
-
-- ✅ Production-ready SMTP server on port 25
-- ✅ Automatic Let's Encrypt TLS certificates
-- ✅ Web UI for viewing emails at `https://your-domain/app`
-- ✅ REST API with auto-generated API key
-- ✅ Configurable email retention (defaults to 7 days, easily adjusted)
-- ✅ Full email authentication (SPF, DKIM, DMARC)
-
-**Total setup time: ~5 minutes**
+> For Docker deployment and production setup, see the [main README](../README.md).
 
 ## Features
 
-- **Zero-Config Setup**: 1 env var (VSX DNS) or 2 env vars (custom domain)
 - **Secure SMTP Server**: Receive-only email server with automatic TLS
 - **Email Authentication**: SPF, DKIM, DMARC, and reverse DNS validation
 - **Automatic TLS Certificates**: Let's Encrypt integration with ACME HTTP-01 challenge
@@ -34,52 +22,27 @@ Set **just 1 environment variable** (VSX DNS) or **2 variables** (custom domain)
 - **[Webhooks](https://vaultsandbox.dev/gateway/webhooks/)**: HTTP notifications for email events
 - **[Chaos Engineering](https://vaultsandbox.dev/gateway/chaos-engineering/)**: Test email pipeline resilience
 
-## Monorepo Structure
-
-```
-vaultsandbox-gateway/
-├── backend/           # NestJS backend (this directory)
-│   ├── src/          # Source code
-│   ├── test/         # Tests
-│   └── dist/         # Compiled output
-└── frontend/          # Angular web application
-    ├── src/          # Source code
-    └── dist/         # Build output (served by backend)
-```
-
 ## Quick Start
 
 ### Prerequisites
 
-- Node.js 18+ (for local development)
-- Docker (recommended for production)
+- Node.js 18+
 
 ### Installation
 
 ```bash
-# Clone the repository
-git clone https://github.com/vaultsandbox/gateway.git
 cd gateway/backend
-
-# Install dependencies
 npm install
 ```
 
 ### Configuration
 
-Create a `.env` file with minimal configuration:
-
 ```bash
 # Copy template and customize
 cp template-env .env
-
-# Option 1: VSX DNS (simplest - just 1 variable)
-VSB_VSX_DNS_ENABLED=true
-
-# Option 2: Custom domain (2 variables)
-# VSB_SMTP_ALLOWED_RECIPIENT_DOMAINS=qa.example.com
-# VSB_CERT_ENABLED=true
 ```
+
+See `template-env` for all available configuration options.
 
 ### Development
 
@@ -151,66 +114,24 @@ npm run start:prod
 
 ## Configuration
 
-The gateway is configured via environment variables with sensible defaults for testing environments.
+The gateway is configured via environment variables. See `template-env` for all available options.
 
-### Option 1: VSX DNS (Recommended)
+### Key Configuration Options
 
-**Zero-config setup with automatic DNS.** No domain registration, no DNS configuration, no waiting for propagation. Your public IP is encoded into a subdomain (e.g., `1mzhr2y.vsx.email`) that automatically resolves with proper MX records.
+| Variable | Description | Default |
+|----------|-------------|---------|
+| `VSB_VSX_DNS_ENABLED` | Enable zero-config VSX DNS | `false` |
+| `VSB_SMTP_ALLOWED_RECIPIENT_DOMAINS` | Domains to accept emails for | - |
+| `VSB_CERT_ENABLED` | Enable Let's Encrypt certificates | `false` |
+| `VSB_LOCAL_INBOX_MAX_TTL` | Email retention period | `7d` |
+| `VSB_SMTP_PORT` | SMTP server port | `25` |
+| `VSB_SERVER_PORT` | HTTP server port | `80` |
+| `VSB_SERVER_HTTPS_PORT` | HTTPS server port | `443` |
+| `VSB_DATA_PATH` | Data storage path | `/app/data` |
 
-Just **1 environment variable**:
+### API Documentation
 
-```bash
-VSB_VSX_DNS_ENABLED=true
-```
-
-Find your assigned domain by entering your IP at [vsx.email](https://vsx.email) or:
-
-```bash
-cat /app/data/certificates/metadata.json
-```
-
-### Option 2: Custom Domain
-
-**Use your own domain** for branding, compliance, or existing infrastructure.
-
-Just **2 environment variables**:
-
-```bash
-# Domains to accept emails for (comma-separated)
-VSB_SMTP_ALLOWED_RECIPIENT_DOMAINS=qa.example.com,test.example.com
-
-# Enable automatic Let's Encrypt certificates
-VSB_CERT_ENABLED=true
-```
-
-**DNS Requirements:** Configure these records before starting:
-- **A record:** `qa.example.com` → your server IP
-- **MX record:** `qa.example.com` → `qa.example.com` (priority 10)
-
-### Smart Defaults
-
-Everything else has sensible defaults:
-- ✅ Auto-generated API key (persisted to disk)
-- ✅ Certificate domain auto-derived from first SMTP domain
-- ✅ Email retention: 7 days (configurable via `VSB_LOCAL_INBOX_MAX_TTL`)
-- ✅ CORS enabled for all origins (testing-friendly)
-- ✅ Rate limiting and security controls enabled
-- ✅ Standard ports (25, 80, 443)
-
-### Optional Configuration
-
-For advanced use cases, you can override defaults. See `template-env` for all options:
-
-- **Custom Ports**: `VSB_SMTP_PORT`, `VSB_SERVER_PORT`, `VSB_SERVER_HTTPS_PORT`
-- **TTL Settings**: `VSB_LOCAL_INBOX_MAX_TTL` - Max email retention
-- **CORS**: `VSB_SERVER_ORIGIN=https://specific-domain.com` - Restrict origins
-- **Data Path**: `VSB_DATA_PATH=/custom/path` - For non-Docker deployments
-
-## Documentation
-
-- **Detailed Documentation**: Visit [vaultsandbox.dev](https://vaultsandbox.dev) for comprehensive guides
-- **template-env**: Example environment configuration with all available options
-- **API Documentation**: Available at `/api-docs` when running in development mode
+Available at `/api-docs` when running in development mode.
 
 ## Architecture
 
@@ -242,7 +163,7 @@ For architectural details and implementation guides, visit [vaultsandbox.dev](ht
 
 ## Development Workflow
 
-### Option 1: Backend + Frontend (Full Stack)
+### Full Stack Development
 
 ```bash
 # Terminal 1: Backend with hot reload
@@ -257,137 +178,6 @@ npm start
 Access:
 - Frontend: http://localhost:4200 (with hot reload)
 - Backend: http://localhost:80 (or configured port)
-
-### Option 2: Docker Development
-
-```bash
-# Build and run development container
-docker build --target development -t vaultsandbox-gateway:dev .
-docker run -p 80:80 -p 443:443 -p 25:25 --env-file .env vaultsandbox-gateway:dev
-```
-
-## Docker Deployment
-
-### Option 1: VSX DNS (Recommended)
-
-**Zero-config setup with automatic DNS.** Your public IP is encoded into a subdomain (e.g., `1mzhr2y.vsx.email`) with proper MX records.
-
-```yaml
-# docker-compose.yml
-services:
-  gateway:
-    image: vaultsandbox/gateway:latest
-    container_name: vaultsandbox-gateway
-    restart: unless-stopped
-    ports:
-      - "25:25"     # SMTP
-      - "80:80"     # HTTP (ACME + VSX verification)
-      - "443:443"   # HTTPS (Web UI + API)
-    environment:
-      VSB_VSX_DNS_ENABLED: "true"
-    volumes:
-      - gateway-data:/app/data
-
-volumes:
-  gateway-data:
-```
-
-```bash
-# Start the gateway
-docker compose up -d
-
-# Find your assigned domain
-docker compose exec gateway cat /app/data/certificates/metadata.json; echo
-
-# Retrieve API key
-docker compose exec gateway cat /app/data/.api-key; echo
-```
-
-You can also find your domain by entering your IP at [vsx.email](https://vsx.email).
-
-### Option 2: Custom Domain
-
-**Use your own domain** for branding or compliance. Requires DNS configuration.
-
-**DNS Requirements:** Configure these records before starting:
-- **A record:** `qa.mydomain.com` → your server IP
-- **MX record:** `qa.mydomain.com` → `qa.mydomain.com` (priority 10)
-
-```yaml
-# docker-compose.yml
-services:
-  gateway:
-    image: vaultsandbox/gateway:latest
-    container_name: vaultsandbox-gateway
-    restart: unless-stopped
-    ports:
-      - "25:25"     # SMTP
-      - "80:80"     # HTTP (ACME challenges)
-      - "443:443"   # HTTPS (Web UI + API)
-    environment:
-      VSB_SMTP_ALLOWED_RECIPIENT_DOMAINS: "qa.mydomain.com"
-      VSB_CERT_ENABLED: "true"
-    volumes:
-      - gateway-data:/app/data
-
-volumes:
-  gateway-data:
-```
-
-```bash
-# Start the gateway
-docker compose up -d
-
-# Retrieve API key
-docker compose exec gateway cat /app/data/.api-key; echo
-```
-
-### Using Docker CLI
-
-```bash
-# Pull the latest image from Docker Hub
-docker pull vaultsandbox/gateway:latest
-
-# Create a volume for persistence
-docker volume create gateway-data
-
-# VSX DNS mode (recommended)
-docker run -d \
-  --name vaultsandbox-gateway \
-  -p 25:25 -p 80:80 -p 443:443 \
-  -e VSB_VSX_DNS_ENABLED="true" \
-  -v gateway-data:/app/data \
-  --restart unless-stopped \
-  vaultsandbox/gateway:latest
-
-# Or custom domain mode
-# docker run -d \
-#   --name vaultsandbox-gateway \
-#   -p 25:25 -p 80:80 -p 443:443 \
-#   -e VSB_SMTP_ALLOWED_RECIPIENT_DOMAINS="qa.example.com" \
-#   -e VSB_CERT_ENABLED="true" \
-#   -v gateway-data:/app/data \
-#   --restart unless-stopped \
-#   vaultsandbox/gateway:latest
-
-# View logs
-docker logs -f vaultsandbox-gateway
-```
-
-### Port Mapping
-
-| Port | Protocol | Purpose |
-|------|----------|---------|
-| `25` | SMTP | Email reception |
-| `80` | HTTP | ACME challenges, redirects to HTTPS |
-| `443` | HTTPS | Web UI (`/app`), REST API, health checks |
-
-### Volume Persistence
-
-Use a named volume mounted to `/app/data` to persist:
-- TLS certificates (auto-renewed by Let's Encrypt)
-- Auto-generated API key
-- ACME challenge responses
 
 ## Support & Contributing
 

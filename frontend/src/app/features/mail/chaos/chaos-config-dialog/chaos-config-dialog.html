@@ -65,7 +65,7 @@
               <i class="pi pi-times-circle text-red-500"></i>
               <span class="font-medium">Connection Drop</span>
             </div>
-            <p-toggleSwitch [(ngModel)]="connectionDropEnabled" />
+            <p-toggleSwitch [(ngModel)]="connectionDropEnabled" (onChange)="onItemToggleChange()" />
           </div>
           @if (connectionDropEnabled()) {
             <div class="flex flex-col gap-4 p-4 border-t border-surface-200 dark:border-surface-700">
@@ -90,7 +90,7 @@
               <i class="pi pi-history text-purple-500"></i>
               <span class="font-medium">Greylisting</span>
             </div>
-            <p-toggleSwitch [(ngModel)]="greylistEnabled" />
+            <p-toggleSwitch [(ngModel)]="greylistEnabled" (onChange)="onItemToggleChange()" />
           </div>
           @if (greylistEnabled()) {
             <div class="flex flex-col gap-4 p-4 border-t border-surface-200 dark:border-surface-700">
@@ -124,7 +124,7 @@
               <i class="pi pi-exclamation-triangle text-orange-500"></i>
               <span class="font-medium">Random Errors</span>
             </div>
-            <p-toggleSwitch [(ngModel)]="randomErrorEnabled" />
+            <p-toggleSwitch [(ngModel)]="randomErrorEnabled" (onChange)="onItemToggleChange()" />
           </div>
           @if (randomErrorEnabled()) {
             <div class="flex flex-col gap-4 p-4 border-t border-surface-200 dark:border-surface-700">
@@ -153,7 +153,7 @@
               <i class="pi pi-ban text-gray-500"></i>
               <span class="font-medium">Blackhole</span>
             </div>
-            <p-toggleSwitch [(ngModel)]="blackholeEnabled" />
+            <p-toggleSwitch [(ngModel)]="blackholeEnabled" (onChange)="onItemToggleChange()" />
           </div>
           @if (blackholeEnabled()) {
             <div class="flex flex-col gap-4 p-4 border-t border-surface-200 dark:border-surface-700">
@@ -178,7 +178,7 @@
               <i class="pi pi-clock text-blue-500"></i>
               <span class="font-medium">Latency Injection</span>
             </div>
-            <p-toggleSwitch [(ngModel)]="latencyEnabled" />
+            <p-toggleSwitch [(ngModel)]="latencyEnabled" (onChange)="onItemToggleChange()" />
           </div>
           @if (latencyEnabled()) {
             <div class="flex flex-col gap-4 p-4 border-t border-surface-200 dark:border-surface-700">

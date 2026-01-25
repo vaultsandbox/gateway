@@ -8,10 +8,11 @@
 
 A modern Angular web application providing a rich user interface for the VaultSandbox Gateway SMTP server. View and manage emails, inspect authentication results (SPF, DKIM, DMARC), monitor gateway metrics, and configure inbox settings through an intuitive Material Design interface.
 
+> For Docker deployment and production setup, see the [main README](../README.md).
+
 ## Features
 
-- **Email Management**: Browse received emails
-- **Email Detail View**: Full email rendering with HTML/text views, attachments, and headers
+- **Email Management**: Browse received emails with HTML/text views, attachments, and headers
 - **Authentication Results**: Visual display of SPF, DKIM, DMARC, and reverse DNS validation
 - **Custom Inboxes**: Create and manage multiple virtual inboxes
 - **Real-Time Updates**: Server-Sent Events (SSE) for live email notifications
@@ -31,25 +32,6 @@ A modern Angular web application providing a rich user interface for the VaultSa
 - **Security**: DOMPurify for HTML sanitization
 - **Cryptography**: @noble/post-quantum for ML-KEM-768 decryption
 - **Testing**: Jasmine + Karma
-
-## Monorepo Structure
-
-```
-vaultsandbox-gateway/
-├── backend/           # NestJS backend (SMTP server + API)
-└── frontend/          # Angular web application (this directory)
-    ├── src/
-    │   ├── app/
-    │   │   ├── features/      # Feature modules
-    │   │   │   ├── mail/      # Email management (inbox, detail, list)
-    │   │   │   ├── home/      # Landing page
-    │   │   │   ├── metrics-dialog/    # Gateway metrics
-    │   │   │   └── sse-console/       # Real-time notifications
-    │   │   └── shared/        # Shared services, components, interfaces
-    │   ├── environments/      # Environment configurations
-    │   └── public/            # Static assets
-    └── dist/                  # Build output (served by backend)
-```
 
 ## Quick Start
 
@@ -493,8 +475,7 @@ export const environment = {
 # Build frontend
 npm run build
 
-# Build output
-ls -la dist/frontend/browser/
+# Build output is at dist/frontend/browser/
 ```
 
 ### Backend Integration
@@ -505,24 +486,6 @@ The backend serves the frontend automatically:
 2. **Backend Serving**: Via `@nestjs/serve-static` module
 3. **URL**: `https://your-domain/app`
 4. **Fallback**: All routes fallback to `index.html` for Angular routing
-
-### Docker Deployment
-
-The frontend is included in the main Docker image:
-
-```dockerfile
-# Multi-stage build (from root Dockerfile)
-FROM node:20-alpine AS frontend-builder
-WORKDIR /frontend
-COPY frontend/package*.json ./
-RUN npm ci
-COPY frontend/ .
-RUN npm run build
-
-# Final stage
-FROM node:20-alpine
-COPY --from=frontend-builder /frontend/dist/frontend/browser /app/frontend
-```
 
 ## Browser Support
 
@@ -561,11 +524,9 @@ COPY --from=frontend-builder /frontend/dist/frontend/browser /app/frontend
 
 ## Additional Resources
 
-- **Backend Documentation**: See `backend/README.md` for API details
-- **Main Repository**: See root `README.md` for project overview
-- **Angular Documentation**: [angular.dev](https://angular.dev)
-- **PrimeNG Documentation**: [primeng.org](https://primeng.org)
-- **Tailwind CSS**: [tailwindcss.com](https://tailwindcss.com)
+- [Angular Documentation](https://angular.dev)
+- [PrimeNG Documentation](https://primeng.org)
+- [Tailwind CSS](https://tailwindcss.com)
 
 ## Support & Contributing
 
