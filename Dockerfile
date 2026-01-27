@@ -1,6 +1,6 @@
 # ===== Development Stage =====
 # Local development with hot reload and bind mounts
-FROM node:24-alpine@sha256:682368d8253e0c3364b803956085c456a612d738bd635926d73fa24db3ce53d7 AS development
+FROM node:24.13.0-alpine@sha256:931d7d57f8c1fd0e2179dbff7cc7da4c9dd100998bc2b32afc85142d8efbc213 AS development
 
 WORKDIR /usr/src/app
 COPY backend/package*.json ./
@@ -15,7 +15,7 @@ CMD ["npm", "run", "start:dev"]
 
 # ===== Frontend Builder Stage =====
 # Build the Angular frontend
-FROM node:24-alpine@sha256:682368d8253e0c3364b803956085c456a612d738bd635926d73fa24db3ce53d7 AS frontend-builder
+FROM node:24.13.0-alpine@sha256:931d7d57f8c1fd0e2179dbff7cc7da4c9dd100998bc2b32afc85142d8efbc213 AS frontend-builder
 
 WORKDIR /usr/src/frontend
 
@@ -27,7 +27,7 @@ RUN npm run build
 
 # ===== Backend Builder Stage =====
 # Install dependencies, build NestJS, and keep only prod deps
-FROM node:24-alpine@sha256:682368d8253e0c3364b803956085c456a612d738bd635926d73fa24db3ce53d7 AS backend-builder
+FROM node:24.13.0-alpine@sha256:931d7d57f8c1fd0e2179dbff7cc7da4c9dd100998bc2b32afc85142d8efbc213 AS backend-builder
 
 WORKDIR /usr/src/app
 
@@ -41,12 +41,12 @@ RUN npm run build && npm prune --omit=dev && npm cache clean --force
 # Minimal runtime image with non-root user
 # Note: Pin to specific SHA in production for immutability
 # Get SHA with: docker pull node:24-alpine && docker inspect node:24-alpine | grep Id
-FROM node:24-alpine@sha256:682368d8253e0c3364b803956085c456a612d738bd635926d73fa24db3ce53d7 AS production
+FROM node:24.13.0-alpine@sha256:931d7d57f8c1fd0e2179dbff7cc7da4c9dd100998bc2b32afc85142d8efbc213 AS production
 
 # OCI metadata labels
 LABEL org.opencontainers.image.title="VaultSandbox Gateway" \
       org.opencontainers.image.description="Secure receive-only SMTP server with automatic TLS certificate management" \
-      org.opencontainers.image.version="0.9.1" \
+      org.opencontainers.image.version="0.9.2" \
       org.opencontainers.image.authors="Antero" \
       org.opencontainers.image.licenses="Apache-2.0" \
       org.opencontainers.image.source="https://github.com/vaultsandbox/gateway"
