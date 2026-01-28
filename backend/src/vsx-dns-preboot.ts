@@ -9,6 +9,7 @@
  */
 
 import * as http from 'http';
+import { getErrorMessage } from './shared/error.utils';
 
 const VSX_DNS_API_URL = 'https://api.vsx.email';
 const VSX_DNS_TIMEOUT_MS = 15000; // 15 second timeout for check-in
@@ -157,7 +158,7 @@ export async function vsxDnsPreBoot(): Promise<void> {
   } catch (error) {
     const isTimeout = error instanceof Error && error.name === 'AbortError';
     /* c8 ignore next 2 */
-    const message = isTimeout ? 'Request timed out' : error instanceof Error ? error.message : String(error);
+    const message = isTimeout ? 'Request timed out' : getErrorMessage(error);
     const action = isTimeout ? 'Check network connectivity to api.vsx.email' : 'Ensure api.vsx.email is reachable';
     const truncatedMsg = message.substring(0, 49).padEnd(49);
     const truncatedAction = action.substring(0, 48).padEnd(48);

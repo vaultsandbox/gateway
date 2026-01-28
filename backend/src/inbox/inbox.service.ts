@@ -25,6 +25,7 @@ import {
 } from '../config/config.constants';
 import { ServerInfoResponseDto } from './dto/response.dto';
 import { serializeEncryptedPayload, SerializedEncryptedPayload } from '../crypto/serialization';
+import { getErrorMessage } from '../shared/error.utils';
 
 // Response types for email endpoints - discriminated unions for encrypted vs plain emails
 interface EncryptedEmailListItem {
@@ -334,7 +335,7 @@ export class InboxService {
         });
         /* v8 ignore start - defensive error handling */
       } catch (error) {
-        const message = error instanceof Error ? error.message : String(error);
+        const message = getErrorMessage(error);
         this.logger.error(`Failed to emit email.deleted event: ${message}`);
       }
       /* v8 ignore stop */

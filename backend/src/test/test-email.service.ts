@@ -9,6 +9,7 @@ import { CreateTestEmailDto } from './dto/create-test-email.dto';
 import { serializeEncryptedPayload } from '../crypto/serialization';
 import type { EncryptedBodyPayload, AuthenticationResults } from '../smtp/interfaces/encrypted-body.interface';
 import type { PlainStoredEmail } from '../inbox/interfaces';
+import { getErrorMessage } from '../shared/error.utils';
 
 type ParsedEmailPayload = Omit<EncryptedBodyPayload, 'rawEmail'>;
 
@@ -167,7 +168,7 @@ export class TestEmailService {
         });
       /* v8 ignore start - defensive: cryptoService.encryptForClient doesn't throw synchronously*/
     } catch (error) {
-      const message = error instanceof Error ? error.message : String(error);
+      const message = getErrorMessage(error);
       this.logger.error(`Failed to emit SSE event for test email ${emailId}: ${message}`);
     }
     /* v8 ignore stop */
@@ -184,7 +185,7 @@ export class TestEmailService {
         metadata: Buffer.from(JSON.stringify(metadataPayload)).toString('base64'),
       });
     } catch (error) {
-      const message = error instanceof Error ? error.message : String(error);
+      const message = getErrorMessage(error);
       this.logger.error(`Failed to emit SSE event for test email ${emailId}: ${message}`);
     }
   }

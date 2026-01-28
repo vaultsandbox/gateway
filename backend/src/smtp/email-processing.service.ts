@@ -9,6 +9,7 @@ import type { LocalParsedMail, AttachmentSummary, ParsedMailSummary } from './in
 import type { StoredEmailRecord } from './interfaces/stored-email.interface';
 import { extractString } from './utils/email.utils';
 import { extractUrls } from './utils/url-extraction.utils';
+import { getErrorMessage } from '../shared/error.utils';
 
 /**
  * Service responsible for email parsing, serialization, and storage operations.
@@ -80,9 +81,7 @@ export class EmailProcessingService {
       return parsed as LocalParsedMail;
       /* v8 ignore start - defensive catch for unexpected mailparser errors; simpleParser rarely throws */
     } catch (error) {
-      this.logger.warn(
-        `mailparser failed (session=${sessionId}): ${error instanceof Error ? error.message : String(error)}`,
-      );
+      this.logger.warn(`mailparser failed (session=${sessionId}): ${getErrorMessage(error)}`);
       return undefined;
     }
     /* v8 ignore stop */

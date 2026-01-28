@@ -9,6 +9,7 @@ import { logConfigurationSummary } from './config/config.utils';
 import type { VsbConfiguration } from './config/config.types';
 import type { Request, Response, NextFunction } from 'express';
 import { vsxDnsPreBoot } from './vsx-dns-preboot';
+import { getErrorMessage } from './shared/error.utils';
 
 /**
  * BootStrap
@@ -52,7 +53,7 @@ async function bootstrap() {
         logger.log('Application closed successfully');
         process.exit(0);
       } catch (shutdownError) {
-        const message = shutdownError instanceof Error ? shutdownError.message : String(shutdownError);
+        const message = getErrorMessage(shutdownError);
         const stack = shutdownError instanceof Error ? shutdownError.stack : undefined;
         logger.error(`Error during shutdown: ${message}`, stack);
         process.exit(1);
@@ -124,7 +125,7 @@ async function bootstrap() {
 
     logger.log('VaultSandbox Gateway is ready');
   } catch (error) {
-    const errorMessage = error instanceof Error ? error.message : String(error);
+    const errorMessage = getErrorMessage(error);
     const errorStack = error instanceof Error ? error.stack : undefined;
     logger.error(`Failed to bootstrap application: ${errorMessage}`, errorStack);
     process.exit(1);
@@ -132,7 +133,7 @@ async function bootstrap() {
 }
 bootstrap().catch((error) => {
   const logger = new Logger('bootstrap');
-  const errorMessage = error instanceof Error ? error.message : String(error);
+  const errorMessage = getErrorMessage(error);
   logger.error(`Unhandled bootstrap error: ${errorMessage}`);
   process.exit(1);
 });

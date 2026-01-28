@@ -18,6 +18,7 @@ import type {
 } from './interfaces/mailauth-types.interface';
 import { DNS_TIMEOUTS } from './constants/validation.constants';
 import type { Inbox } from '../inbox/interfaces';
+import { getErrorMessage } from '../shared/error.utils';
 
 interface EmailAuthConfig {
   enabled: boolean;
@@ -144,7 +145,7 @@ export class EmailValidationService {
       return spfResult;
     } catch (error) {
       /* v8 ignore next - defensive for non-Error exceptions */
-      const message = error instanceof Error ? error.message : String(error);
+      const message = getErrorMessage(error);
       this.logger.warn(`SPF check failed (session=${sessionId}): ${message}`);
 
       return {
@@ -231,7 +232,7 @@ export class EmailValidationService {
       }
     } catch (error) {
       /* v8 ignore next - defensive for non-Error exceptions */
-      const message = error instanceof Error ? error.message : String(error);
+      const message = getErrorMessage(error);
       this.logger.warn(`DKIM verification error (session=${sessionId}): ${message}`);
       results.push({
         status: 'none',
@@ -373,7 +374,7 @@ export class EmailValidationService {
       return dmarcResult;
     } catch (error) {
       /* v8 ignore next - defensive for non-Error exceptions */
-      const message = error instanceof Error ? error.message : String(error);
+      const message = getErrorMessage(error);
       this.logger.warn(`DMARC verification error (session=${sessionId}): ${message}`);
       return {
         status: 'none',
@@ -461,7 +462,7 @@ export class EmailValidationService {
         } catch (error) {
           /* v8 ignore next 2 - defensive for non-Error exceptions */
           this.logger.debug(
-            `Forward lookup error (session=${sessionId}) for hostname='${normalizedHostname}': ${error instanceof Error ? error.message : String(error)}`,
+            `Forward lookup error (session=${sessionId}) for hostname='${normalizedHostname}': ${getErrorMessage(error)}`,
           );
         }
       }

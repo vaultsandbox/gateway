@@ -54,6 +54,7 @@ import {
 import { EncryptionPolicy } from './config/config.constants';
 import { isValidDomain, validateTlsConfig } from './config/config.validators';
 import { buildTlsConfig, generateNodeId, generateSharedSecret } from './config/config.utils';
+import { getErrorMessage } from './shared/error.utils';
 
 const logger = new Logger('ConfigValidation');
 
@@ -206,8 +207,7 @@ function buildLocalModeConfig() {
       }
     } catch (err) /* v8 ignore start */ {
       // File doesn't exist or can't be read - will auto-generate
-      const errorMessage = err instanceof Error ? err.message : String(err);
-      logger.debug(`Could not read API key from file: ${errorMessage}`);
+      logger.debug(`Could not read API key from file: ${getErrorMessage(err)}`);
     } /* v8 ignore stop */
 
     // Precedence 3: Auto-generate and persist
@@ -255,11 +255,9 @@ function buildLocalModeConfig() {
       } catch (err) {
         // Cannot persist - require manual configuration
         /* c8 ignore next */
-        const errorMessage = err instanceof Error ? err.message : String(err);
-
         throwConfigError(
           'Cannot persist auto-generated API key',
-          `Failed to write to ${apiKeyFilePath}: ${errorMessage}\n\n` +
+          `Failed to write to ${apiKeyFilePath}: ${getErrorMessage(err)}\n\n` +
             'Please configure VSB_LOCAL_API_KEY manually.\n' +
             'Generate a secure API key using one of these methods:\n\n' +
             '  openssl rand -base64 32\n' +
