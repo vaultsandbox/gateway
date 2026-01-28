@@ -58,6 +58,25 @@ import { buildTlsConfig, generateNodeId, generateSharedSecret } from './config/c
 const logger = new Logger('ConfigValidation');
 
 /**
+ * Throws a formatted configuration error with a consistent banner style.
+ * Use for critical configuration errors that prevent startup.
+ */
+function throwConfigError(title: string, body: string): never {
+  throw new Error(
+    '\n' +
+      '═'.repeat(80) +
+      '\n' +
+      `❌ CONFIGURATION ERROR: ${title}\n` +
+      '═'.repeat(80) +
+      '\n\n' +
+      body +
+      '\n' +
+      '═'.repeat(80) +
+      '\n',
+  );
+}
+
+/**
  * Builds complete SMTP server configuration from environment variables.
  *
  * Configures a receive-only SMTP server with domain validation to prevent
@@ -164,23 +183,16 @@ function buildLocalModeConfig() {
     source = 'env';
   } else if (strictMode) {
     // Strict mode: Require explicit API key (advanced users, CI/CD)
-    throw new Error(
-      '\n' +
-        '═'.repeat(80) +
-        '\n' +
-        '❌ CONFIGURATION ERROR: VSB_LOCAL_API_KEY is required (strict mode)\n' +
-        '═'.repeat(80) +
-        '\n\n' +
-        'VSB_LOCAL_API_KEY_STRICT=true requires explicit API key configuration.\n' +
+    throwConfigError(
+      'VSB_LOCAL_API_KEY is required (strict mode)',
+      'VSB_LOCAL_API_KEY_STRICT=true requires explicit API key configuration.\n' +
         'Generate a secure API key using one of these methods:\n\n' +
         '  openssl rand -base64 32\n' +
         "  node -e \"console.log(require('crypto').randomBytes(32).toString('base64'))\"\n\n" +
         'Then set it in your environment:\n' +
         '  export VSB_LOCAL_API_KEY="<generated-key>"\n\n' +
         'Or add to your .env file:\n' +
-        '  VSB_LOCAL_API_KEY=<generated-key>\n\n' +
-        '═'.repeat(80) +
-        '\n',
+        '  VSB_LOCAL_API_KEY=<generated-key>',
     );
   } else {
     // Precedence 2: Try to load from persisted file
@@ -245,14 +257,9 @@ function buildLocalModeConfig() {
         /* c8 ignore next */
         const errorMessage = err instanceof Error ? err.message : String(err);
 
-        throw new Error(
-          '\n' +
-            '═'.repeat(80) +
-            '\n' +
-            '❌ CONFIGURATION ERROR: Cannot persist auto-generated API key\n' +
-            '═'.repeat(80) +
-            '\n\n' +
-            `Failed to write to ${apiKeyFilePath}: ${errorMessage}\n\n` +
+        throwConfigError(
+          'Cannot persist auto-generated API key',
+          `Failed to write to ${apiKeyFilePath}: ${errorMessage}\n\n` +
             'Please configure VSB_LOCAL_API_KEY manually.\n' +
             'Generate a secure API key using one of these methods:\n\n' +
             '  openssl rand -base64 32\n' +
@@ -260,9 +267,7 @@ function buildLocalModeConfig() {
             'Then set it in your environment:\n' +
             '  export VSB_LOCAL_API_KEY="<generated-key>"\n\n' +
             'Or add to your .env file:\n' +
-            '  VSB_LOCAL_API_KEY=<generated-key>\n\n' +
-            '═'.repeat(80) +
-            '\n',
+            '  VSB_LOCAL_API_KEY=<generated-key>',
         );
       }
     }

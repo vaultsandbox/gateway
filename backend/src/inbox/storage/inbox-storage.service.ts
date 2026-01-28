@@ -19,6 +19,14 @@ export class InboxStorageService {
   private webhookStorageService?: IWebhookStorageService; // Will be set by WebhookStorageService to avoid circular dependency
 
   /**
+   * Normalize email address to lowercase for case-insensitive lookups.
+   * All internal storage uses normalized emails as keys.
+   */
+  private normalizeEmail(emailAddress: string): string {
+    return emailAddress.toLowerCase();
+  }
+
+  /**
    * Update the emailsHash for an inbox based on its current email IDs
    */
   private _updateEmailsHash(inbox: Inbox): void {
@@ -40,8 +48,7 @@ export class InboxStorageService {
     spamAnalysis?: boolean,
     chaos?: InboxChaosConfig,
   ): Inbox {
-    // Normalize email to lowercase for case-insensitive lookups
-    const normalizedEmail = emailAddress.toLowerCase();
+    const normalizedEmail = this.normalizeEmail(emailAddress);
 
     // Check for duplicate inboxHash (prevents KEM key reuse for encrypted, email reuse for plain)
     if (this.inboxHashToEmail.has(inboxHash)) {
@@ -83,15 +90,14 @@ export class InboxStorageService {
    * Get inbox by email address
    */
   getInbox(emailAddress: string): Inbox | undefined {
-    // Normalize email to lowercase for case-insensitive lookups
-    return this.inboxes.get(emailAddress.toLowerCase());
+    return this.inboxes.get(this.normalizeEmail(emailAddress));
   }
 
   /**
    * Update chaos configuration for an inbox
    */
   updateChaosConfig(emailAddress: string, chaos: InboxChaosConfig | undefined): Inbox {
-    const normalizedEmail = emailAddress.toLowerCase();
+    const normalizedEmail = this.normalizeEmail(emailAddress);
     const inbox = this.inboxes.get(normalizedEmail);
     if (!inbox) {
       throw new NotFoundException(`Inbox not found: ${normalizedEmail}`);
@@ -133,8 +139,7 @@ export class InboxStorageService {
    * Delete inbox and all associated emails
    */
   deleteInbox(emailAddress: string): boolean {
-    // Normalize email to lowercase for case-insensitive lookups
-    const normalizedEmail = emailAddress.toLowerCase();
+    const normalizedEmail = this.normalizeEmail(emailAddress);
     const inbox = this.inboxes.get(normalizedEmail);
     if (!inbox) {
       return true; // Already Deleted
@@ -161,7 +166,7 @@ export class InboxStorageService {
    * Delete a single email from an inbox
    */
   deleteEmail(emailAddress: string, emailId: string): boolean {
-    const normalizedEmail = emailAddress.toLowerCase();
+    const normalizedEmail = this.normalizeEmail(emailAddress);
     const inbox = this.inboxes.get(normalizedEmail);
     if (!inbox) {
       throw new NotFoundException(`Inbox not found: ${normalizedEmail}`);
@@ -188,7 +193,7 @@ export class InboxStorageService {
    * Does not throw if the inbox/email is already gone.
    */
   evictEmail(emailAddress: string, emailId: string): void {
-    const normalizedEmail = emailAddress.toLowerCase();
+    const normalizedEmail = this.normalizeEmail(emailAddress);
     const inbox = this.inboxes.get(normalizedEmail);
     if (!inbox) {
       this.logger.warn(`Inbox not found during eviction: ${normalizedEmail}`);
@@ -208,8 +213,7 @@ export class InboxStorageService {
    * Add email to inbox (supports both encrypted and plain emails)
    */
   addEmail(emailAddress: string, email: StoredEmail): void {
-    // Normalize email to lowercase for case-insensitive lookups
-    const normalizedEmail = emailAddress.toLowerCase();
+    const normalizedEmail = this.normalizeEmail(emailAddress);
     const inbox = this.inboxes.get(normalizedEmail);
     if (!inbox) {
       throw new NotFoundException(`Inbox not found: ${normalizedEmail}`);
@@ -224,8 +228,7 @@ export class InboxStorageService {
    * Get all emails for an inbox (newest first)
    */
   getEmails(emailAddress: string): StoredEmail[] {
-    // Normalize email to lowercase for case-insensitive lookups
-    const normalizedEmail = emailAddress.toLowerCase();
+    const normalizedEmail = this.normalizeEmail(emailAddress);
     const inbox = this.inboxes.get(normalizedEmail);
     if (!inbox) {
       throw new NotFoundException(`Inbox not found: ${normalizedEmail}`);
@@ -239,8 +242,7 @@ export class InboxStorageService {
    * Get a specific email
    */
   getEmail(emailAddress: string, emailId: string): StoredEmail {
-    // Normalize email to lowercase for case-insensitive lookups
-    const normalizedEmail = emailAddress.toLowerCase();
+    const normalizedEmail = this.normalizeEmail(emailAddress);
     const inbox = this.inboxes.get(normalizedEmail);
     if (!inbox) {
       throw new NotFoundException(`Inbox not found: ${normalizedEmail}`);
@@ -258,7 +260,7 @@ export class InboxStorageService {
    * Mark an email as read
    */
   markEmailAsRead(emailAddress: string, emailId: string): void {
-    const normalizedEmail = emailAddress.toLowerCase();
+    const normalizedEmail = this.normalizeEmail(emailAddress);
     const inbox = this.inboxes.get(normalizedEmail);
     if (!inbox) {
       throw new NotFoundException(`Inbox not found: ${normalizedEmail}`);
@@ -277,8 +279,7 @@ export class InboxStorageService {
    * Check if inbox exists
    */
   inboxExists(emailAddress: string): boolean {
-    // Normalize email to lowercase for case-insensitive lookups
-    return this.inboxes.has(emailAddress.toLowerCase());
+    return this.inboxes.has(this.normalizeEmail(emailAddress));
   }
 
   /**

@@ -53,43 +53,14 @@ export class EmailValidationService {
   }
 
   /**
-   * Check if SPF validation is enabled based on global config and inbox settings
+   * Check if a specific auth check is enabled based on global config and inbox settings.
+   * Consolidates the common logic for SPF, DKIM, DMARC, and Reverse DNS checks.
    */
-  private isSpfEnabled(inbox?: Inbox): boolean {
+  private isAuthCheckEnabled(checkType: 'spf' | 'dkim' | 'dmarc' | 'reverseDns', inbox?: Inbox): boolean {
     /* v8 ignore next - global config toggle, tested via integration */
     if (!this.emailAuthConfig.enabled) return false;
     if (inbox && !inbox.emailAuth) return false;
-    return this.emailAuthConfig.spf;
-  }
-
-  /**
-   * Check if DKIM validation is enabled based on global config and inbox settings
-   */
-  private isDkimEnabled(inbox?: Inbox): boolean {
-    /* v8 ignore next - global config toggle, tested via integration */
-    if (!this.emailAuthConfig.enabled) return false;
-    if (inbox && !inbox.emailAuth) return false;
-    return this.emailAuthConfig.dkim;
-  }
-
-  /**
-   * Check if DMARC validation is enabled based on global config and inbox settings
-   */
-  private isDmarcEnabled(inbox?: Inbox): boolean {
-    /* v8 ignore next - global config toggle, tested via integration */
-    if (!this.emailAuthConfig.enabled) return false;
-    if (inbox && !inbox.emailAuth) return false;
-    return this.emailAuthConfig.dmarc;
-  }
-
-  /**
-   * Check if Reverse DNS validation is enabled based on global config and inbox settings
-   */
-  private isReverseDnsEnabled(inbox?: Inbox): boolean {
-    /* v8 ignore next - global config toggle, tested via integration */
-    if (!this.emailAuthConfig.enabled) return false;
-    if (inbox && !inbox.emailAuth) return false;
-    return this.emailAuthConfig.reverseDns;
+    return this.emailAuthConfig[checkType];
   }
 
   /**
@@ -125,7 +96,7 @@ export class EmailValidationService {
     inbox?: Inbox,
   ): Promise<SpfResult> {
     // Check if SPF validation is enabled
-    if (!this.isSpfEnabled(inbox)) {
+    if (!this.isAuthCheckEnabled('spf', inbox)) {
       this.logger.log(`SPF check (session=${sessionId}): SKIPPED - SPF validation disabled`);
       return {
         status: 'skipped',
@@ -207,7 +178,7 @@ export class EmailValidationService {
    */
   async verifyDkim(rawData: Buffer, sessionId: string, inbox?: Inbox): Promise<DkimResult[]> {
     // Check if DKIM validation is enabled
-    if (!this.isDkimEnabled(inbox)) {
+    if (!this.isAuthCheckEnabled('dkim', inbox)) {
       this.logger.log(`DKIM check (session=${sessionId}): SKIPPED - DKIM validation disabled`);
       return [
         {
@@ -304,7 +275,7 @@ export class EmailValidationService {
     inbox?: Inbox,
   ): Promise<DmarcResult> {
     // Check if DMARC validation is enabled
-    if (!this.isDmarcEnabled(inbox)) {
+    if (!this.isAuthCheckEnabled('dmarc', inbox)) {
       this.logger.log(`DMARC check (session=${sessionId}): SKIPPED - DMARC validation disabled`);
       return {
         status: 'skipped',
@@ -431,7 +402,7 @@ export class EmailValidationService {
    */
   async verifyReverseDns(remoteIp: string | undefined, sessionId: string, inbox?: Inbox): Promise<ReverseDnsResult> {
     // Check if Reverse DNS validation is enabled
-    if (!this.isReverseDnsEnabled(inbox)) {
+    if (!this.isAuthCheckEnabled('reverseDns', inbox)) {
       this.logger.log(`Reverse DNS check (session=${sessionId}): SKIPPED - Reverse DNS validation disabled`);
       return {
         status: 'skipped',
