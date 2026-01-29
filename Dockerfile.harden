@@ -8,7 +8,7 @@
 
 # ===== Frontend Builder Stage =====
 # Build the Angular frontend (uses -dev variant with build tools)
-FROM dhi.io/node:24-dev@sha256:0a90afadabdddcdd7e9eecef7048e5a0f1f45e6f165c2a035be091f1efd2255e AS frontend-builder
+FROM dhi.io/node:24.13.0-dev@sha256:718a3be75bc28f1ebfac3463cf0e0e1e4d228ca344c80dcc1a3f267bcc46efb9 AS frontend-builder
 
 WORKDIR /usr/src/frontend
 
@@ -20,7 +20,7 @@ RUN npm run build
 
 # ===== Backend Builder Stage =====
 # Install dependencies, build NestJS, and keep only prod deps
-FROM dhi.io/node:24-dev@sha256:0a90afadabdddcdd7e9eecef7048e5a0f1f45e6f165c2a035be091f1efd2255e AS backend-builder
+FROM dhi.io/node:24.13.0-dev@sha256:718a3be75bc28f1ebfac3463cf0e0e1e4d228ca344c80dcc1a3f267bcc46efb9 AS backend-builder
 
 WORKDIR /usr/src/app
 
@@ -50,12 +50,12 @@ EOF
 # ===== Production Stage (Hardened) =====
 # DHI hardened Node.js image - minimal attack surface, no shell
 # Note: This image has no shell, wget, curl, or other utilities
-FROM dhi.io/node:24@sha256:e805d972f53c2db92cab8c56242ba8609736e461ef16d4073d52d5404263bbc9 AS production
+FROM dhi.io/node:24.13.0@sha256:c2368c70538c2459b90d588e5344013064da76aeba6fc4443457b2c376e60cd7 AS production
 
 # OCI metadata labels
 LABEL org.opencontainers.image.title="VaultSandbox Gateway (Hardened)" \
       org.opencontainers.image.description="Secure receive-only SMTP server with automatic TLS certificate management - Hardened build" \
-      org.opencontainers.image.version="0.9.1" \
+      org.opencontainers.image.version="0.9.2" \
       org.opencontainers.image.authors="Antero" \
       org.opencontainers.image.licenses="Apache-2.0" \
       org.opencontainers.image.source="https://github.com/vaultsandbox/gateway"

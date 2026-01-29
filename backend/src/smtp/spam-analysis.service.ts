@@ -6,6 +6,7 @@ import { firstValueFrom, timeout } from 'rxjs';
 import type { SpamAnalysisResult, SpamSymbol } from './interfaces/email-session.interface';
 import type { RspamdCheckResponse, RspamdSymbol } from './interfaces/rspamd.interface';
 import type { Inbox } from '../inbox/interfaces';
+import { getErrorMessage } from '../shared/error.utils';
 
 interface SpamAnalysisConfig {
   enabled: boolean;
@@ -108,7 +109,7 @@ export class SpamAnalysisService {
 
       return result;
     } catch (error) {
-      const message = error instanceof Error ? error.message : String(error);
+      const message = getErrorMessage(error);
       const processingTimeMs = Date.now() - startTime;
 
       this.logger.warn(`Spam analysis error (session=${sessionId}): ${message} (after ${processingTimeMs}ms)`);

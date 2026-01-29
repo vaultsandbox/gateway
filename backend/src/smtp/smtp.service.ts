@@ -15,6 +15,7 @@ import { SmtpRateLimiterService, RateLimitExceededError } from './smtp-rate-limi
 import { normalizeIp } from './utils/email.utils';
 import { SseConsoleService } from '../sse-console/sse-console.service';
 import { ChaosDropError } from '../chaos/chaos-error';
+import { getErrorMessage } from '../shared/error.utils';
 
 /**
  * Extended SMTP Server Options
@@ -332,7 +333,7 @@ export class SmtpService implements OnModuleInit, OnModuleDestroy {
               } else {
                 // Unexpected error - log and allow connection
                 /* v8 ignore next - defensive for non-Error exceptions */
-                this.logger.error(`Rate limiter error: ${error instanceof Error ? error.message : String(error)}`);
+                this.logger.error(`Rate limiter error: ${getErrorMessage(error)}`);
                 markActiveConnection();
                 completeConnection();
               }

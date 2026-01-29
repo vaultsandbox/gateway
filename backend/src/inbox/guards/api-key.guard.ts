@@ -2,6 +2,7 @@ import { Injectable, CanActivate, ExecutionContext, UnauthorizedException, Logge
 import { ConfigService } from '@nestjs/config';
 import { Request } from 'express';
 import { timingSafeEqual } from 'crypto';
+import { getErrorMessage } from '../../shared/error.utils';
 
 @Injectable()
 export class ApiKeyGuard implements CanActivate {
@@ -64,7 +65,7 @@ export class ApiKeyGuard implements CanActivate {
       return contentsEqual && a.length === b.length;
       /* v8 ignore next 5 - defensive catch for unexpected errors in crypto operations */
     } catch (error) {
-      const errorMessage = error instanceof Error ? error.message : String(error);
+      const errorMessage = getErrorMessage(error);
       this.logger.error(`Error in constant-time comparison: ${errorMessage}`);
       return false;
     }

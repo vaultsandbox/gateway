@@ -5,6 +5,7 @@ import { readFileSync } from 'fs';
 import { ml_kem768 } from '@noble/post-quantum/ml-kem.js';
 import { ml_dsa65 } from '@noble/post-quantum/ml-dsa.js';
 import { EncryptedPayload } from './interfaces';
+import { getErrorMessage } from '../shared/error.utils';
 
 const CONTEXT_STRING = 'vaultsandbox:email:v1';
 
@@ -81,7 +82,7 @@ export class CryptoService {
       this.logger.log(`  Public key: ${this.serverSigPK.length} bytes`);
     } catch (error) {
       /* v8 ignore next - defensive for non-Error exceptions */
-      const errorMessage = error instanceof Error ? error.message : String(error);
+      const errorMessage = getErrorMessage(error);
       this.logger.error(`Failed to load signing keys from files: ${errorMessage}`);
       throw new Error(`Failed to load signing keys: ${errorMessage}`);
     }
@@ -112,7 +113,7 @@ export class CryptoService {
       }
     } catch (error) {
       /* v8 ignore next - defensive for non-Error exceptions */
-      const errorMessage = error instanceof Error ? error.message : String(error);
+      const errorMessage = getErrorMessage(error);
       this.logger.error(`Failed to generate ephemeral keys: ${errorMessage}`);
       throw new Error(`Failed to generate signing keys: ${errorMessage}`);
     }
@@ -197,7 +198,7 @@ export class CryptoService {
       return payload;
     } catch (error) {
       /* v8 ignore next 2 - defensive for non-Error exceptions */
-      const errorMessage = error instanceof Error ? error.message : String(error);
+      const errorMessage = getErrorMessage(error);
       const errorStack = error instanceof Error ? error.stack : undefined;
       if (error instanceof Error && error.message.startsWith(CLIENT_KEM_VALIDATION_ERROR)) {
         this.logger.warn(error.message);

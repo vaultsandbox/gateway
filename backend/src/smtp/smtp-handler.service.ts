@@ -66,6 +66,7 @@ import { DEFAULT_GATEWAY_MODE } from '../config/config.constants';
 import { SpamAnalysisService } from './spam-analysis.service';
 import { ChaosService } from '../chaos/chaos.service';
 import { ChaosSmtpError, ChaosDropError } from '../chaos/chaos-error';
+import { getErrorMessage } from '../shared/error.utils';
 
 type ParsedEmailPayload = Omit<EncryptedBodyPayload, 'rawEmail'>;
 
@@ -969,7 +970,7 @@ export class SmtpHandlerService {
       });
     } catch (error) {
       /* v8 ignore next - defensive for non-Error exceptions */
-      const message = error instanceof Error ? error.message : String(error);
+      const message = getErrorMessage(error);
       this.logger.error(`Failed to emit SSE event for email ${emailId}: ${message}`);
     }
   }
@@ -993,7 +994,7 @@ export class SmtpHandlerService {
       });
       /* v8 ignore start - defensive error handling */
     } catch (error) {
-      const message = error instanceof Error ? error.message : String(error);
+      const message = getErrorMessage(error);
       this.logger.error(`Failed to emit SSE event for email ${emailId}: ${message}`);
     }
     /* v8 ignore stop */
@@ -1074,7 +1075,7 @@ export class SmtpHandlerService {
       });
       /* v8 ignore start */
     } catch (error) {
-      const message = error instanceof Error ? error.message : String(error);
+      const message = getErrorMessage(error);
       this.logger.error(`Failed to emit webhook events for email ${emailId}: ${message}`);
     }
     /* v8 ignore stop */
