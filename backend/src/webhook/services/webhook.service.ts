@@ -1,4 +1,12 @@
-import { Injectable, Logger, NotFoundException, BadRequestException, ConflictException } from '@nestjs/common';
+import {
+  Injectable,
+  Logger,
+  NotFoundException,
+  BadRequestException,
+  ConflictException,
+  Inject,
+  forwardRef,
+} from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { Webhook, WebhookTemplate, WebhookStats } from '../interfaces/webhook.interface';
 import { WebhookFilterConfig } from '../interfaces/webhook-filter.interface';
@@ -7,6 +15,7 @@ import { WebhookTemplateService } from './webhook-template.service';
 import { WebhookDeliveryService } from './webhook-delivery.service';
 import { WebhookFilterService } from './webhook-filter.service';
 import { InboxStorageService } from '../../inbox/storage/inbox-storage.service';
+import { PersistenceService } from '../../persistence/persistence.service';
 import { CreateWebhookDto, CustomTemplateDto, FilterConfigDto } from '../dto/create-webhook.dto';
 import { UpdateWebhookDto } from '../dto/update-webhook.dto';
 import {
@@ -32,7 +41,7 @@ export class WebhookService {
   private readonly allowHttp: boolean;
   private readonly requireAuthDefault: boolean;
 
-  /* v8 ignore next 8 - false positive on constructor parameter properties */
+  /* v8 ignore next 9 - false positive on constructor parameter properties */
   constructor(
     private readonly storageService: WebhookStorageService,
     private readonly templateService: WebhookTemplateService,
@@ -40,6 +49,7 @@ export class WebhookService {
     private readonly filterService: WebhookFilterService,
     private readonly inboxStorageService: InboxStorageService,
     private readonly configService: ConfigService,
+    @Inject(forwardRef(() => PersistenceService)) private readonly persistenceService: PersistenceService,
   ) {
     /* v8 ignore next 4 - config defaults */
     this.maxGlobalWebhooks = this.configService.get<number>('vsb.webhook.maxGlobalWebhooks') ?? 100;
@@ -64,6 +74,13 @@ export class WebhookService {
     // Validate and create
     const webhook = this.createWebhookEntity(dto, 'global');
     this.storageService.createGlobalWebhook(webhook);
+
+    // Persist if global webhook persistence is enabled
+    if (this.persistenceService.isGlobalWebhookPersistenceEnabled()) {
+      this.persistenceService.persistGlobalWebhook(webhook).catch((error) => {
+        this.logger.error(`Failed to persist global webhook ${webhook.id}: ${(error as Error).message}`);
+      });
+    }
 
     this.logger.log(`Created global webhook ${webhook.id}`);
     return this.toResponse(webhook, true);
@@ -96,6 +113,13 @@ export class WebhookService {
     const updates = this.buildUpdates(dto);
     const updated = this.storageService.updateWebhook(id, updates);
 
+    // Update persistence if enabled
+    if (this.persistenceService.isGlobalWebhookPersistenceEnabled()) {
+      this.persistenceService.updatePersistedGlobalWebhook(updated!).catch((error) => {
+        this.logger.error(`Failed to update persisted global webhook ${id}: ${(error as Error).message}`);
+      });
+    }
+
     this.logger.log(`Updated global webhook ${id}`);
     return this.toResponse(updated!, true);
   }
@@ -107,6 +131,14 @@ export class WebhookService {
     const existed = this.storageService.deleteWebhook(id);
     if (existed) {
       this.deliveryService.cancelPendingRetries(id);
+
+      // Remove persistence if enabled
+      if (this.persistenceService.isGlobalWebhookPersistenceEnabled()) {
+        this.persistenceService.removePersistedGlobalWebhook(id).catch((error) => {
+          this.logger.error(`Failed to remove persisted global webhook ${id}: ${(error as Error).message}`);
+        });
+      }
+
       this.logger.log(`Deleted global webhook ${id}`);
     }
   }
@@ -146,6 +178,13 @@ export class WebhookService {
     const webhook = this.createWebhookEntity(dto, 'inbox', inbox.inboxHash, email);
     this.storageService.createInboxWebhook(inbox.inboxHash, webhook);
 
+    // Persist if parent inbox is persistent
+    if (inbox.persistent) {
+      this.persistenceService.persistInboxWebhook(webhook).catch((error) => {
+        this.logger.error(`Failed to persist inbox webhook ${webhook.id}: ${(error as Error).message}`);
+      });
+    }
+
     this.logger.log(`Created inbox webhook ${webhook.id} for ${email}`);
     return this.toResponse(webhook, true);
   }
@@ -181,6 +220,13 @@ export class WebhookService {
     const updates = this.buildUpdates(dto);
     const updated = this.storageService.updateWebhook(id, updates);
 
+    // Update persistence if inbox is persistent
+    if (inbox.persistent) {
+      this.persistenceService.updatePersistedInboxWebhook(updated!).catch((error) => {
+        this.logger.error(`Failed to update persisted inbox webhook ${id}: ${(error as Error).message}`);
+      });
+    }
+
     this.logger.log(`Updated inbox webhook ${id}`);
     return this.toResponse(updated!, true);
   }
@@ -198,6 +244,14 @@ export class WebhookService {
     const existed = this.storageService.deleteWebhook(id);
     if (existed) {
       this.deliveryService.cancelPendingRetries(id);
+
+      // Remove persistence if inbox is persistent
+      if (inbox.persistent) {
+        this.persistenceService.removePersistedInboxWebhook(inbox.inboxHash, id).catch((error) => {
+          this.logger.error(`Failed to remove persisted inbox webhook ${id}: ${(error as Error).message}`);
+        });
+      }
+
       this.logger.log(`Deleted inbox webhook ${id}`);
     }
   }
@@ -474,11 +528,27 @@ export class WebhookService {
     const newSecret = generateWebhookSecret();
     const previousSecretExpiresAt = new Date(Date.now() + 60 * 60 * 1000); // 1 hour
 
-    this.storageService.updateWebhook(webhook.id, {
+    const updated = this.storageService.updateWebhook(webhook.id, {
       secret: newSecret,
       previousSecret: webhook.secret,
       previousSecretExpiresAt,
     });
+
+    // Update persistence if applicable
+    if (webhook.scope === 'global') {
+      if (this.persistenceService.isGlobalWebhookPersistenceEnabled()) {
+        this.persistenceService.updatePersistedGlobalWebhook(updated!).catch((error) => {
+          this.logger.error(`Failed to update persisted global webhook ${webhook.id}: ${(error as Error).message}`);
+        });
+      }
+    } else if (webhook.inboxHash) {
+      const inbox = this.inboxStorageService.getInboxByHash(webhook.inboxHash);
+      if (inbox?.persistent) {
+        this.persistenceService.updatePersistedInboxWebhook(updated!).catch((error) => {
+          this.logger.error(`Failed to update persisted inbox webhook ${webhook.id}: ${(error as Error).message}`);
+        });
+      }
+    }
 
     this.logger.log(`Rotated secret for webhook ${webhook.id}`);
 

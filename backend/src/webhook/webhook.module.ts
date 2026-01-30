@@ -1,5 +1,5 @@
 /* v8 ignore start - NestJS module definition */
-import { Module } from '@nestjs/common';
+import { Module, forwardRef } from '@nestjs/common';
 import { HttpModule } from '@nestjs/axios';
 import { WebhookController } from './webhook.controller';
 import { WebhookService } from './services/webhook.service';
@@ -9,6 +9,7 @@ import { WebhookTemplateService } from './services/webhook-template.service';
 import { WebhookFilterService } from './services/webhook-filter.service';
 import { WebhookStorageService } from './storage/webhook-storage.service';
 import { InboxModule } from '../inbox/inbox.module';
+import { PersistenceModule } from '../persistence/persistence.module';
 
 /**
  * Module for webhook management and event delivery.
@@ -34,6 +35,7 @@ import { InboxModule } from '../inbox/inbox.module';
       maxRedirects: 3,
     }),
     InboxModule,
+    forwardRef(() => PersistenceModule),
   ],
   controllers: [WebhookController],
   providers: [

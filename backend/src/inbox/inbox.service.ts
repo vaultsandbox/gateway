@@ -5,6 +5,8 @@ import {
   ForbiddenException,
   InternalServerErrorException,
   Optional,
+  Inject,
+  forwardRef,
 } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { EventEmitter2 } from '@nestjs/event-emitter';
@@ -15,6 +17,7 @@ import { randomBytes, createHash } from 'crypto';
 import { MetricsService } from '../metrics/metrics.service';
 import { METRIC_PATHS } from '../metrics/metrics.constants';
 import { ChaosService } from '../chaos/chaos.service';
+import { PersistenceService } from '../persistence/persistence.service';
 import {
   DEFAULT_LOCAL_INBOX_ALIAS_RANDOM_BYTES,
   DEFAULT_LOCAL_INBOX_MAX_TTL,
@@ -22,6 +25,7 @@ import {
   MAX_INBOX_ALIAS_RANDOM_BYTES,
   MIN_INBOX_ALIAS_RANDOM_BYTES,
   EncryptionPolicy,
+  PersistencePolicy,
 } from '../config/config.constants';
 import { ServerInfoResponseDto } from './dto/response.dto';
 import { serializeEncryptedPayload, SerializedEncryptedPayload } from '../crypto/serialization';
@@ -99,13 +103,14 @@ export class InboxService {
   /**
    * Constructor
    */
-  /* v8 ignore next 7 - false positive on constructor parameter properties */
+  /* v8 ignore next 8 - false positive on constructor parameter properties */
   constructor(
     private readonly storageService: InboxStorageService,
     private readonly cryptoService: CryptoService,
     private readonly configService: ConfigService,
     private readonly metricsService: MetricsService,
     private readonly eventEmitter: EventEmitter2,
+    @Inject(forwardRef(() => PersistenceService)) private readonly persistenceService: PersistenceService,
     @Optional() private readonly chaosService?: ChaosService,
   ) {
     this.defaultTtl = this.configService.get<number>('vsb.local.inboxDefaultTtl', DEFAULT_LOCAL_INBOX_TTL);
@@ -142,7 +147,7 @@ export class InboxService {
    * Create a new inbox with specified or random email address
    *
    * @param clientKemPk - Base64URL-encoded ML-KEM-768 public key (required for encrypted inboxes)
-   * @param ttl - Optional time-to-live in seconds
+   * @param ttl - Optional time-to-live in seconds (null = never expires, only for persistent)
    * @param emailAddress - Optional email address or domain:
    *   - If null/undefined: Generate random email with first allowed domain
    *   - If domain only (e.g., "mydomain.com"): Generate random email with that domain
@@ -152,16 +157,17 @@ export class InboxService {
    * @param emailAuth - Optional email authentication preference (default: config value)
    * @param spamAnalysis - Optional spam analysis preference (default: config value)
    * @param chaos - Optional chaos configuration (only processed if VSB_CHAOS_ENABLED=true)
+   * @param persistence - Optional persistence preference ('persistent' | 'ephemeral')
    */
   createInbox(
     clientKemPk?: string,
-    ttl?: number,
+    ttl?: number | null,
     emailAddress?: string,
     encryption?: 'encrypted' | 'plain',
     emailAuth?: boolean,
     spamAnalysis?: boolean,
-
     chaos?: Record<string, any>,
+    persistence?: 'persistent' | 'ephemeral',
   ): { inbox: Inbox; serverSigPk?: string } {
     // 1. Determine effective encryption state using server policy and inbox preference
     const policy = this.configService.get<EncryptionPolicy>('vsb.crypto.encryptionPolicy', EncryptionPolicy.ENABLED);
@@ -190,8 +196,11 @@ export class InboxService {
       }
     }
 
-    // Validate and normalize TTL
-    const effectiveTtl = this.validateTtl(ttl);
+    // Resolve persistence state
+    const persistent = this.persistenceService.resolvePersistenceState(persistence);
+
+    // Validate and normalize TTL (null only allowed for persistent inboxes)
+    const effectiveTtl = this.validateTtl(ttl, persistent);
 
     // Determine the email address to use (may strip +tag portion)
     let finalEmailAddress = this.resolveEmailAddress(emailAddress);
@@ -212,8 +221,8 @@ export class InboxService {
       throw new InternalServerErrorException('Failed to generate a unique email address.');
     }
 
-    // Calculate expiration time
-    const expiresAt = new Date(Date.now() + effectiveTtl * 1000);
+    // Calculate expiration time (null for persistent inboxes that never expire)
+    const expiresAt = effectiveTtl === null ? null : new Date(Date.now() + effectiveTtl * 1000);
 
     // Derive inbox hash from appropriate source
     const inboxHash = this.deriveInboxHash(
@@ -243,6 +252,20 @@ export class InboxService {
       normalizedChaos,
     );
 
+    // Persist inbox if needed
+    if (persistent) {
+      try {
+        this.persistenceService.persistInbox(inbox).catch((error) => {
+          this.logger.error(`Failed to persist inbox ${inbox.inboxHash}: ${getErrorMessage(error)}`);
+        });
+        // Update inbox's persistent flag
+        this.storageService.setPersistent(inbox.inboxHash, true);
+      } catch (error) {
+        // Log but continue - inbox exists in memory, just won't survive restart
+        this.logger.error(`Failed to persist inbox ${inbox.inboxHash}: ${getErrorMessage(error)}`);
+      }
+    }
+
     // Get server signing public key (only for encrypted inboxes)
     const serverSigPk = encrypted ? this.cryptoService.getServerSigningPublicKey() : undefined;
 
@@ -250,11 +273,11 @@ export class InboxService {
     const requestedEmail = emailAddress?.trim().toLowerCase();
     if (requestedEmail && requestedEmail !== finalEmailAddress && requestedEmail.includes('+')) {
       this.logger.log(
-        `Inbox created email=${inbox.emailAddress} hash=${inbox.inboxHash} encrypted=${encrypted} emailAuth=${effectiveEmailAuth} (requested: ${requestedEmail}, auto-aliasing enabled)`,
+        `Inbox created email=${inbox.emailAddress} hash=${inbox.inboxHash} encrypted=${encrypted} emailAuth=${effectiveEmailAuth} persistent=${persistent} (requested: ${requestedEmail}, auto-aliasing enabled)`,
       );
     } else {
       this.logger.log(
-        `Inbox created email=${inbox.emailAddress} hash=${inbox.inboxHash} encrypted=${encrypted} emailAuth=${effectiveEmailAuth}`,
+        `Inbox created email=${inbox.emailAddress} hash=${inbox.inboxHash} encrypted=${encrypted} emailAuth=${effectiveEmailAuth} persistent=${persistent}`,
       );
     }
 
@@ -311,6 +334,13 @@ export class InboxService {
     if (inbox && deleted) {
       this.metricsService.increment(METRIC_PATHS.INBOX_DELETED_TOTAL);
       this.updateActiveInboxMetric();
+
+      // Remove persisted data if inbox was persistent
+      if (inbox.persistent) {
+        this.persistenceService.removePersistedInbox(inbox.inboxHash).catch((error) => {
+          this.logger.error(`Failed to remove persisted inbox ${inbox.inboxHash}: ${getErrorMessage(error)}`);
+        });
+      }
     }
 
     return deleted;
@@ -480,13 +510,28 @@ export class InboxService {
   }
 
   /**
-   * Validate TTL and apply limits
+   * Validate TTL and apply limits.
+   * For persistent inboxes, TTL can be null (never expires).
+   *
+   * @param ttl - Time-to-live in seconds, undefined for default, null for never expires
+   * @param persistent - Whether this is a persistent inbox
+   * @returns Effective TTL (number) or null for never-expiring persistent inboxes
    */
-  private validateTtl(ttl?: number): number {
-    if (ttl === undefined || ttl === null) {
+  private validateTtl(ttl?: number | null, persistent = false): number | null {
+    // TTL = null means "never expires" - only valid for persistent inboxes
+    if (ttl === null) {
+      if (!persistent) {
+        throw new BadRequestException('TTL cannot be null for ephemeral inboxes');
+      }
+      return null;
+    }
+
+    // TTL = undefined - use default
+    if (ttl === undefined) {
       return this.defaultTtl;
     }
 
+    // Numeric TTL - validate range
     if (ttl < 60) {
       throw new BadRequestException('TTL must be at least 60 seconds');
     }

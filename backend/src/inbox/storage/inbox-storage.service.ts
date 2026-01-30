@@ -41,7 +41,7 @@ export class InboxStorageService {
   createInbox(
     emailAddress: string,
     clientKemPk: string | undefined,
-    expiresAt: Date,
+    expiresAt: Date | null,
     inboxHash: string,
     encrypted: boolean,
     emailAuth: boolean,

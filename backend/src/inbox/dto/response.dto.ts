@@ -234,6 +234,12 @@ export class CreateInboxResponseDto {
   })
   spamAnalysis?: boolean;
 
+  @ApiProperty({
+    description: 'Whether this inbox is persisted to disk (survives server restarts)',
+    example: false,
+  })
+  persistent: boolean;
+
   @ApiPropertyOptional({
     description: 'Chaos engineering configuration. Only present when VSB_CHAOS_ENABLED=true and chaos was configured.',
   })

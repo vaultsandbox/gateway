@@ -108,7 +108,7 @@ export class InboxController {
   /* v8 ignore next - decorator metadata evaluation */
   createInbox(@Body() createInboxDto: CreateInboxDto): CreateInboxResponseDto {
     this.logger.debug(
-      `POST /api/inboxes (encryption=${createInboxDto.encryption || 'default'}, emailAuth=${createInboxDto.emailAuth ?? 'default'}, spamAnalysis=${createInboxDto.spamAnalysis ?? 'default'}, chaos=${createInboxDto.chaos?.enabled ?? 'default'})`,
+      `POST /api/inboxes (encryption=${createInboxDto.encryption || 'default'}, emailAuth=${createInboxDto.emailAuth ?? 'default'}, spamAnalysis=${createInboxDto.spamAnalysis ?? 'default'}, persistence=${createInboxDto.persistence ?? 'default'}, chaos=${createInboxDto.chaos?.enabled ?? 'default'})`,
     );
 
     const { inbox, serverSigPk } = this.inboxService.createInbox(
@@ -119,6 +119,7 @@ export class InboxController {
       createInboxDto.emailAuth,
       createInboxDto.spamAnalysis,
       createInboxDto.chaos,
+      createInboxDto.persistence,
     );
 
     return {
@@ -128,6 +129,7 @@ export class InboxController {
       encrypted: inbox.encrypted,
       emailAuth: inbox.emailAuth,
       spamAnalysis: inbox.spamAnalysis,
+      persistent: inbox.persistent,
       chaos: inbox.chaos,
       ...(serverSigPk && { serverSigPk }),
     };
