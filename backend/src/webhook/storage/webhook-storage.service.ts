@@ -1,4 +1,4 @@
-import { Injectable, Logger, OnModuleInit, Optional } from '@nestjs/common';
+import { Injectable, Logger, OnModuleInit, Optional, Inject, forwardRef } from '@nestjs/common';
 import { Webhook, WebhookStorageMetrics, IWebhookStorageService } from '../interfaces/webhook.interface';
 import { WebhookEventType } from '../constants/webhook-events';
 import { InboxStorageService } from '../../inbox/storage/inbox-storage.service';
@@ -20,8 +20,10 @@ export class WebhookStorageService implements OnModuleInit, IWebhookStorageServi
   /** Reverse lookup: webhookId -> inboxHash (for inbox webhooks only) */
   private webhookToInbox = new Map<string, string>();
 
-  /* v8 ignore next 3 - false positive on constructor parameter properties */
-  constructor(@Optional() private readonly inboxStorageService?: InboxStorageService) {}
+  /* v8 ignore next 5 - false positive on constructor parameter properties */
+  constructor(
+    @Optional() @Inject(forwardRef(() => InboxStorageService)) private readonly inboxStorageService?: InboxStorageService,
+  ) {}
 
   /**
    * Register with InboxStorageService for deletion notifications

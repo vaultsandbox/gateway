@@ -47,7 +47,7 @@ export class WebhookService {
     private readonly templateService: WebhookTemplateService,
     private readonly deliveryService: WebhookDeliveryService,
     private readonly filterService: WebhookFilterService,
-    private readonly inboxStorageService: InboxStorageService,
+    @Inject(forwardRef(() => InboxStorageService)) private readonly inboxStorageService: InboxStorageService,
     private readonly configService: ConfigService,
     @Inject(forwardRef(() => PersistenceService)) private readonly persistenceService: PersistenceService,
   ) {

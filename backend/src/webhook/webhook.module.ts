@@ -34,7 +34,7 @@ import { PersistenceModule } from '../persistence/persistence.module';
       timeout: 10000,
       maxRedirects: 3,
     }),
-    InboxModule,
+    forwardRef(() => InboxModule),
     forwardRef(() => PersistenceModule),
   ],
   controllers: [WebhookController],
