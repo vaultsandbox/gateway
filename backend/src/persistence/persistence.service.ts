@@ -123,9 +123,7 @@ export class PersistenceService implements OnModuleInit {
         if (persistedInbox.expiresAt) {
           const expiresAt = new Date(persistedInbox.expiresAt);
           if (expiresAt < now) {
-            this.logger.log(
-              `Inbox ${persistedInbox.emailAddress} expired at ${persistedInbox.expiresAt}, removing`,
-            );
+            this.logger.log(`Inbox ${persistedInbox.emailAddress} expired at ${persistedInbox.expiresAt}, removing`);
             await this.removePersistedInbox(persistedInbox.inboxHash);
             expired++;
             continue;
@@ -150,21 +148,15 @@ export class PersistenceService implements OnModuleInit {
           }
         }
 
-        this.logger.log(
-          `Restored inbox ${persistedInbox.emailAddress} with ${webhooks.length} webhooks`,
-        );
+        this.logger.log(`Restored inbox ${persistedInbox.emailAddress} with ${webhooks.length} webhooks`);
         restored++;
       } catch (error) {
-        this.logger.error(
-          `Failed to restore inbox ${persistedInbox.inboxHash}: ${(error as Error).message}`,
-        );
+        this.logger.error(`Failed to restore inbox ${persistedInbox.inboxHash}: ${(error as Error).message}`);
         // Continue with other inboxes
       }
     }
 
-    this.logger.log(
-      `Persistence startup: ${restored} inboxes restored, ${expired} expired and removed`,
-    );
+    this.logger.log(`Persistence startup: ${restored} inboxes restored, ${expired} expired and removed`);
   }
 
   /**
@@ -180,9 +172,7 @@ export class PersistenceService implements OnModuleInit {
         this.webhookStorageService.createGlobalWebhook(webhook);
         restored++;
       } catch (error) {
-        this.logger.error(
-          `Failed to restore global webhook ${persistedWebhook.id}: ${(error as Error).message}`,
-        );
+        this.logger.error(`Failed to restore global webhook ${persistedWebhook.id}: ${(error as Error).message}`);
       }
     }
 
@@ -276,9 +266,7 @@ export class PersistenceService implements OnModuleInit {
           // Directory exists but inbox.json is missing
           this.logger.warn(`Missing inbox.json in ${inboxHash}, skipping`);
         } else {
-          this.logger.warn(
-            `Failed to load inbox from ${inboxFilePath}: ${(error as Error).message}`,
-          );
+          this.logger.warn(`Failed to load inbox from ${inboxFilePath}: ${(error as Error).message}`);
         }
       }
     }
@@ -516,9 +504,7 @@ export class PersistenceService implements OnModuleInit {
 
         webhooks.push(webhook);
       } catch (error) {
-        this.logger.warn(
-          `Failed to load global webhook from ${filePath}: ${(error as Error).message}`,
-        );
+        this.logger.warn(`Failed to load global webhook from ${filePath}: ${(error as Error).message}`);
       }
     }
 

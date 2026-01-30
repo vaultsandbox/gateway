@@ -25,7 +25,6 @@ import {
   MAX_INBOX_ALIAS_RANDOM_BYTES,
   MIN_INBOX_ALIAS_RANDOM_BYTES,
   EncryptionPolicy,
-  PersistencePolicy,
 } from '../config/config.constants';
 import { ServerInfoResponseDto } from './dto/response.dto';
 import { serializeEncryptedPayload, SerializedEncryptedPayload } from '../crypto/serialization';

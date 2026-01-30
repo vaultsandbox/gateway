@@ -22,7 +22,9 @@ export class WebhookStorageService implements OnModuleInit, IWebhookStorageServi
 
   /* v8 ignore next 5 - false positive on constructor parameter properties */
   constructor(
-    @Optional() @Inject(forwardRef(() => InboxStorageService)) private readonly inboxStorageService?: InboxStorageService,
+    @Optional()
+    @Inject(forwardRef(() => InboxStorageService))
+    private readonly inboxStorageService?: InboxStorageService,
   ) {}
 
   /**

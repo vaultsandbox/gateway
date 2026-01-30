@@ -11,7 +11,7 @@ import {
   ValidateIf,
 } from 'class-validator';
 import { Type } from 'class-transformer';
-import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
+import { ApiPropertyOptional } from '@nestjs/swagger';
 import { CreateChaosConfigDto } from '../../chaos/dto/chaos-config.dto';
 
 export class CreateInboxDto {
@@ -33,7 +33,7 @@ export class CreateInboxDto {
     nullable: true,
   })
   @IsOptional()
-  @ValidateIf((o) => o.ttl !== null)
+  @ValidateIf((o: CreateInboxDto) => o.ttl !== null)
   @IsInt()
   @Min(60)
   @Max(604800)

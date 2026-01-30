@@ -69,7 +69,14 @@ const chaosEnabled = parseOptionalBoolean(process.env.VSB_CHAOS_ENABLED, DEFAULT
     // Conditionally import InboxModule, EventsModule, ProxyModule, WebhookModule, PersistenceModule only in local mode
     // ChaosModule is only imported when chaos is enabled (VSB_CHAOS_ENABLED=true)
     ...(gatewayMode === 'local'
-      ? [InboxModule, EventsModule, ProxyModule, WebhookModule, PersistenceModule, ...(chaosEnabled ? [ChaosModule] : [])]
+      ? [
+          InboxModule,
+          EventsModule,
+          ProxyModule,
+          WebhookModule,
+          PersistenceModule,
+          ...(chaosEnabled ? [ChaosModule] : []),
+        ]
       : []),
     // Conditionally import TestModule only in local mode with VSB_SDK_DEVELOPMENT=true
     ...(gatewayMode === 'local' && isDevelopment ? [TestModule] : []),
