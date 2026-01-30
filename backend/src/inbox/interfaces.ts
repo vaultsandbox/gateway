@@ -46,8 +46,9 @@ export interface Inbox {
   emailAuth: boolean; // Whether email authentication (SPF, DKIM, DMARC, PTR) is enabled
   spamAnalysis?: boolean; // Whether spam analysis is enabled (undefined = use global default)
   chaos?: InboxChaosConfig; // Chaos engineering configuration (only when VSB_CHAOS_ENABLED=true)
+  persistent: boolean; // Whether this inbox is persisted to disk (survives server restarts)
   createdAt: Date;
-  expiresAt: Date;
+  expiresAt: Date | null; // null for persistent inboxes that never expire
   emails: Map<string, StoredEmail>; // Map<emailId, StoredEmail>
   emailsHash: string; // SHA-256 hash of sorted email IDs for sync checks
 }

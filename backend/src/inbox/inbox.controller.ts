@@ -123,7 +123,7 @@ export class InboxController {
 
     return {
       emailAddress: inbox.emailAddress,
-      expiresAt: inbox.expiresAt.toISOString(),
+      expiresAt: inbox.expiresAt?.toISOString() ?? null,
       inboxHash: inbox.inboxHash,
       encrypted: inbox.encrypted,
       emailAuth: inbox.emailAuth,

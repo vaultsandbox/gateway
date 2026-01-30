@@ -203,10 +203,11 @@ export class CreateInboxResponseDto {
   emailAddress: string;
 
   @ApiProperty({
-    description: 'ISO 8601 timestamp when the inbox will expire',
+    description: 'ISO 8601 timestamp when the inbox will expire, or null for persistent inboxes that never expire',
     example: '2025-01-21T12:00:00.000Z',
+    nullable: true,
   })
-  expiresAt: string;
+  expiresAt: string | null;
 
   @ApiProperty({
     description:

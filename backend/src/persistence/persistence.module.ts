@@ -1,9 +1,12 @@
-import { Module } from '@nestjs/common';
+import { Module, forwardRef } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { PERSISTENCE_CONFIG } from './persistence.constants';
+import { PersistenceService } from './persistence.service';
 import type { PersistenceConfig } from './persistence.interfaces';
 import { PersistencePolicy, DEFAULT_DATA_PATH } from '../config/config.constants';
 import type { VsbConfiguration } from '../config/config.types';
+import { InboxModule } from '../inbox/inbox.module';
+import { WebhookModule } from '../webhook/webhook.module';
 
 /**
  * Configuration provider for the PersistenceModule.
@@ -51,9 +54,17 @@ const persistenceConfigProvider = {
  *         └── webhooks/
  *             └── whk_{id}.json
  * ```
+ *
+ * Module dependencies:
+ * - InboxModule: For restoring persisted inboxes on startup
+ * - WebhookModule: For restoring persisted webhooks on startup
+ *
+ * forwardRef is used to handle circular dependencies that will exist
+ * when InboxModule/WebhookModule later import PersistenceModule (Phase 3).
  */
 @Module({
-  providers: [persistenceConfigProvider],
-  exports: [PERSISTENCE_CONFIG],
+  imports: [forwardRef(() => InboxModule), forwardRef(() => WebhookModule)],
+  providers: [persistenceConfigProvider, PersistenceService],
+  exports: [PERSISTENCE_CONFIG, PersistenceService],
 })
 export class PersistenceModule {}

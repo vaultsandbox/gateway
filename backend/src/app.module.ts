@@ -26,6 +26,7 @@ import { TestModule } from './test/test.module';
 import { ProxyModule } from './proxy/proxy.module';
 import { WebhookModule } from './webhook/webhook.module';
 import { ChaosModule } from './chaos/chaos.module';
+import { PersistenceModule } from './persistence/persistence.module';
 
 // Conditional module loading based on gateway mode
 const gatewayMode = process.env.VSB_GATEWAY_MODE || DEFAULT_GATEWAY_MODE;
@@ -65,10 +66,10 @@ const chaosEnabled = parseOptionalBoolean(process.env.VSB_CHAOS_ENABLED, DEFAULT
     CryptoModule,
     MetricsModule,
     SseConsoleModule, // Always import, enabled/disabled via config
-    // Conditionally import InboxModule, EventsModule, ProxyModule, WebhookModule only in local mode
+    // Conditionally import InboxModule, EventsModule, ProxyModule, WebhookModule, PersistenceModule only in local mode
     // ChaosModule is only imported when chaos is enabled (VSB_CHAOS_ENABLED=true)
     ...(gatewayMode === 'local'
-      ? [InboxModule, EventsModule, ProxyModule, WebhookModule, ...(chaosEnabled ? [ChaosModule] : [])]
+      ? [InboxModule, EventsModule, ProxyModule, WebhookModule, PersistenceModule, ...(chaosEnabled ? [ChaosModule] : [])]
       : []),
     // Conditionally import TestModule only in local mode with VSB_SDK_DEVELOPMENT=true
     ...(gatewayMode === 'local' && isDevelopment ? [TestModule] : []),
