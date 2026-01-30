@@ -25,6 +25,7 @@ This repository contains the Gateway: the core backend service and web interface
 - **[Spam Analysis](https://vaultsandbox.dev/gateway/spam-analysis/)**: SpamAssassin-style scoring and detection
 - **[Webhooks](https://vaultsandbox.dev/gateway/webhooks/)**: HTTP notifications for email events
 - **[Chaos Engineering](https://vaultsandbox.dev/gateway/chaos-engineering/)**: Test email pipeline resilience
+- **Persistence**: Optional inbox and webhook persistence with automatic restoration on startup
 
 ### 📦 Monorepo Components
 

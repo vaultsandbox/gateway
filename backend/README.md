@@ -21,6 +21,7 @@ A secure, receive-only SMTP server built with NestJS for QA/testing environments
 - **[Spam Analysis](https://vaultsandbox.dev/gateway/spam-analysis/)**: SpamAssassin-style scoring and detection
 - **[Webhooks](https://vaultsandbox.dev/gateway/webhooks/)**: HTTP notifications for email events
 - **[Chaos Engineering](https://vaultsandbox.dev/gateway/chaos-engineering/)**: Test email pipeline resilience
+- **Persistence**: Optional inbox and webhook persistence with automatic restoration on startup
 
 ## Quick Start
 
@@ -128,6 +129,8 @@ The gateway is configured via environment variables. See `template-env` for all 
 | `VSB_SERVER_PORT` | HTTP server port | `80` |
 | `VSB_SERVER_HTTPS_PORT` | HTTPS server port | `443` |
 | `VSB_DATA_PATH` | Data storage path | `/app/data` |
+| `VSB_PERSISTENCE_POLICY` | Inbox persistence policy (`enabled`, `disabled`, `always`, `never`) | `disabled` |
+| `VSB_PERSISTENT_GLOBAL_WEBHOOKS` | Persist all global webhooks | `false` |
 
 ### API Documentation
 
