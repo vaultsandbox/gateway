@@ -2,7 +2,7 @@ import { Module, forwardRef } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { PERSISTENCE_CONFIG } from './persistence.constants';
 import { PersistenceService } from './persistence.service';
-import type { PersistenceConfig } from './persistence.interfaces';
+import type { PersistenceConfig } from './persistence.interface';
 import { PersistencePolicy, DEFAULT_DATA_PATH } from '../config/config.constants';
 import type { VsbConfiguration } from '../config/config.types';
 import { InboxModule } from '../inbox/inbox.module';

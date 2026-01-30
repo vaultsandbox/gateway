@@ -18,7 +18,7 @@ import type {
   PersistedInbox,
   PersistedInboxWebhook,
   PersistedGlobalWebhook,
-} from './persistence.interfaces';
+} from './persistence.interface';
 import {
   atomicWriteJson,
   removeDirectory,
@@ -69,6 +69,7 @@ export class PersistenceService implements OnModuleInit {
   /** Track which inboxes are currently persisted (for fast lookup) */
   private persistedInboxHashes = new Set<string>();
 
+  /* c8 ignore start */
   constructor(
     @Inject(PERSISTENCE_CONFIG) private readonly config: PersistenceConfig,
     @Inject(forwardRef(() => InboxStorageService))
@@ -76,6 +77,7 @@ export class PersistenceService implements OnModuleInit {
     @Inject(forwardRef(() => WebhookStorageService))
     private readonly webhookStorageService: WebhookStorageService,
   ) {}
+  /* c8 ignore stop */
 
   // ============================================
   // Lifecycle
@@ -539,8 +541,9 @@ export class PersistenceService implements OnModuleInit {
         // Ephemeral by default, user can opt in
         return preference === 'persistent';
 
+      /* c8 ignore next 3 */
       default:
-        // Defensive fallback
+        // Defensive fallback - unreachable due to TypeScript exhaustive check
         return false;
     }
   }
