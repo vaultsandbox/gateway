@@ -408,6 +408,156 @@ describe('Persistence E2E', () => {
         }
       }
     }, 60000);
+
+    it('should persist global webhook updates', async () => {
+      let webhookId: string;
+
+      // Create and update a global webhook
+      {
+        const testApp = await createPersistenceTestApp('enabled', true);
+        const apiClient = createApiClient(testApp.httpServer);
+
+        try {
+          const createResponse = await apiClient
+            .createGlobalWebhook({
+              url: 'http://localhost:9999/update-test-webhook',
+              events: ['email.received'],
+              description: 'Original description',
+            })
+            .expect(201);
+
+          webhookId = createResponse.body.id;
+
+          // Update the webhook
+          await apiClient
+            .updateGlobalWebhook(webhookId, {
+              url: 'http://localhost:9999/updated-url',
+              events: ['email.received', 'email.stored'],
+              description: 'Updated description',
+              enabled: false,
+            })
+            .expect(200);
+
+          // Allow time for async persistence to complete
+          await new Promise((resolve) => setTimeout(resolve, 100));
+        } finally {
+          await shutdownPersistenceTestApp(testApp);
+        }
+      }
+
+      // Verify updates persisted after restart
+      {
+        const testApp = await createPersistenceTestApp('enabled', true);
+        const apiClient = createApiClient(testApp.httpServer);
+
+        try {
+          const response = await apiClient.getGlobalWebhook(webhookId).expect(200);
+
+          expect(response.body).toMatchObject({
+            id: webhookId,
+            url: 'http://localhost:9999/updated-url',
+            events: expect.arrayContaining(['email.received', 'email.stored']),
+            description: 'Updated description',
+            enabled: false,
+          });
+        } finally {
+          await shutdownPersistenceTestApp(testApp);
+        }
+      }
+    }, 60000);
+
+    it('should persist global webhook deletion', async () => {
+      let webhookId: string;
+
+      // Create and delete a global webhook
+      {
+        const testApp = await createPersistenceTestApp('enabled', true);
+        const apiClient = createApiClient(testApp.httpServer);
+
+        try {
+          const createResponse = await apiClient
+            .createGlobalWebhook({
+              url: 'http://localhost:9999/delete-test-webhook',
+              events: ['email.received'],
+            })
+            .expect(201);
+
+          webhookId = createResponse.body.id;
+
+          // Allow time for async persistence to complete
+          await new Promise((resolve) => setTimeout(resolve, 100));
+
+          // Delete the webhook
+          await apiClient.deleteGlobalWebhook(webhookId).expect(204);
+
+          // Allow time for async persistence removal to complete
+          await new Promise((resolve) => setTimeout(resolve, 100));
+        } finally {
+          await shutdownPersistenceTestApp(testApp);
+        }
+      }
+
+      // Verify deletion persisted after restart
+      {
+        const testApp = await createPersistenceTestApp('enabled', true);
+        const apiClient = createApiClient(testApp.httpServer);
+
+        try {
+          // Webhook should not be restored (was deleted)
+          await apiClient.getGlobalWebhook(webhookId).expect(404);
+        } finally {
+          await shutdownPersistenceTestApp(testApp);
+        }
+      }
+    }, 60000);
+
+    it('should persist global webhook secret rotation', async () => {
+      let webhookId: string;
+      let rotatedSecret: string;
+
+      // Create and rotate secret for a global webhook
+      {
+        const testApp = await createPersistenceTestApp('enabled', true);
+        const apiClient = createApiClient(testApp.httpServer);
+
+        try {
+          const createResponse = await apiClient
+            .createGlobalWebhook({
+              url: 'http://localhost:9999/rotate-test-webhook',
+              events: ['email.received'],
+            })
+            .expect(201);
+
+          webhookId = createResponse.body.id;
+          const originalSecret = createResponse.body.secret;
+
+          // Rotate the secret
+          const rotateResponse = await apiClient.rotateGlobalWebhookSecret(webhookId).expect(201);
+          rotatedSecret = rotateResponse.body.secret;
+
+          expect(rotatedSecret).not.toBe(originalSecret);
+
+          // Allow time for async persistence to complete
+          await new Promise((resolve) => setTimeout(resolve, 100));
+        } finally {
+          await shutdownPersistenceTestApp(testApp);
+        }
+      }
+
+      // Verify rotated secret persisted after restart
+      {
+        const testApp = await createPersistenceTestApp('enabled', true);
+        const apiClient = createApiClient(testApp.httpServer);
+
+        try {
+          const response = await apiClient.getGlobalWebhook(webhookId).expect(200);
+
+          expect(response.body.secret).toBe(rotatedSecret);
+        } finally {
+          await shutdownPersistenceTestApp(testApp);
+        }
+      }
+    }, 60000);
   });
 
   // ============================================
@@ -776,6 +926,160 @@ describe('Persistence E2E', () => {
             description: 'Updated description',
             enabled: false,
           });
+        } finally {
+          await shutdownPersistenceTestApp(testApp);
+        }
+      }
+    }, 60000);
+  });
+
+  // ============================================
+  // Inbox Webhook Deletion Persistence
+  // ============================================
+
+  describe('Inbox Webhook Deletion Persistence', () => {
+    beforeAll(async () => {
+      await cleanPersistenceDirectory();
+    });
+
+    afterAll(async () => {
+      await cleanPersistenceDirectory();
+    }, 30000);
+
+    it('should persist inbox webhook deletion', async () => {
+      let inboxEmail: string;
+      let webhookId: string;
+
+      // Create inbox and webhook, then delete webhook
+      {
+        const testApp = await createPersistenceTestApp('enabled');
+        const apiClient = createApiClient(testApp.httpServer);
+
+        try {
+          const { publicKeyB64: clientKemPk } = generateClientKeypair();
+
+          const inboxResponse = await apiClient
+            .createInbox({
+              clientKemPk,
+              ttl: 7200,
+              persistence: 'persistent',
+            })
+            .expect(201);
+
+          inboxEmail = inboxResponse.body.emailAddress;
+
+          const webhookResponse = await apiClient
+            .createInboxWebhook(inboxEmail, {
+              url: 'http://localhost:9999/delete-test-webhook',
+              events: ['email.received'],
+            })
+            .expect(201);
+
+          webhookId = webhookResponse.body.id;
+
+          // Allow time for async persistence to complete
+          await new Promise((resolve) => setTimeout(resolve, 100));
+
+          // Delete the webhook
+          await apiClient.deleteInboxWebhook(inboxEmail, webhookId).expect(204);
+
+          // Allow time for async persistence removal to complete
+          await new Promise((resolve) => setTimeout(resolve, 100));
+        } finally {
+          await shutdownPersistenceTestApp(testApp);
+        }
+      }
+
+      // Verify deletion persisted after restart
+      {
+        const testApp = await createPersistenceTestApp('enabled');
+        const apiClient = createApiClient(testApp.httpServer);
+
+        try {
+          // Inbox should still exist
+          await apiClient.getInboxSyncStatus(inboxEmail).expect(200);
+
+          // Webhook should not be restored (was deleted)
+          await apiClient.getInboxWebhook(inboxEmail, webhookId).expect(404);
+
+          // List should be empty
+          const listResponse = await apiClient.listInboxWebhooks(inboxEmail).expect(200);
+          expect(listResponse.body.webhooks).toHaveLength(0);
+        } finally {
+          await shutdownPersistenceTestApp(testApp);
+        }
+      }
+    }, 60000);
+  });
+
+  // ============================================
+  // Inbox Webhook Secret Rotation Persistence
+  // ============================================
+
+  describe('Inbox Webhook Secret Rotation Persistence', () => {
+    beforeAll(async () => {
+      await cleanPersistenceDirectory();
+    });
+
+    afterAll(async () => {
+      await cleanPersistenceDirectory();
+    }, 30000);
+
+    it('should persist inbox webhook secret rotation', async () => {
+      let inboxEmail: string;
+      let webhookId: string;
+      let rotatedSecret: string;
+
+      // Create inbox and webhook, then rotate secret
+      {
+        const testApp = await createPersistenceTestApp('enabled');
+        const apiClient = createApiClient(testApp.httpServer);
+
+        try {
+          const { publicKeyB64: clientKemPk } = generateClientKeypair();
+
+          const inboxResponse = await apiClient
+            .createInbox({
+              clientKemPk,
+              ttl: 7200,
+              persistence: 'persistent',
+            })
+            .expect(201);
+
+          inboxEmail = inboxResponse.body.emailAddress;
+
+          const webhookResponse = await apiClient
+            .createInboxWebhook(inboxEmail, {
+              url: 'http://localhost:9999/rotate-test-webhook',
+              events: ['email.received'],
+            })
+            .expect(201);
+
+          webhookId = webhookResponse.body.id;
+          const originalSecret = webhookResponse.body.secret;
+
+          // Rotate the secret
+          const rotateResponse = await apiClient.rotateInboxWebhookSecret(inboxEmail, webhookId).expect(201);
+          rotatedSecret = rotateResponse.body.secret;
+
+          expect(rotatedSecret).not.toBe(originalSecret);
+
+          // Allow time for async persistence to complete
+          await new Promise((resolve) => setTimeout(resolve, 100));
+        } finally {
+          await shutdownPersistenceTestApp(testApp);
+        }
+      }
+
+      // Verify rotated secret persisted after restart
+      {
+        const testApp = await createPersistenceTestApp('enabled');
+        const apiClient = createApiClient(testApp.httpServer);
+
+        try {
+          const response = await apiClient.getInboxWebhook(inboxEmail, webhookId).expect(200);
+
+          expect(response.body.secret).toBe(rotatedSecret);
         } finally {
           await shutdownPersistenceTestApp(testApp);
         }

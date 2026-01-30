@@ -78,6 +78,7 @@ export class WebhookService {
     // Persist if global webhook persistence is enabled
     if (this.persistenceService.isGlobalWebhookPersistenceEnabled()) {
       this.persistenceService.persistGlobalWebhook(webhook).catch((error) => {
+        /* v8 ignore next - error path */
         this.logger.error(`Failed to persist global webhook ${webhook.id}: ${(error as Error).message}`);
       });
     }
@@ -116,6 +117,7 @@ export class WebhookService {
     // Update persistence if enabled
     if (this.persistenceService.isGlobalWebhookPersistenceEnabled()) {
       this.persistenceService.updatePersistedGlobalWebhook(updated!).catch((error) => {
+        /* v8 ignore next - error path */
         this.logger.error(`Failed to update persisted global webhook ${id}: ${(error as Error).message}`);
       });
     }
@@ -135,6 +137,7 @@ export class WebhookService {
       // Remove persistence if enabled
       if (this.persistenceService.isGlobalWebhookPersistenceEnabled()) {
         this.persistenceService.removePersistedGlobalWebhook(id).catch((error) => {
+          /* v8 ignore next - error path */
           this.logger.error(`Failed to remove persisted global webhook ${id}: ${(error as Error).message}`);
         });
       }
@@ -181,6 +184,7 @@ export class WebhookService {
     // Persist if parent inbox is persistent
     if (inbox.persistent) {
       this.persistenceService.persistInboxWebhook(webhook).catch((error) => {
+        /* v8 ignore next - error path */
         this.logger.error(`Failed to persist inbox webhook ${webhook.id}: ${(error as Error).message}`);
       });
     }
@@ -223,6 +227,7 @@ export class WebhookService {
     // Update persistence if inbox is persistent
     if (inbox.persistent) {
       this.persistenceService.updatePersistedInboxWebhook(updated!).catch((error) => {
+        /* v8 ignore next - error path */
         this.logger.error(`Failed to update persisted inbox webhook ${id}: ${(error as Error).message}`);
       });
     }
@@ -248,6 +253,7 @@ export class WebhookService {
       // Remove persistence if inbox is persistent
       if (inbox.persistent) {
         this.persistenceService.removePersistedInboxWebhook(inbox.inboxHash, id).catch((error) => {
+          /* v8 ignore next - error path */
           this.logger.error(`Failed to remove persisted inbox webhook ${id}: ${(error as Error).message}`);
         });
       }
@@ -538,6 +544,7 @@ export class WebhookService {
     if (webhook.scope === 'global') {
       if (this.persistenceService.isGlobalWebhookPersistenceEnabled()) {
         this.persistenceService.updatePersistedGlobalWebhook(updated!).catch((error) => {
+          /* v8 ignore next - error path */
           this.logger.error(`Failed to update persisted global webhook ${webhook.id}: ${(error as Error).message}`);
         });
       }
@@ -545,6 +552,7 @@ export class WebhookService {
       const inbox = this.inboxStorageService.getInboxByHash(webhook.inboxHash);
       if (inbox?.persistent) {
         this.persistenceService.updatePersistedInboxWebhook(updated!).catch((error) => {
+          /* v8 ignore next - error path */
           this.logger.error(`Failed to update persisted inbox webhook ${webhook.id}: ${(error as Error).message}`);
         });
       }
