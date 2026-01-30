@@ -1,7 +1,13 @@
 import { readFileSync, existsSync } from 'fs';
 import { resolve } from 'path';
 import * as process from 'process';
-import { BOOLEAN_TRUE_VALUES, EncryptionPolicy, DEFAULT_ENCRYPTION_POLICY } from './config.constants';
+import {
+  BOOLEAN_TRUE_VALUES,
+  EncryptionPolicy,
+  DEFAULT_ENCRYPTION_POLICY,
+  PersistencePolicy,
+  DEFAULT_PERSISTENCE_POLICY,
+} from './config.constants';
 import { isValidDomain } from './config.validators';
 
 export function parseOptionalBoolean(value: string | undefined, defaultValue = false): boolean {
@@ -215,6 +221,39 @@ export function parseEncryptionPolicy(
     /* v8 ignore next 3 - defensive: invalid env value falls back to default */
     default:
       console.warn(`Invalid VSB_ENCRYPTION_ENABLED value "${value}", using default "${defaultPolicy}"`);
+      return defaultPolicy;
+  }
+}
+
+/**
+ * Parse VSB_PERSISTENCE_POLICY env var into PersistencePolicy enum.
+ * Accepts: 'enabled', 'disabled', 'always', 'never' (case-insensitive)
+ *
+ * @param value - The environment variable value
+ * @param defaultPolicy - The default policy when value is not set (defaults to DEFAULT_PERSISTENCE_POLICY)
+ * @returns Parsed PersistencePolicy
+ */
+export function parsePersistencePolicy(
+  value: string | undefined,
+  defaultPolicy: PersistencePolicy = DEFAULT_PERSISTENCE_POLICY,
+): PersistencePolicy {
+  const normalized = value?.toLowerCase().trim();
+
+  switch (normalized) {
+    case 'enabled':
+      return PersistencePolicy.ENABLED;
+    case 'disabled':
+      return PersistencePolicy.DISABLED;
+    case 'always':
+      return PersistencePolicy.ALWAYS;
+    case 'never':
+      return PersistencePolicy.NEVER;
+    case undefined:
+    case '':
+      return defaultPolicy;
+    /* v8 ignore next 3 - defensive: invalid env value falls back to default */
+    default:
+      console.warn(`Invalid VSB_PERSISTENCE_POLICY value "${value}", using default "${defaultPolicy}"`);
       return defaultPolicy;
   }
 }
