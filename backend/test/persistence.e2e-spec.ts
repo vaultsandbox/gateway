@@ -245,9 +245,7 @@ describe('Persistence E2E', () => {
           description: 'Persisted test webhook',
         };
 
-        const webhookResponse = await apiClient
-          .createInboxWebhook(createdInboxEmail, webhookData)
-          .expect(201);
+        const webhookResponse = await apiClient.createInboxWebhook(createdInboxEmail, webhookData).expect(201);
 
         createdWebhookId = webhookResponse.body.id;
         expect(createdWebhookId).toMatch(/^whk_/);

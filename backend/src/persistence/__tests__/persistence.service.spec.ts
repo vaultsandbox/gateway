@@ -6,7 +6,12 @@ import { randomBytes, createHash } from 'crypto';
 
 import { PersistenceService } from '../persistence.service';
 import { PERSISTENCE_CONFIG, PERSISTENCE_SCHEMA_VERSION } from '../persistence.constants';
-import type { PersistenceConfig, PersistedInbox, PersistedInboxWebhook, PersistedGlobalWebhook } from '../persistence.interface';
+import type {
+  PersistenceConfig,
+  PersistedInbox,
+  PersistedInboxWebhook,
+  PersistedGlobalWebhook,
+} from '../persistence.interface';
 import { PersistencePolicy } from '../../config/config.constants';
 import { InboxStorageService } from '../../inbox/storage/inbox-storage.service';
 import { WebhookStorageService } from '../../webhook/storage/webhook-storage.service';
@@ -16,8 +21,6 @@ import { silenceNestLogger } from '../../../test/helpers/silence-logger';
 
 describe('PersistenceService', () => {
   let service: PersistenceService;
-  let inboxStorageService: jest.Mocked<InboxStorageService>;
-  let webhookStorageService: jest.Mocked<WebhookStorageService>;
   let testDir: string;
   const restoreLogger = silenceNestLogger();
 
@@ -120,8 +123,6 @@ describe('PersistenceService', () => {
     }).compile();
 
     service = module.get<PersistenceService>(PersistenceService);
-    inboxStorageService = module.get(InboxStorageService);
-    webhookStorageService = module.get(WebhookStorageService);
   });
 
   afterEach(() => {
@@ -135,7 +136,10 @@ describe('PersistenceService', () => {
           PersistenceService,
           { provide: PERSISTENCE_CONFIG, useValue: createTestConfig({ policy: PersistencePolicy.NEVER }) },
           { provide: InboxStorageService, useValue: { restoreInbox: jest.fn() } },
-          { provide: WebhookStorageService, useValue: { createInboxWebhook: jest.fn(), createGlobalWebhook: jest.fn() } },
+          {
+            provide: WebhookStorageService,
+            useValue: { createInboxWebhook: jest.fn(), createGlobalWebhook: jest.fn() },
+          },
         ],
       }).compile();
 
@@ -223,7 +227,10 @@ describe('PersistenceService', () => {
           PersistenceService,
           { provide: PERSISTENCE_CONFIG, useValue: createTestConfig({ persistentGlobalWebhooks: false }) },
           { provide: InboxStorageService, useValue: { restoreInbox: jest.fn() } },
-          { provide: WebhookStorageService, useValue: { createInboxWebhook: jest.fn(), createGlobalWebhook: jest.fn() } },
+          {
+            provide: WebhookStorageService,
+            useValue: { createInboxWebhook: jest.fn(), createGlobalWebhook: jest.fn() },
+          },
         ],
       }).compile();
 
@@ -566,8 +573,14 @@ describe('PersistenceService', () => {
       const webhooksDir = join(testDir, 'inboxes', inboxHash, 'webhooks');
       mkdirSync(webhooksDir, { recursive: true });
 
-      writeFileSync(join(webhooksDir, 'whk_1.json'), JSON.stringify(createPersistedInboxWebhook({ id: 'whk_1', inboxHash })));
-      writeFileSync(join(webhooksDir, 'whk_2.json'), JSON.stringify(createPersistedInboxWebhook({ id: 'whk_2', inboxHash })));
+      writeFileSync(
+        join(webhooksDir, 'whk_1.json'),
+        JSON.stringify(createPersistedInboxWebhook({ id: 'whk_1', inboxHash })),
+      );
+      writeFileSync(
+        join(webhooksDir, 'whk_2.json'),
+        JSON.stringify(createPersistedInboxWebhook({ id: 'whk_2', inboxHash })),
+      );
 
       const result = await service.loadPersistedInboxWebhooks(inboxHash);
 
@@ -600,7 +613,10 @@ describe('PersistenceService', () => {
       mkdirSync(webhooksDir, { recursive: true });
 
       writeFileSync(join(webhooksDir, 'invalid.json'), JSON.stringify(createPersistedInboxWebhook()));
-      writeFileSync(join(webhooksDir, 'whk_valid.json'), JSON.stringify(createPersistedInboxWebhook({ id: 'whk_valid', inboxHash })));
+      writeFileSync(
+        join(webhooksDir, 'whk_valid.json'),
+        JSON.stringify(createPersistedInboxWebhook({ id: 'whk_valid', inboxHash })),
+      );
 
       const result = await service.loadPersistedInboxWebhooks(inboxHash);
 
@@ -681,7 +697,10 @@ describe('PersistenceService', () => {
         mkdirSync(globalDir, { recursive: true });
 
         writeFileSync(join(globalDir, 'invalid.json'), JSON.stringify(createPersistedGlobalWebhook()));
-        writeFileSync(join(globalDir, 'whk_valid.json'), JSON.stringify(createPersistedGlobalWebhook({ id: 'whk_valid' })));
+        writeFileSync(
+          join(globalDir, 'whk_valid.json'),
+          JSON.stringify(createPersistedGlobalWebhook({ id: 'whk_valid' })),
+        );
 
         const result = await service.loadPersistedGlobalWebhooks();
 
@@ -721,7 +740,10 @@ describe('PersistenceService', () => {
           PersistenceService,
           { provide: PERSISTENCE_CONFIG, useValue: createTestConfig({ policy }) },
           { provide: InboxStorageService, useValue: { restoreInbox: jest.fn() } },
-          { provide: WebhookStorageService, useValue: { createInboxWebhook: jest.fn(), createGlobalWebhook: jest.fn() } },
+          {
+            provide: WebhookStorageService,
+            useValue: { createInboxWebhook: jest.fn(), createGlobalWebhook: jest.fn() },
+          },
         ],
       }).compile();
       return module.get<PersistenceService>(PersistenceService);
@@ -816,8 +838,14 @@ describe('PersistenceService', () => {
       mkdirSync(webhooksDir, { recursive: true });
 
       writeFileSync(join(inboxDir, 'inbox.json'), JSON.stringify(createPersistedInbox({ inboxHash })));
-      writeFileSync(join(webhooksDir, 'whk_good.json'), JSON.stringify(createPersistedInboxWebhook({ id: 'whk_good', inboxHash })));
-      writeFileSync(join(webhooksDir, 'whk_bad.json'), JSON.stringify(createPersistedInboxWebhook({ id: 'whk_bad', inboxHash })));
+      writeFileSync(
+        join(webhooksDir, 'whk_good.json'),
+        JSON.stringify(createPersistedInboxWebhook({ id: 'whk_good', inboxHash })),
+      );
+      writeFileSync(
+        join(webhooksDir, 'whk_bad.json'),
+        JSON.stringify(createPersistedInboxWebhook({ id: 'whk_bad', inboxHash })),
+      );
 
       const mockInbox = { restoreInbox: jest.fn() };
       const mockWebhook = {

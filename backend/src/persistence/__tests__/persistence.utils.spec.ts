@@ -71,7 +71,6 @@ describe('persistence.utils', () => {
       expect(content).toContain('\n');
       expect(content).toContain('  ');
     });
-
   });
 
   describe('removeDirectory', () => {
@@ -101,7 +100,6 @@ describe('persistence.utils', () => {
 
       expect(existsSync(dirPath)).toBe(false);
     });
-
   });
 
   describe('ensureDirectory', () => {

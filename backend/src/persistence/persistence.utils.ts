@@ -35,7 +35,7 @@ export async function atomicWriteJson(filePath: string, data: unknown): Promise<
 
     // Atomic rename
     await rename(tempPath, filePath);
-  /* c8 ignore start */
+    /* c8 ignore start */
   } catch (error) {
     // Clean up temp file on failure
     try {
@@ -58,7 +58,7 @@ export async function atomicWriteJson(filePath: string, data: unknown): Promise<
 export async function removeDirectory(dirPath: string): Promise<void> {
   try {
     await rm(dirPath, { recursive: true, force: true });
-  /* c8 ignore start */
+    /* c8 ignore start */
   } catch (error) {
     // ENOENT (directory doesn't exist) is OK - treat as success
     if ((error as NodeJS.ErrnoException).code !== 'ENOENT') {
