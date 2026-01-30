@@ -760,6 +760,8 @@ describe('InboxService', () => {
         webhookEnabled: true,
         webhookRequireAuthDefault: false,
         spamAnalysisEnabled: false,
+        persistencePolicy: 'disabled',
+        persistentGlobalWebhooks: false,
       });
     });
 

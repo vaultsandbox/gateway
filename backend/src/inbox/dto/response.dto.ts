@@ -190,6 +190,20 @@ export class ServerInfoResponseDto {
     example: false,
   })
   chaosEnabled: boolean;
+
+  @ApiProperty({
+    description:
+      'Server persistence policy. "always"/"never" are locked (per-inbox override ignored). "enabled"/"disabled" allow per-inbox override.',
+    enum: ['always', 'enabled', 'disabled', 'never'],
+    example: 'disabled',
+  })
+  persistencePolicy: 'always' | 'enabled' | 'disabled' | 'never';
+
+  @ApiProperty({
+    description: 'Whether global webhooks are automatically persisted (all global webhooks saved when enabled)',
+    example: false,
+  })
+  persistentGlobalWebhooks: boolean;
 }
 
 /**

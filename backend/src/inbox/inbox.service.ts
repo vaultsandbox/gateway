@@ -25,6 +25,7 @@ import {
   MAX_INBOX_ALIAS_RANDOM_BYTES,
   MIN_INBOX_ALIAS_RANDOM_BYTES,
   EncryptionPolicy,
+  PersistencePolicy,
 } from '../config/config.constants';
 import { ServerInfoResponseDto } from './dto/response.dto';
 import { serializeEncryptedPayload, SerializedEncryptedPayload } from '../crypto/serialization';
@@ -490,6 +491,11 @@ export class InboxService {
     const webhookEnabled = this.configService.get<boolean>('vsb.webhook.enabled', true);
     const webhookRequireAuthDefault = this.configService.get<boolean>('vsb.webhook.requireAuthDefault', false);
     const spamAnalysisEnabled = this.configService.get<boolean>('vsb.spamAnalysis.enabled', false);
+    const persistencePolicy = this.configService.get<PersistencePolicy>(
+      'vsb.persistence.policy',
+      PersistencePolicy.DISABLED,
+    );
+    const persistentGlobalWebhooks = this.configService.get<boolean>('vsb.persistence.persistentGlobalWebhooks', false);
 
     return {
       serverSigPk: this.cryptoService.getServerSigningPublicKey(),
@@ -505,6 +511,8 @@ export class InboxService {
       webhookRequireAuthDefault,
       spamAnalysisEnabled,
       chaosEnabled: this.chaosEnabled,
+      persistencePolicy,
+      persistentGlobalWebhooks,
     };
   }
 
