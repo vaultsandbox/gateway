@@ -178,6 +178,8 @@ describe('WebhookEditDialog', () => {
         webhookRequireAuthDefault: true,
         spamAnalysisEnabled: false,
         chaosEnabled: false,
+        persistencePolicy: 'always',
+        persistentGlobalWebhooks: false,
       });
       componentRef.setInput('webhook', null);
       fixture.detectChanges();

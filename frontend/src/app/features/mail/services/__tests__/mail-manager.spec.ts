@@ -142,7 +142,7 @@ describe('MailManager', () => {
 
       const result = await service.createInbox('new@example.com', 3600);
 
-      expect(spy).toHaveBeenCalledWith('new@example.com', 3600, undefined, undefined, undefined);
+      expect(spy).toHaveBeenCalledWith('new@example.com', 3600, undefined, undefined, undefined, undefined);
       expect(result).toEqual({ created: true, email: 'new@example.com' });
     });
 
@@ -151,7 +151,7 @@ describe('MailManager', () => {
 
       const result = await service.createInbox();
 
-      expect(spy).toHaveBeenCalledWith(undefined, undefined, undefined, undefined, undefined);
+      expect(spy).toHaveBeenCalledWith(undefined, undefined, undefined, undefined, undefined, undefined);
       expect(result).toEqual({ created: true, email: 'auto@example.com' });
     });
 
@@ -160,7 +160,7 @@ describe('MailManager', () => {
 
       const result = await service.createInbox('plain@example.com', 3600, 'plain');
 
-      expect(spy).toHaveBeenCalledWith('plain@example.com', 3600, 'plain', undefined, undefined);
+      expect(spy).toHaveBeenCalledWith('plain@example.com', 3600, 'plain', undefined, undefined, undefined);
       expect(result).toEqual({ created: true, email: 'plain@example.com' });
     });
 
@@ -169,7 +169,7 @@ describe('MailManager', () => {
 
       const result = await service.createInbox('auth@example.com', 3600, 'encrypted', false);
 
-      expect(spy).toHaveBeenCalledWith('auth@example.com', 3600, 'encrypted', false, undefined);
+      expect(spy).toHaveBeenCalledWith('auth@example.com', 3600, 'encrypted', false, undefined, undefined);
       expect(result).toEqual({ created: true, email: 'auth@example.com' });
     });
   });

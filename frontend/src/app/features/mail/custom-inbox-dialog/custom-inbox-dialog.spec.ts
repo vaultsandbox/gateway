@@ -26,6 +26,8 @@ class ConfigurableServerInfoServiceStub {
     webhookRequireAuthDefault: true,
     spamAnalysisEnabled: false,
     chaosEnabled: false,
+    persistencePolicy: 'always',
+    persistentGlobalWebhooks: false,
   });
 
   get serverInfo() {
@@ -63,6 +65,8 @@ describe('CustomInboxDialog', () => {
     webhookRequireAuthDefault: true,
     spamAnalysisEnabled: false,
     chaosEnabled: false,
+    persistencePolicy: 'always',
+    persistentGlobalWebhooks: false,
     ...overrides,
   });
 

@@ -13,7 +13,7 @@ import { VsToast } from '../../../shared/services/vs-toast';
 import { SettingsManager, TtlUnit } from '../services/settings-manager';
 import { TOAST_DURATION_MS } from '../../../shared/constants/app.constants';
 import { toSeconds, fromSeconds, secondsToHours, hoursToSeconds } from '../../../shared/utils/time.utils';
-import { EncryptionPolicy } from '../interfaces';
+import { EncryptionPolicy, PersistencePolicy } from '../interfaces';
 
 @Component({
   selector: 'app-custom-inbox-dialog',
@@ -54,6 +54,7 @@ export class CustomInboxDialog {
   encryptionEnabled = signal<boolean>(true);
   emailAuthEnabled = signal<boolean>(true);
   spamAnalysisEnabled = signal<boolean>(true);
+  persistenceEnabled = signal<boolean>(true);
 
   // TTL unit options for dropdown
   ttlUnitOptions = [
@@ -93,6 +94,22 @@ export class CustomInboxDialog {
   /** Whether spam analysis is available on this server. */
   /* istanbul ignore next */
   isSpamAnalysisAvailable = computed(() => this.serverInfo()?.spamAnalysisEnabled ?? false);
+
+  // Persistence policy computed values
+  /** Current persistence policy from server. */
+  /* istanbul ignore next */
+  persistencePolicy = computed<PersistencePolicy>(() => this.serverInfo()?.persistencePolicy ?? 'always');
+  /** Whether the user can override the default persistence setting. */
+  canOverridePersistence = computed(() => {
+    const policy = this.persistencePolicy();
+    return policy === 'enabled' || policy === 'disabled';
+  });
+  /** Default persistence state based on server policy. */
+  defaultPersistent = computed(() => {
+    const policy = this.persistencePolicy();
+    /* istanbul ignore next */
+    return policy === 'always' || policy === 'enabled';
+  });
 
   // TTL conversion helper
   /**
@@ -168,6 +185,11 @@ export class CustomInboxDialog {
       this.encryptionEnabled.set(this.defaultEncrypted());
     });
 
+    // Initialize persistence setting from server policy
+    effect(() => {
+      this.persistenceEnabled.set(this.defaultPersistent());
+    });
+
     // Initialize TTL with configured setting
     this.loadTtlFromSettings();
   }
@@ -226,6 +248,15 @@ export class CustomInboxDialog {
       /* istanbul ignore next */
       const spamAnalysis = this.isSpamAnalysisAvailable() && !this.spamAnalysisEnabled() ? false : undefined;
 
+      // Determine persistence preference
+      // Only pass explicit preference if user can override
+      /* istanbul ignore next */
+      const persistence = this.canOverridePersistence()
+        ? this.persistenceEnabled()
+          ? 'persistent'
+          : 'ephemeral'
+        : undefined;
+
       // Create inbox
       const response = await this.mailManager.createInbox(
         emailAddress,
@@ -233,6 +264,7 @@ export class CustomInboxDialog {
         encryption,
         emailAuth,
         spamAnalysis,
+        persistence,
       );
 
       if (response.created) {
@@ -312,6 +344,9 @@ export class CustomInboxDialog {
 
     // Reset spam analysis to enabled (server default)
     this.spamAnalysisEnabled.set(true);
+
+    // Reset persistence to server default
+    this.persistenceEnabled.set(this.defaultPersistent());
 
     this.validationError.set(null);
 

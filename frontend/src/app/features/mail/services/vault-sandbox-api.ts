@@ -44,6 +44,7 @@ export class VaultSandboxApi {
    * @param options.encryption - Optional: 'encrypted' | 'plain'. Omit to use server default.
    * @param options.emailAuth - Optional: true/false to enable/disable email auth checks. Omit to use server default.
    * @param options.spamAnalysis - Optional: true/false to enable/disable spam analysis. Omit to use server default.
+   * @param options.persistence - Optional: 'persistent' | 'ephemeral'. Omit to use server default.
    */
   createInbox(options: {
     clientKemPk?: string;
@@ -52,6 +53,7 @@ export class VaultSandboxApi {
     encryption?: 'encrypted' | 'plain';
     emailAuth?: boolean;
     spamAnalysis?: boolean;
+    persistence?: 'persistent' | 'ephemeral';
   }): Observable<CreateInboxResponse> {
     const body: {
       clientKemPk?: string;
@@ -60,6 +62,7 @@ export class VaultSandboxApi {
       encryption?: 'encrypted' | 'plain';
       emailAuth?: boolean;
       spamAnalysis?: boolean;
+      persistence?: 'persistent' | 'ephemeral';
     } = {};
     if (options.clientKemPk) body.clientKemPk = options.clientKemPk;
     if (options.ttl !== undefined) body.ttl = options.ttl;
@@ -67,6 +70,7 @@ export class VaultSandboxApi {
     if (options.encryption) body.encryption = options.encryption;
     if (options.emailAuth !== undefined) body.emailAuth = options.emailAuth;
     if (options.spamAnalysis !== undefined) body.spamAnalysis = options.spamAnalysis;
+    if (options.persistence) body.persistence = options.persistence;
 
     return this.http.post<CreateInboxResponse>(`${this.baseUrl}/inboxes`, body);
   }

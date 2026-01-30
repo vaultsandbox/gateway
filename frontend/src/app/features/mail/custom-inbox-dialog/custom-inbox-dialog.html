@@ -100,6 +100,27 @@
       </div>
     }
 
+    <!-- Persistence Toggle -->
+    @if (canOverridePersistence()) {
+      <div class="flex flex-col gap-2">
+        <div class="flex items-center gap-3">
+          <p-toggleSwitch
+            [(ngModel)]="persistenceEnabled"
+            [disabled]="creating()"
+            inputId="persistence"
+          ></p-toggleSwitch>
+          <label for="persistence" class="font-medium text-sm cursor-pointer">Enable persistence</label>
+        </div>
+        <small class="text-surface-500">
+          @if (persistenceEnabled()) {
+            Inbox will survive server restarts.
+          } @else {
+            Inbox is ephemeral and will be lost on server restart.
+          }
+        </small>
+      </div>
+    }
+
     <!-- Email Auth Toggle -->
     <div class="flex flex-col gap-2">
       <div class="flex items-center gap-3">

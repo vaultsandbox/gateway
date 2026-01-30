@@ -70,6 +70,8 @@ class TestableServerInfoServiceStub implements Partial<ServerInfoService> {
     webhookRequireAuthDefault: true,
     spamAnalysisEnabled: false,
     chaosEnabled: false,
+    persistencePolicy: 'always',
+    persistentGlobalWebhooks: false,
   });
 
   get serverInfo(): Signal<ServerInfo | null> {
@@ -173,6 +175,8 @@ describe('Mail', () => {
         webhookRequireAuthDefault: true,
         spamAnalysisEnabled: false,
         chaosEnabled: false,
+        persistencePolicy: 'always',
+        persistentGlobalWebhooks: false,
       });
 
       const menuItems = component.topLeftMenuitems();
@@ -195,6 +199,8 @@ describe('Mail', () => {
         webhookRequireAuthDefault: true,
         spamAnalysisEnabled: false,
         chaosEnabled: false,
+        persistencePolicy: 'always',
+        persistentGlobalWebhooks: false,
       });
 
       const menuItems = component.topLeftMenuitems();
@@ -225,6 +231,8 @@ describe('Mail', () => {
         webhookRequireAuthDefault: true,
         spamAnalysisEnabled: false,
         chaosEnabled: false,
+        persistencePolicy: 'always',
+        persistentGlobalWebhooks: false,
       });
 
       const menuItems = component.topLeftMenuitems();
@@ -247,6 +255,8 @@ describe('Mail', () => {
         webhookRequireAuthDefault: true,
         spamAnalysisEnabled: false,
         chaosEnabled: false,
+        persistencePolicy: 'always',
+        persistentGlobalWebhooks: false,
       });
 
       const menuItems = component.topLeftMenuitems();
@@ -271,6 +281,8 @@ describe('Mail', () => {
         webhookRequireAuthDefault: true,
         spamAnalysisEnabled: false,
         chaosEnabled: false,
+        persistencePolicy: 'always',
+        persistentGlobalWebhooks: false,
       });
 
       const menuItems = component.topLeftMenuitems();
@@ -322,6 +334,8 @@ describe('Mail', () => {
         webhookRequireAuthDefault: true,
         spamAnalysisEnabled: false,
         chaosEnabled: false,
+        persistencePolicy: 'always',
+        persistentGlobalWebhooks: false,
       });
 
       const menuItems = component.topLeftMenuitems();
@@ -1041,6 +1055,8 @@ describe('Mail', () => {
         webhookRequireAuthDefault: true,
         spamAnalysisEnabled: false,
         chaosEnabled: false,
+        persistencePolicy: 'always',
+        persistentGlobalWebhooks: false,
       });
 
       expect(component.webhookEnabled()).toBe(true);
@@ -1061,6 +1077,8 @@ describe('Mail', () => {
         webhookRequireAuthDefault: true,
         spamAnalysisEnabled: false,
         chaosEnabled: false,
+        persistencePolicy: 'always',
+        persistentGlobalWebhooks: false,
       });
 
       expect(component.webhookEnabled()).toBe(false);
@@ -1089,6 +1107,8 @@ describe('Mail', () => {
         webhookRequireAuthDefault: true,
         spamAnalysisEnabled: false,
         chaosEnabled: true,
+        persistencePolicy: 'always',
+        persistentGlobalWebhooks: false,
       });
 
       expect(component.chaosEnabled()).toBe(true);
@@ -1109,6 +1129,8 @@ describe('Mail', () => {
         webhookRequireAuthDefault: true,
         spamAnalysisEnabled: false,
         chaosEnabled: false,
+        persistencePolicy: 'always',
+        persistentGlobalWebhooks: false,
       });
 
       expect(component.chaosEnabled()).toBe(false);
@@ -1137,6 +1159,8 @@ describe('Mail', () => {
         webhookRequireAuthDefault: true,
         spamAnalysisEnabled: false,
         chaosEnabled: false,
+        persistencePolicy: 'always',
+        persistentGlobalWebhooks: false,
       });
 
       const menuItems = component.mobileMenuItems();
@@ -1160,6 +1184,8 @@ describe('Mail', () => {
         webhookRequireAuthDefault: true,
         spamAnalysisEnabled: false,
         chaosEnabled: false,
+        persistencePolicy: 'always',
+        persistentGlobalWebhooks: false,
       });
 
       const menuItems = component.mobileMenuItems();
@@ -1184,6 +1210,8 @@ describe('Mail', () => {
         webhookRequireAuthDefault: true,
         spamAnalysisEnabled: false,
         chaosEnabled: true,
+        persistencePolicy: 'always',
+        persistentGlobalWebhooks: false,
       });
 
       const menuItems = component.mobileMenuItems();
@@ -1208,6 +1236,8 @@ describe('Mail', () => {
         webhookRequireAuthDefault: true,
         spamAnalysisEnabled: false,
         chaosEnabled: true,
+        persistencePolicy: 'always',
+        persistentGlobalWebhooks: false,
       });
 
       const menuItems = component.mobileMenuItems();
@@ -1243,6 +1273,8 @@ describe('Mail', () => {
         webhookRequireAuthDefault: true,
         spamAnalysisEnabled: false,
         chaosEnabled: false,
+        persistencePolicy: 'always',
+        persistentGlobalWebhooks: false,
       });
 
       spyOn(component, 'openSelectedInboxWebhooks');
@@ -1269,6 +1301,8 @@ describe('Mail', () => {
         webhookRequireAuthDefault: true,
         spamAnalysisEnabled: false,
         chaosEnabled: true,
+        persistencePolicy: 'always',
+        persistentGlobalWebhooks: false,
       });
 
       spyOn(component, 'openSelectedInboxChaos');
@@ -1298,6 +1332,8 @@ describe('Mail', () => {
         webhookRequireAuthDefault: true,
         spamAnalysisEnabled: false,
         chaosEnabled: true,
+        persistencePolicy: 'always',
+        persistentGlobalWebhooks: false,
       });
 
       const mockInbox: InboxModel = {
@@ -1333,6 +1369,8 @@ describe('Mail', () => {
         webhookRequireAuthDefault: true,
         spamAnalysisEnabled: false,
         chaosEnabled: false,
+        persistencePolicy: 'always',
+        persistentGlobalWebhooks: false,
       });
 
       const mockInbox: InboxModel = {
@@ -1368,6 +1406,8 @@ describe('Mail', () => {
         webhookRequireAuthDefault: true,
         spamAnalysisEnabled: false,
         chaosEnabled: true,
+        persistencePolicy: 'always',
+        persistentGlobalWebhooks: false,
       });
 
       fixture.detectChanges();
@@ -1392,6 +1432,8 @@ describe('Mail', () => {
         webhookRequireAuthDefault: true,
         spamAnalysisEnabled: false,
         chaosEnabled: true,
+        persistencePolicy: 'always',
+        persistentGlobalWebhooks: false,
       });
 
       const mockInbox: InboxModel = {
