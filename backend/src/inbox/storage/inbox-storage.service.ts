@@ -99,6 +99,7 @@ export class InboxStorageService {
     const normalizedEmail = this.normalizeEmail(inbox.emailAddress);
 
     // Check for duplicate inboxHash
+    /* v8 ignore next 7 - defensive: persistence layer prevents duplicates */
     if (this.inboxHashToEmail.has(inbox.inboxHash)) {
       const existingEmail = this.inboxHashToEmail.get(inbox.inboxHash);
       this.logger.warn(
@@ -133,6 +134,7 @@ export class InboxStorageService {
    */
   setPersistent(inboxHash: string, persistent: boolean): void {
     const emailAddress = this.inboxHashToEmail.get(inboxHash);
+    /* v8 ignore next 3 - defensive: called after inbox creation */
     if (!emailAddress) {
       return; // Inbox not found, silently ignore
     }

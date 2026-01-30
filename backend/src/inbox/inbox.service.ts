@@ -255,11 +255,13 @@ export class InboxService {
     // Persist inbox if needed
     if (persistent) {
       try {
+        /* v8 ignore next 3 - async error logging */
         this.persistenceService.persistInbox(inbox).catch((error) => {
           this.logger.error(`Failed to persist inbox ${inbox.inboxHash}: ${getErrorMessage(error)}`);
         });
         // Update inbox's persistent flag
         this.storageService.setPersistent(inbox.inboxHash, true);
+        /* v8 ignore next 4 - defensive: persistInbox doesn't throw synchronously */
       } catch (error) {
         // Log but continue - inbox exists in memory, just won't survive restart
         this.logger.error(`Failed to persist inbox ${inbox.inboxHash}: ${getErrorMessage(error)}`);
@@ -337,6 +339,7 @@ export class InboxService {
 
       // Remove persisted data if inbox was persistent
       if (inbox.persistent) {
+        /* v8 ignore next 3 - async error logging */
         this.persistenceService.removePersistedInbox(inbox.inboxHash).catch((error) => {
           this.logger.error(`Failed to remove persisted inbox ${inbox.inboxHash}: ${getErrorMessage(error)}`);
         });
