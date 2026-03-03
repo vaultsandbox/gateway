@@ -6,6 +6,7 @@ import { InboxService } from '../inbox.service';
 import { InboxStorageService } from '../storage/inbox-storage.service';
 import { MetricsService } from '../../metrics/metrics.service';
 import { CryptoService } from '../../crypto/crypto.service';
+import { PersistenceService } from '../../persistence/persistence.service';
 import { METRIC_PATHS } from '../../metrics/metrics.constants';
 import { silenceNestLogger } from '../../../test/helpers/silence-logger';
 import { Inbox, EncryptedStoredEmail, PlainStoredEmail } from '../interfaces';
@@ -64,6 +65,8 @@ describe('InboxService', () => {
       clientKemPk,
       inboxHash: 'hash123',
       encrypted: true,
+      emailAuth: true,
+      persistent: false,
       createdAt: new Date(),
       expiresAt: new Date(Date.now() + 3600000),
       emails: new Map(),
@@ -127,6 +130,16 @@ describe('InboxService', () => {
           provide: EventEmitter2,
           useValue: {
             emit: jest.fn(),
+          },
+        },
+        {
+          provide: PersistenceService,
+          useValue: {
+            resolvePersistenceState: jest.fn().mockReturnValue(false),
+            persistInbox: jest.fn().mockResolvedValue(undefined),
+            removePersistedInbox: jest.fn().mockResolvedValue(undefined),
+            getPolicy: jest.fn().mockReturnValue('disabled'),
+            isGlobalWebhookPersistenceEnabled: jest.fn().mockReturnValue(false),
           },
         },
       ],
@@ -193,6 +206,16 @@ describe('InboxService', () => {
               emit: jest.fn(),
             },
           },
+          {
+            provide: PersistenceService,
+            useValue: {
+              resolvePersistenceState: jest.fn().mockReturnValue(false),
+              persistInbox: jest.fn().mockResolvedValue(undefined),
+              removePersistedInbox: jest.fn().mockResolvedValue(undefined),
+              getPolicy: jest.fn().mockReturnValue('disabled'),
+              isGlobalWebhookPersistenceEnabled: jest.fn().mockReturnValue(false),
+            },
+          },
         ],
       }).compile();
 
@@ -251,6 +274,16 @@ describe('InboxService', () => {
               emit: jest.fn(),
             },
           },
+          {
+            provide: PersistenceService,
+            useValue: {
+              resolvePersistenceState: jest.fn().mockReturnValue(false),
+              persistInbox: jest.fn().mockResolvedValue(undefined),
+              removePersistedInbox: jest.fn().mockResolvedValue(undefined),
+              getPolicy: jest.fn().mockReturnValue('disabled'),
+              isGlobalWebhookPersistenceEnabled: jest.fn().mockReturnValue(false),
+            },
+          },
         ],
       }).compile();
 
@@ -307,6 +340,16 @@ describe('InboxService', () => {
             provide: EventEmitter2,
             useValue: {
               emit: jest.fn(),
+            },
+          },
+          {
+            provide: PersistenceService,
+            useValue: {
+              resolvePersistenceState: jest.fn().mockReturnValue(false),
+              persistInbox: jest.fn().mockResolvedValue(undefined),
+              removePersistedInbox: jest.fn().mockResolvedValue(undefined),
+              getPolicy: jest.fn().mockReturnValue('disabled'),
+              isGlobalWebhookPersistenceEnabled: jest.fn().mockReturnValue(false),
             },
           },
         ],
@@ -500,10 +543,9 @@ describe('InboxService', () => {
       );
     });
 
-    it('should use null TTL as default', () => {
-      const result = service.createInbox(validClientKemPk, null as unknown as number);
-
-      expect(result.inbox).toBeDefined();
+    it('should throw error when null TTL is used for ephemeral inbox', () => {
+      // null TTL means "never expires" and is only valid for persistent inboxes
+      expect(() => service.createInbox(validClientKemPk, null)).toThrow(BadRequestException);
     });
   });
 
@@ -718,6 +760,8 @@ describe('InboxService', () => {
         webhookEnabled: true,
         webhookRequireAuthDefault: false,
         spamAnalysisEnabled: false,
+        persistencePolicy: 'disabled',
+        persistentGlobalWebhooks: false,
       });
     });
 
@@ -770,6 +814,16 @@ describe('InboxService', () => {
             provide: EventEmitter2,
             useValue: {
               emit: jest.fn(),
+            },
+          },
+          {
+            provide: PersistenceService,
+            useValue: {
+              resolvePersistenceState: jest.fn().mockReturnValue(false),
+              persistInbox: jest.fn().mockResolvedValue(undefined),
+              removePersistedInbox: jest.fn().mockResolvedValue(undefined),
+              getPolicy: jest.fn().mockReturnValue('disabled'),
+              isGlobalWebhookPersistenceEnabled: jest.fn().mockReturnValue(false),
             },
           },
         ],
@@ -831,6 +885,16 @@ describe('InboxService', () => {
             provide: EventEmitter2,
             useValue: {
               emit: jest.fn(),
+            },
+          },
+          {
+            provide: PersistenceService,
+            useValue: {
+              resolvePersistenceState: jest.fn().mockReturnValue(false),
+              persistInbox: jest.fn().mockResolvedValue(undefined),
+              removePersistedInbox: jest.fn().mockResolvedValue(undefined),
+              getPolicy: jest.fn().mockReturnValue('disabled'),
+              isGlobalWebhookPersistenceEnabled: jest.fn().mockReturnValue(false),
             },
           },
         ],
@@ -966,6 +1030,16 @@ describe('InboxService', () => {
                 emit: jest.fn(),
               },
             },
+            {
+              provide: PersistenceService,
+              useValue: {
+                resolvePersistenceState: jest.fn().mockReturnValue(false),
+                persistInbox: jest.fn().mockResolvedValue(undefined),
+                removePersistedInbox: jest.fn().mockResolvedValue(undefined),
+                getPolicy: jest.fn().mockReturnValue('disabled'),
+                isGlobalWebhookPersistenceEnabled: jest.fn().mockReturnValue(false),
+              },
+            },
           ],
         }).compile();
 
@@ -1039,6 +1113,16 @@ describe('InboxService', () => {
                 emit: jest.fn(),
               },
             },
+            {
+              provide: PersistenceService,
+              useValue: {
+                resolvePersistenceState: jest.fn().mockReturnValue(false),
+                persistInbox: jest.fn().mockResolvedValue(undefined),
+                removePersistedInbox: jest.fn().mockResolvedValue(undefined),
+                getPolicy: jest.fn().mockReturnValue('disabled'),
+                isGlobalWebhookPersistenceEnabled: jest.fn().mockReturnValue(false),
+              },
+            },
           ],
         }).compile();
 
@@ -1101,6 +1185,16 @@ describe('InboxService', () => {
               provide: EventEmitter2,
               useValue: {
                 emit: jest.fn(),
+              },
+            },
+            {
+              provide: PersistenceService,
+              useValue: {
+                resolvePersistenceState: jest.fn().mockReturnValue(false),
+                persistInbox: jest.fn().mockResolvedValue(undefined),
+                removePersistedInbox: jest.fn().mockResolvedValue(undefined),
+                getPolicy: jest.fn().mockReturnValue('disabled'),
+                isGlobalWebhookPersistenceEnabled: jest.fn().mockReturnValue(false),
               },
             },
           ],
@@ -1166,6 +1260,16 @@ describe('InboxService', () => {
             provide: EventEmitter2,
             useValue: {
               emit: jest.fn(),
+            },
+          },
+          {
+            provide: PersistenceService,
+            useValue: {
+              resolvePersistenceState: jest.fn().mockReturnValue(false),
+              persistInbox: jest.fn().mockResolvedValue(undefined),
+              removePersistedInbox: jest.fn().mockResolvedValue(undefined),
+              getPolicy: jest.fn().mockReturnValue('disabled'),
+              isGlobalWebhookPersistenceEnabled: jest.fn().mockReturnValue(false),
             },
           },
         ],
@@ -1240,6 +1344,16 @@ describe('InboxService', () => {
               emit: jest.fn(),
             },
           },
+          {
+            provide: PersistenceService,
+            useValue: {
+              resolvePersistenceState: jest.fn().mockReturnValue(false),
+              persistInbox: jest.fn().mockResolvedValue(undefined),
+              removePersistedInbox: jest.fn().mockResolvedValue(undefined),
+              getPolicy: jest.fn().mockReturnValue('disabled'),
+              isGlobalWebhookPersistenceEnabled: jest.fn().mockReturnValue(false),
+            },
+          },
         ],
       }).compile();
 
@@ -1312,6 +1426,16 @@ describe('InboxService', () => {
             provide: EventEmitter2,
             useValue: {
               emit: jest.fn(),
+            },
+          },
+          {
+            provide: PersistenceService,
+            useValue: {
+              resolvePersistenceState: jest.fn().mockReturnValue(false),
+              persistInbox: jest.fn().mockResolvedValue(undefined),
+              removePersistedInbox: jest.fn().mockResolvedValue(undefined),
+              getPolicy: jest.fn().mockReturnValue('disabled'),
+              isGlobalWebhookPersistenceEnabled: jest.fn().mockReturnValue(false),
             },
           },
         ],
@@ -1390,6 +1514,16 @@ describe('InboxService', () => {
             provide: EventEmitter2,
             useValue: {
               emit: jest.fn(),
+            },
+          },
+          {
+            provide: PersistenceService,
+            useValue: {
+              resolvePersistenceState: jest.fn().mockReturnValue(false),
+              persistInbox: jest.fn().mockResolvedValue(undefined),
+              removePersistedInbox: jest.fn().mockResolvedValue(undefined),
+              getPolicy: jest.fn().mockReturnValue('disabled'),
+              isGlobalWebhookPersistenceEnabled: jest.fn().mockReturnValue(false),
             },
           },
         ],

@@ -14,7 +14,7 @@ A modern Angular web application providing a rich user interface for the VaultSa
 
 - **Email Management**: Browse received emails with HTML/text views, attachments, and headers
 - **Authentication Results**: Visual display of SPF, DKIM, DMARC, and reverse DNS validation
-- **Custom Inboxes**: Create and manage multiple virtual inboxes
+- **Custom Inboxes**: Create and manage multiple virtual inboxes with optional persistence
 - **Real-Time Updates**: Server-Sent Events (SSE) for live email notifications
 - **Gateway Metrics**: Monitor SMTP server performance and health
 - **Spam Analysis Display**: Visual spam scores and detection results

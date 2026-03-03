@@ -56,6 +56,8 @@ describe('VaultSandboxApi', () => {
         webhookRequireAuthDefault: true,
         spamAnalysisEnabled: false,
         chaosEnabled: false,
+        persistencePolicy: 'always' as const,
+        persistentGlobalWebhooks: false,
       };
 
       service.getServerInfo().subscribe((response) => {
@@ -76,6 +78,7 @@ describe('VaultSandboxApi', () => {
       encrypted: true,
       serverSigPk: 'test-pk',
       emailAuth: true,
+      persistent: true,
     };
 
     it('should make POST request with only clientKemPk', () => {
@@ -185,6 +188,16 @@ describe('VaultSandboxApi', () => {
 
       const req = httpMock.expectOne(`${baseUrl}/inboxes`);
       expect(req.request.body).toEqual({ clientKemPk: 'test-kem-pk', spamAnalysis: false });
+      req.flush(mockResponse);
+    });
+
+    it('should include persistence when provided', () => {
+      service.createInbox({ clientKemPk: 'test-kem-pk', persistence: 'persistent' }).subscribe((response) => {
+        expect(response).toEqual(mockResponse);
+      });
+
+      const req = httpMock.expectOne(`${baseUrl}/inboxes`);
+      expect(req.request.body).toEqual({ clientKemPk: 'test-kem-pk', persistence: 'persistent' });
       req.flush(mockResponse);
     });
   });

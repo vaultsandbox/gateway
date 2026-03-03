@@ -37,5 +37,6 @@
   ],
   "coverageDirectory": "./coverage-e2e",
   "coverageReporters": ["text", "text-summary", "lcov", "html", "json", "json-summary"],
-  "testTimeout": 30000
+  "testTimeout": 30000,
+  "forceExit": true
 }

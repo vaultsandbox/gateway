@@ -146,6 +146,8 @@ describe('MailboxSidebar', () => {
           webhookRequireAuthDefault: true,
           spamAnalysisEnabled: false,
           chaosEnabled: false,
+          persistencePolicy: 'always' as const,
+          persistentGlobalWebhooks: false,
         }).asReadonly(),
       );
 
@@ -617,6 +619,8 @@ describe('MailboxSidebar', () => {
           webhookRequireAuthDefault: true,
           spamAnalysisEnabled: false,
           chaosEnabled: false,
+          persistencePolicy: 'always' as const,
+          persistentGlobalWebhooks: false,
         }).asReadonly(),
       );
 
@@ -642,6 +646,8 @@ describe('MailboxSidebar', () => {
           webhookRequireAuthDefault: true,
           spamAnalysisEnabled: false,
           chaosEnabled: false,
+          persistencePolicy: 'always' as const,
+          persistentGlobalWebhooks: false,
         }).asReadonly(),
       );
 
@@ -701,6 +707,8 @@ describe('MailboxSidebar', () => {
           webhookRequireAuthDefault: true,
           spamAnalysisEnabled: false,
           chaosEnabled: true,
+          persistencePolicy: 'always',
+          persistentGlobalWebhooks: false,
         });
 
         // Need to trigger change detection for the effect to run
@@ -781,6 +789,8 @@ describe('MailboxSidebar', () => {
             webhookRequireAuthDefault: true,
             spamAnalysisEnabled: false,
             chaosEnabled: true,
+            persistencePolicy: 'always' as const,
+            persistentGlobalWebhooks: false,
           }).asReadonly(),
         );
 
@@ -810,6 +820,8 @@ describe('MailboxSidebar', () => {
             webhookRequireAuthDefault: true,
             spamAnalysisEnabled: false,
             chaosEnabled: true,
+            persistencePolicy: 'always' as const,
+            persistentGlobalWebhooks: false,
           }).asReadonly(),
         );
 

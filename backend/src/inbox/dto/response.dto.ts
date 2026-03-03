@@ -190,6 +190,20 @@ export class ServerInfoResponseDto {
     example: false,
   })
   chaosEnabled: boolean;
+
+  @ApiProperty({
+    description:
+      'Server persistence policy. "always"/"never" are locked (per-inbox override ignored). "enabled"/"disabled" allow per-inbox override.',
+    enum: ['always', 'enabled', 'disabled', 'never'],
+    example: 'disabled',
+  })
+  persistencePolicy: 'always' | 'enabled' | 'disabled' | 'never';
+
+  @ApiProperty({
+    description: 'Whether global webhooks are automatically persisted (all global webhooks saved when enabled)',
+    example: false,
+  })
+  persistentGlobalWebhooks: boolean;
 }
 
 /**
@@ -203,10 +217,11 @@ export class CreateInboxResponseDto {
   emailAddress: string;
 
   @ApiProperty({
-    description: 'ISO 8601 timestamp when the inbox will expire',
+    description: 'ISO 8601 timestamp when the inbox will expire, or null for persistent inboxes that never expire',
     example: '2025-01-21T12:00:00.000Z',
+    nullable: true,
   })
-  expiresAt: string;
+  expiresAt: string | null;
 
   @ApiProperty({
     description:
@@ -232,6 +247,12 @@ export class CreateInboxResponseDto {
     example: true,
   })
   spamAnalysis?: boolean;
+
+  @ApiProperty({
+    description: 'Whether this inbox is persisted to disk (survives server restarts)',
+    example: false,
+  })
+  persistent: boolean;
 
   @ApiPropertyOptional({
     description: 'Chaos engineering configuration. Only present when VSB_CHAOS_ENABLED=true and chaos was configured.',

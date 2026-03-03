@@ -49,7 +49,8 @@ export class InboxCleanupService implements OnModuleInit, OnModuleDestroy {
     const inboxes = this.storageService.getAllInboxes();
 
     for (const inbox of inboxes) {
-      if (inbox.expiresAt < now) {
+      // Skip inboxes that never expire (expiresAt = null, used by persistent inboxes)
+      if (inbox.expiresAt && inbox.expiresAt < now) {
         this.inboxService.deleteInbox(inbox.emailAddress);
       }
     }

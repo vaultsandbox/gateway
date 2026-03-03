@@ -402,6 +402,8 @@ export class ServerInfoServiceStub implements Partial<ServerInfoService> {
     webhookRequireAuthDefault: false,
     spamAnalysisEnabled: false,
     chaosEnabled: false,
+    persistencePolicy: 'always',
+    persistentGlobalWebhooks: false,
   });
 
   get serverInfo() {
@@ -451,6 +453,8 @@ export class VaultSandboxApiStub implements Partial<VaultSandboxApi> {
       webhookRequireAuthDefault: false,
       spamAnalysisEnabled: false,
       chaosEnabled: false,
+      persistencePolicy: 'always' as const,
+      persistentGlobalWebhooks: false,
     });
   }
 
@@ -461,6 +465,7 @@ export class VaultSandboxApiStub implements Partial<VaultSandboxApi> {
     encryption?: 'encrypted' | 'plain';
     emailAuth?: boolean;
     spamAnalysis?: boolean;
+    persistence?: 'persistent' | 'ephemeral';
   }) {
     consumeArgs(options);
     return of({
@@ -470,6 +475,7 @@ export class VaultSandboxApiStub implements Partial<VaultSandboxApi> {
       encrypted: options.encryption !== 'plain',
       serverSigPk: options.encryption !== 'plain' ? 'stub' : undefined,
       emailAuth: options.emailAuth ?? true,
+      persistent: options.persistence !== 'ephemeral',
     });
   }
 

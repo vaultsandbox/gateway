@@ -46,7 +46,7 @@ FROM node:24.13.0-alpine@sha256:931d7d57f8c1fd0e2179dbff7cc7da4c9dd100998bc2b32a
 # OCI metadata labels
 LABEL org.opencontainers.image.title="VaultSandbox Gateway" \
       org.opencontainers.image.description="Secure receive-only SMTP server with automatic TLS certificate management" \
-      org.opencontainers.image.version="0.9.2" \
+      org.opencontainers.image.version="0.9.3" \
       org.opencontainers.image.authors="Antero" \
       org.opencontainers.image.licenses="Apache-2.0" \
       org.opencontainers.image.source="https://github.com/vaultsandbox/gateway"

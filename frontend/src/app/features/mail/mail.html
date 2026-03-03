@@ -44,6 +44,9 @@
                 class="text-xs text-surface-500 dark:text-surface-400 truncate max-w-[200px] sm:max-w-[260px] md:max-w-none"
               >
                 Expires: {{ selectedInbox()!.expiresAt | date: dateFormat() }}
+                @if (selectedInbox()!.persistent !== undefined) {
+                  · {{ selectedInbox()!.persistent ? 'Persistent' : 'Ephemeral' }}
+                }
               </span>
             </div>
             <!-- Desktop buttons -->

@@ -28,6 +28,8 @@ describe('ServerInfoService', () => {
     webhookRequireAuthDefault: true,
     spamAnalysisEnabled: false,
     chaosEnabled: false,
+    persistencePolicy: 'always',
+    persistentGlobalWebhooks: false,
   });
 
   beforeEach(() => {

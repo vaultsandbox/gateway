@@ -1,6 +1,17 @@
-import { IsString, IsOptional, IsInt, MaxLength, IsIn, IsBoolean, ValidateNested } from 'class-validator';
+import {
+  IsString,
+  IsOptional,
+  IsInt,
+  MaxLength,
+  IsIn,
+  IsBoolean,
+  ValidateNested,
+  Min,
+  Max,
+  ValidateIf,
+} from 'class-validator';
 import { Type } from 'class-transformer';
-import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
+import { ApiPropertyOptional } from '@nestjs/swagger';
 import { CreateChaosConfigDto } from '../../chaos/dto/chaos-config.dto';
 
 export class CreateInboxDto {
@@ -12,15 +23,21 @@ export class CreateInboxDto {
   @IsString()
   clientKemPk?: string; // Base64URL-encoded ML-KEM-768 public key (optional for plain inboxes)
 
-  @ApiProperty({
-    description: 'Time-to-live for the inbox in seconds. Defaults to 1 hour.',
+  @ApiPropertyOptional({
+    description:
+      'Time-to-live for the inbox in seconds. Defaults to 1 hour for ephemeral inboxes. ' +
+      'Set to null for persistent inboxes that never expire (only valid when persistence is "persistent").',
     minimum: 60,
     maximum: 604800, // 7 days
-    required: false,
+    example: 3600,
+    nullable: true,
   })
   @IsOptional()
+  @ValidateIf((o: CreateInboxDto) => o.ttl !== null)
   @IsInt()
-  ttl?: number; // Time-to-live in seconds
+  @Min(60)
+  @Max(604800)
+  ttl?: number | null; // Time-to-live in seconds, null = never expires (persistent only)
 
   @ApiPropertyOptional({
     description: 'Optional desired email address or domain. If not provided, a random address will be generated.',
@@ -66,4 +83,16 @@ export class CreateInboxDto {
   @ValidateNested()
   @Type(() => CreateChaosConfigDto)
   chaos?: CreateChaosConfigDto;
+
+  @ApiPropertyOptional({
+    description:
+      'Persistence preference. Omit to use server default. ' +
+      'Ignored if server is locked to "always" or "never" persistence policy. ' +
+      'Persistent inboxes survive server restarts but do not store emails.',
+    enum: ['persistent', 'ephemeral'],
+    example: 'persistent',
+  })
+  @IsOptional()
+  @IsIn(['persistent', 'ephemeral'])
+  persistence?: 'persistent' | 'ephemeral';
 }

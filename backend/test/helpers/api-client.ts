@@ -41,10 +41,11 @@ export interface ChaosConfig {
 
 export interface CreateInboxBody {
   clientKemPk?: string;
-  ttl?: number;
+  ttl?: number | null;
   emailAddress?: string;
   encryption?: 'encrypted' | 'plain';
   chaos?: ChaosConfig;
+  persistence?: 'persistent' | 'ephemeral';
 }
 
 export interface AuthOptions {

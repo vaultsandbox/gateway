@@ -1,5 +1,5 @@
 import type { SecureVersion } from 'tls';
-import { EncryptionPolicy } from './config.constants';
+import { EncryptionPolicy, PersistencePolicy } from './config.constants';
 
 /**
  * Configuration type definition for type-safe access
@@ -105,5 +105,10 @@ export interface VsbConfiguration {
   };
   chaos?: {
     enabled: boolean;
+  };
+  persistence?: {
+    policy: PersistencePolicy;
+    path: string;
+    persistentGlobalWebhooks: boolean;
   };
 }

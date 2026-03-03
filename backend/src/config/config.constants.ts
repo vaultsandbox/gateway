@@ -17,6 +17,23 @@ export enum EncryptionPolicy {
 
 export const DEFAULT_ENCRYPTION_POLICY = EncryptionPolicy.ALWAYS;
 
+/**
+ * Server-level persistence policy for inboxes and webhooks.
+ * Controls whether inbox metadata and webhooks can survive server restarts.
+ */
+export enum PersistencePolicy {
+  /** Persistence enabled by default; per-inbox override allowed */
+  ENABLED = 'enabled',
+  /** Persistence disabled by default; per-inbox override allowed */
+  DISABLED = 'disabled',
+  /** All inboxes persistent; per-inbox override NOT allowed */
+  ALWAYS = 'always',
+  /** No persistence; per-inbox override NOT allowed */
+  NEVER = 'never',
+}
+
+export const DEFAULT_PERSISTENCE_POLICY = PersistencePolicy.DISABLED;
+
 // Configuration defaults
 export const DEFAULT_DATA_PATH = '/app/data';
 export const DEFAULT_MAX_CONNECTIONS = 25;

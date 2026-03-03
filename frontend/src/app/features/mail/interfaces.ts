@@ -248,6 +248,9 @@ export interface InboxModel {
   /** Whether email authentication checks (SPF/DKIM/DMARC/PTR) are enabled for this inbox */
   emailAuth: boolean;
 
+  /** Whether this inbox is persistent (survives server restarts) */
+  persistent?: boolean;
+
   /** Server's public signing key for verifying encrypted messages (only for encrypted inboxes) */
   serverSigPk?: string;
 
@@ -290,6 +293,9 @@ export interface ExportedInboxData {
   /** Whether email authentication checks (SPF/DKIM/DMARC/PTR) are enabled for this inbox */
   emailAuth: boolean;
 
+  /** Whether this inbox is persistent (survives server restarts) */
+  persistent?: boolean;
+
   /** Server's ML-DSA-65 public key (base64url encoded, 1952 bytes decoded). Only for encrypted inboxes. */
   serverSigPk?: string;
 
@@ -325,6 +331,15 @@ export interface ImportResult {
  * - 'never': All inboxes are plain, no override allowed
  */
 export type EncryptionPolicy = 'always' | 'enabled' | 'disabled' | 'never';
+
+/**
+ * Persistence policy values that control inbox persistence behavior.
+ * - 'always': All inboxes are persistent, no override allowed
+ * - 'enabled': Default persistent, can request ephemeral
+ * - 'disabled': Default ephemeral, can request persistent
+ * - 'never': All inboxes are ephemeral, no override allowed
+ */
+export type PersistencePolicy = 'always' | 'enabled' | 'disabled' | 'never';
 
 /**
  * Server configuration and cryptographic algorithm information.
@@ -368,6 +383,12 @@ export interface ServerInfo {
 
   /** Whether chaos engineering is enabled on this server */
   chaosEnabled: boolean;
+
+  /** Persistence policy controlling inbox persistence behavior */
+  persistencePolicy: PersistencePolicy;
+
+  /** Whether global webhooks are persisted across server restarts */
+  persistentGlobalWebhooks: boolean;
 }
 
 /**
@@ -391,6 +412,9 @@ export interface CreateInboxResponse {
 
   /** Whether email authentication (SPF/DKIM/DMARC/PTR) is enabled for this inbox */
   emailAuth: boolean;
+
+  /** Whether this inbox is persistent (survives server restarts) */
+  persistent: boolean;
 }
 
 /**

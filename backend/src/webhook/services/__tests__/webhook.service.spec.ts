@@ -7,6 +7,7 @@ import { WebhookTemplateService } from '../webhook-template.service';
 import { WebhookDeliveryService } from '../webhook-delivery.service';
 import { WebhookFilterService } from '../webhook-filter.service';
 import { InboxStorageService } from '../../../inbox/storage/inbox-storage.service';
+import { PersistenceService } from '../../../persistence/persistence.service';
 import { CreateWebhookDto } from '../../dto/create-webhook.dto';
 import { UpdateWebhookDto } from '../../dto/update-webhook.dto';
 import { Webhook } from '../../interfaces/webhook.interface';
@@ -111,6 +112,17 @@ describe('WebhookService', () => {
 
     const mockInboxStorageService = {
       getInbox: jest.fn(),
+      getInboxByHash: jest.fn(),
+    };
+
+    const mockPersistenceService = {
+      isGlobalWebhookPersistenceEnabled: jest.fn().mockReturnValue(false),
+      persistGlobalWebhook: jest.fn().mockResolvedValue(undefined),
+      updatePersistedGlobalWebhook: jest.fn().mockResolvedValue(undefined),
+      removePersistedGlobalWebhook: jest.fn().mockResolvedValue(undefined),
+      persistInboxWebhook: jest.fn().mockResolvedValue(undefined),
+      updatePersistedInboxWebhook: jest.fn().mockResolvedValue(undefined),
+      removePersistedInboxWebhook: jest.fn().mockResolvedValue(undefined),
     };
 
     const module: TestingModule = await Test.createTestingModule({
@@ -122,6 +134,7 @@ describe('WebhookService', () => {
         { provide: WebhookDeliveryService, useValue: mockDeliveryService },
         { provide: WebhookFilterService, useValue: mockFilterService },
         { provide: InboxStorageService, useValue: mockInboxStorageService },
+        { provide: PersistenceService, useValue: mockPersistenceService },
       ],
     }).compile();
 
@@ -685,6 +698,10 @@ describe('WebhookService', () => {
 
   describe('HTTP URL with allowHttp enabled', () => {
     it('should allow HTTP URLs when allowHttp is true', async () => {
+      const mockPersistenceService = {
+        isGlobalWebhookPersistenceEnabled: jest.fn().mockReturnValue(false),
+        persistGlobalWebhook: jest.fn().mockResolvedValue(undefined),
+      };
       const module: TestingModule = await Test.createTestingModule({
         providers: [
           WebhookService,
@@ -694,6 +711,7 @@ describe('WebhookService', () => {
           { provide: WebhookDeliveryService, useValue: deliveryService },
           { provide: WebhookFilterService, useValue: filterService },
           { provide: InboxStorageService, useValue: inboxStorageService },
+          { provide: PersistenceService, useValue: mockPersistenceService },
         ],
       }).compile();
 

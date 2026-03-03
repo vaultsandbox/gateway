@@ -1,5 +1,10 @@
-import { parseEncryptionPolicy, isDevMode } from '../config.parsers';
-import { EncryptionPolicy, DEFAULT_ENCRYPTION_POLICY } from '../config.constants';
+import { parseEncryptionPolicy, parsePersistencePolicy, isDevMode } from '../config.parsers';
+import {
+  EncryptionPolicy,
+  DEFAULT_ENCRYPTION_POLICY,
+  PersistencePolicy,
+  DEFAULT_PERSISTENCE_POLICY,
+} from '../config.constants';
 
 describe('isDevMode', () => {
   const originalEnv = process.env;
@@ -93,5 +98,44 @@ describe('parseEncryptionPolicy', () => {
 
   it('should return default for empty string', () => {
     expect(parseEncryptionPolicy('')).toBe(DEFAULT_ENCRYPTION_POLICY);
+  });
+});
+
+describe('parsePersistencePolicy', () => {
+  it('should return ENABLED for "enabled"', () => {
+    expect(parsePersistencePolicy('enabled')).toBe(PersistencePolicy.ENABLED);
+  });
+
+  it('should return DISABLED for "disabled"', () => {
+    expect(parsePersistencePolicy('disabled')).toBe(PersistencePolicy.DISABLED);
+  });
+
+  it('should return ALWAYS for "always"', () => {
+    expect(parsePersistencePolicy('always')).toBe(PersistencePolicy.ALWAYS);
+  });
+
+  it('should return NEVER for "never"', () => {
+    expect(parsePersistencePolicy('never')).toBe(PersistencePolicy.NEVER);
+  });
+
+  it('should be case-insensitive', () => {
+    expect(parsePersistencePolicy('ENABLED')).toBe(PersistencePolicy.ENABLED);
+    expect(parsePersistencePolicy('DISABLED')).toBe(PersistencePolicy.DISABLED);
+    expect(parsePersistencePolicy('ALWAYS')).toBe(PersistencePolicy.ALWAYS);
+    expect(parsePersistencePolicy('NEVER')).toBe(PersistencePolicy.NEVER);
+    expect(parsePersistencePolicy('Enabled')).toBe(PersistencePolicy.ENABLED);
+  });
+
+  it('should trim whitespace', () => {
+    expect(parsePersistencePolicy('  enabled  ')).toBe(PersistencePolicy.ENABLED);
+    expect(parsePersistencePolicy('\tdisabled\n')).toBe(PersistencePolicy.DISABLED);
+  });
+
+  it('should return default for undefined', () => {
+    expect(parsePersistencePolicy(undefined)).toBe(DEFAULT_PERSISTENCE_POLICY);
+  });
+
+  it('should return default for empty string', () => {
+    expect(parsePersistencePolicy('')).toBe(DEFAULT_PERSISTENCE_POLICY);
   });
 });

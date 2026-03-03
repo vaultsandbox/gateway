@@ -41,7 +41,7 @@ export class InboxStorageService {
   createInbox(
     emailAddress: string,
     clientKemPk: string | undefined,
-    expiresAt: Date,
+    expiresAt: Date | null,
     inboxHash: string,
     encrypted: boolean,
     emailAuth: boolean,
@@ -71,6 +71,7 @@ export class InboxStorageService {
       emailAuth,
       spamAnalysis,
       chaos,
+      persistent: false, // Default to non-persistent; caller can update via persistence service
       createdAt: new Date(),
       expiresAt,
       emails: new Map(),
@@ -81,9 +82,40 @@ export class InboxStorageService {
     this.inboxHashToEmail.set(inboxHash, normalizedEmail);
     this._updateEmailsHash(inbox); // Initialize emailsHash for empty inbox
     this.logger.log(
-      `Inbox created: ${normalizedEmail} (encrypted=${encrypted}, emailAuth=${emailAuth}), expires at ${expiresAt.toISOString()}`,
+      `Inbox created: ${normalizedEmail} (encrypted=${encrypted}, emailAuth=${emailAuth}), expires at ${expiresAt?.toISOString() ?? 'never'}`,
     );
     return inbox;
+  }
+
+  /**
+   * Restore a persisted inbox to in-memory storage.
+   * Used by PersistenceService during startup to restore persisted inboxes.
+   * Unlike createInbox, this accepts a pre-hydrated Inbox object.
+   *
+   * @param inbox - Pre-hydrated inbox object with all fields set
+   * @throws ConflictException if inbox hash already exists
+   */
+  restoreInbox(inbox: Inbox): void {
+    const normalizedEmail = this.normalizeEmail(inbox.emailAddress);
+
+    // Check for duplicate inboxHash
+    /* v8 ignore next 7 - defensive: persistence layer prevents duplicates */
+    if (this.inboxHashToEmail.has(inbox.inboxHash)) {
+      const existingEmail = this.inboxHashToEmail.get(inbox.inboxHash);
+      this.logger.warn(
+        `Duplicate inboxHash during restore: ${inbox.inboxHash} (existing: ${existingEmail}, attempted: ${normalizedEmail})`,
+      );
+      throw new ConflictException('An inbox with this hash already exists.');
+    }
+
+    // Normalize the email address in the inbox object
+    inbox.emailAddress = normalizedEmail;
+
+    this.inboxes.set(normalizedEmail, inbox);
+    this.inboxHashToEmail.set(inbox.inboxHash, normalizedEmail);
+    this.logger.log(
+      `Inbox restored: ${normalizedEmail} (persistent=${inbox.persistent}, encrypted=${inbox.encrypted}), expires at ${inbox.expiresAt?.toISOString() ?? 'never'}`,
+    );
   }
 
   /**
@@ -91,6 +123,26 @@ export class InboxStorageService {
    */
   getInbox(emailAddress: string): Inbox | undefined {
     return this.inboxes.get(this.normalizeEmail(emailAddress));
+  }
+
+  /**
+   * Update the persistent flag on an inbox.
+   * Called by InboxService after successfully persisting an inbox.
+   *
+   * @param inboxHash - Inbox hash to update
+   * @param persistent - New persistent state
+   */
+  setPersistent(inboxHash: string, persistent: boolean): void {
+    const emailAddress = this.inboxHashToEmail.get(inboxHash);
+    /* v8 ignore next 3 - defensive: called after inbox creation */
+    if (!emailAddress) {
+      return; // Inbox not found, silently ignore
+    }
+
+    const inbox = this.inboxes.get(emailAddress);
+    if (inbox) {
+      inbox.persistent = persistent;
+    }
   }
 
   /**

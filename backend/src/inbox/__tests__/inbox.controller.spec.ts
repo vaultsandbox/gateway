@@ -22,6 +22,7 @@ describe('InboxController', () => {
       inboxHash: 'mockHash',
       encrypted: true,
       emailAuth: true,
+      persistent: false,
       createdAt: new Date(),
       expiresAt: new Date(Date.now() + 3600000),
       emails: new Map(),
@@ -117,6 +118,7 @@ describe('InboxController', () => {
         inboxHash: 'mockHash',
         encrypted: true,
         emailAuth: true,
+        persistent: false,
         serverSigPk: 'serverSigPk123',
       });
       expect(inboxService.createInbox).toHaveBeenCalledWith(
@@ -127,6 +129,7 @@ describe('InboxController', () => {
         undefined,
         undefined,
         undefined, // chaos
+        undefined, // persistence
       );
     });
 
@@ -151,6 +154,7 @@ describe('InboxController', () => {
         undefined,
         undefined,
         undefined, // chaos
+        undefined, // persistence
       );
     });
   });

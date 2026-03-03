@@ -49,9 +49,10 @@ import {
   parseAllowedDomains,
   parseDisabledCommands,
   parseEncryptionPolicy,
+  parsePersistencePolicy,
   isDevMode,
 } from './config/config.parsers';
-import { EncryptionPolicy } from './config/config.constants';
+import { EncryptionPolicy, PersistencePolicy } from './config/config.constants';
 import { isValidDomain, validateTlsConfig } from './config/config.validators';
 import { buildTlsConfig, generateNodeId, generateSharedSecret } from './config/config.utils';
 import { getErrorMessage } from './shared/error.utils';
@@ -813,6 +814,36 @@ function buildChaosConfig() {
 }
 
 /**
+ * Build Persistence Configuration
+ *
+ * Configures optional persistence for inboxes and webhooks to survive server restarts.
+ * Persistence stores inbox metadata and webhook configurations to disk (emails are NOT persisted).
+ * Data is stored under VSB_DATA_PATH (same directory as the API key file).
+ *
+ * Optional environment variables:
+ * - VSB_PERSISTENCE_POLICY: Persistence policy ('enabled', 'disabled', 'always', 'never') (default: 'disabled')
+ * - VSB_PERSISTENT_GLOBAL_WEBHOOKS: Persist all global webhooks (default: false)
+ */
+function buildPersistenceConfig() {
+  const policy = parsePersistencePolicy(process.env.VSB_PERSISTENCE_POLICY);
+  const dataPath = parseStringWithDefault(process.env.VSB_DATA_PATH, DEFAULT_DATA_PATH);
+  const persistentGlobalWebhooks = parseOptionalBoolean(process.env.VSB_PERSISTENT_GLOBAL_WEBHOOKS, false);
+
+  if (policy !== PersistencePolicy.NEVER && policy !== PersistencePolicy.DISABLED) {
+    logger.log(`Persistence enabled - policy: ${policy}, path: ${dataPath}`);
+    if (persistentGlobalWebhooks) {
+      logger.log('Global webhooks persistence enabled');
+    }
+  }
+
+  return {
+    policy,
+    path: dataPath,
+    persistentGlobalWebhooks,
+  };
+}
+
+/**
  * Register Config VSB
  */
 export default registerAs('vsb', () => {
@@ -833,5 +864,6 @@ export default registerAs('vsb', () => {
     webhook: gatewayMode === 'local' ? buildWebhookConfig() : undefined,
     spamAnalysis: gatewayMode === 'local' ? buildSpamAnalysisConfig() : undefined,
     chaos: gatewayMode === 'local' ? buildChaosConfig() : undefined,
+    persistence: gatewayMode === 'local' ? buildPersistenceConfig() : undefined,
   };
 });

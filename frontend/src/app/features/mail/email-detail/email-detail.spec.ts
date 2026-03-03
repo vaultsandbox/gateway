@@ -613,6 +613,8 @@ describe('EmailDetail', () => {
         webhookRequireAuthDefault: false,
         spamAnalysisEnabled: true,
         chaosEnabled: false,
+        persistencePolicy: 'always',
+        persistentGlobalWebhooks: false,
       });
 
       expect(component.isSpamAnalysisEnabled()).toBeTrue();
@@ -633,6 +635,8 @@ describe('EmailDetail', () => {
         webhookRequireAuthDefault: false,
         spamAnalysisEnabled: false,
         chaosEnabled: false,
+        persistencePolicy: 'always',
+        persistentGlobalWebhooks: false,
       });
 
       expect(component.isSpamAnalysisEnabled()).toBeFalse();
@@ -801,6 +805,8 @@ describe('EmailDetail', () => {
         webhookRequireAuthDefault: false,
         spamAnalysisEnabled: true,
         chaosEnabled: false,
+        persistencePolicy: 'always',
+        persistentGlobalWebhooks: false,
       });
 
       component.email = createMockEmail();

@@ -52,6 +52,7 @@ export class MailManager {
    * @param encryption Optional encryption preference: 'encrypted' | 'plain'. Omit to use server default.
    * @param emailAuth Optional email auth preference: true/false. Omit to use server default.
    * @param spamAnalysis Optional spam analysis preference: true/false. Omit to use server default.
+   * @param persistence Optional persistence preference: 'persistent' | 'ephemeral'. Omit to use server default.
    */
   createInbox(
     emailAddress?: string,
@@ -59,8 +60,9 @@ export class MailManager {
     encryption?: 'encrypted' | 'plain',
     emailAuth?: boolean,
     spamAnalysis?: boolean,
+    persistence?: 'persistent' | 'ephemeral',
   ): Promise<{ created: boolean; email: string }> {
-    return this.inboxService.createInbox(emailAddress, ttlSeconds, encryption, emailAuth, spamAnalysis);
+    return this.inboxService.createInbox(emailAddress, ttlSeconds, encryption, emailAuth, spamAnalysis, persistence);
   }
 
   /**

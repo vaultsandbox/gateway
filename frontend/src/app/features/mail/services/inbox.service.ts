@@ -90,6 +90,7 @@ export class InboxService implements OnDestroy {
    * @param encryption Optional encryption preference: 'encrypted' | 'plain'. Omit to use server default.
    * @param emailAuth Optional email auth preference: true/false. Omit to use server default.
    * @param spamAnalysis Optional spam analysis preference: true/false. Omit to use server default.
+   * @param persistence Optional persistence preference: 'persistent' | 'ephemeral'. Omit to use server default.
    */
   async createInbox(
     emailAddress?: string,
@@ -97,6 +98,7 @@ export class InboxService implements OnDestroy {
     encryption?: 'encrypted' | 'plain',
     emailAuth?: boolean,
     spamAnalysis?: boolean,
+    persistence?: 'persistent' | 'ephemeral',
   ): Promise<{ created: boolean; email: string }> {
     try {
       const ttl = ttlSeconds ?? (await this.settingsManager.getTtlSetting()).ttlSeconds;
@@ -115,6 +117,7 @@ export class InboxService implements OnDestroy {
           encryption,
           emailAuth,
           spamAnalysis,
+          persistence,
         }),
       );
 
@@ -124,6 +127,7 @@ export class InboxService implements OnDestroy {
         inboxHash: result.inboxHash,
         encrypted: result.encrypted,
         emailAuth: result.emailAuth,
+        persistent: result.persistent,
         serverSigPk: result.serverSigPk,
         secretKey: keypair?.secretKey,
         emails: [],
